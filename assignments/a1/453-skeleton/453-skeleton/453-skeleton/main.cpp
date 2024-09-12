@@ -116,3 +116,6 @@ void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 }
+
+
+
