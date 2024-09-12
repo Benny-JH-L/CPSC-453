@@ -90,7 +90,7 @@ int main()
 
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawArrays(GL_LINE_LOOP, 0, 3);	
+		glDrawArrays(GL_LINE_LOOP, 0, 4);	
 
 		window.swapBuffers();
 	}
