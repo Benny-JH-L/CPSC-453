@@ -41,7 +41,10 @@ public:
 };
 // END EXAMPLES
 
-int main() {
+void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
+int main()
+{
 	Log::debug("Starting main");
 
 	// WINDOW
@@ -60,6 +63,7 @@ int main() {
 	CPU_Geometry cpuGeom;
 	GPU_Geometry gpuGeom;
 
+	/* DEMO (from og file)
 	// vertices
 	cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
 	cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
@@ -72,6 +76,10 @@ int main() {
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
+	*/
+
+	squarePatternTest(cpuGeom, gpuGeom);
+	std::cout << "Number of verticies inside cpuGeom = " << cpuGeom.verts.size() << std::endl;
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -82,12 +90,29 @@ int main() {
 
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
+		glDrawArrays(GL_LINE_LOOP, 0, 3);	
 
 		window.swapBuffers();
 	}
 
 	glfwTerminate();
 	return 0;
+}
+
+void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	// vertices
+	cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));	// (1.f, 1.f, 1.f) will be the top right corner of the window
+	cpuGeom.verts.push_back(glm::vec3(-0.5f, 0.5f, 0.f));
+	cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
+	cpuGeom.verts.push_back(glm::vec3(0.5f, 0.5f, 0.f));
+
+	// colours (these should be in linear space)
+	cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));	// if i used all 1's the triangle will be white,
+	cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));	// all 0's for black
+	cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+	cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+
+	gpuGeom.setVerts(cpuGeom.verts);
+	gpuGeom.setCols(cpuGeom.cols);
 }
