@@ -103,9 +103,9 @@ int main()
 
 
 	//squarePatternTest(cpuGeom, gpuGeom);	// Test
-
-
-	int numIter = 10;
+	int numIter = 0;
+	std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
+	std::cin >> numIter;
 	sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
 	std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
 
@@ -260,7 +260,7 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int 
 	baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
 
 	// Debug
-	std::cout << "Printing base triangle': \n"
+	std::cout << "Printing base triangle: \n"
 		<< baseTriangle[0] << "\n"
 		<< baseTriangle[1] << "\n"
 		<< baseTriangle[2] << "\n" << std::endl;
