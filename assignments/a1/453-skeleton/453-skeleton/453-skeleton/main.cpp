@@ -117,11 +117,19 @@ int main()
 	return 0;
 }
 
+/**
+* Calculates the halfway x-coord. of two vectors
+* @return float, the halfway x-coord. of two vectors.
+*/
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
 {
 	return (v1.x + v2.x) / 2;
 }
 
+/**
+* Calculates the halfway y-coord. of two vectors
+* @return float, the halfway y-coord. of two vectors.
+*/
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 {
 	return (v1.y + v2.y) / 2;
@@ -137,8 +145,32 @@ void sierpinskiRecurr(CPU_Geometry& cpuGeom, int numIterations)
 	printVectorLocation(topMidVec, 1);
 	printVectorLocation(bottomRightVec, 2);
 
-	// calculate 3 other vectors (1st iteration test)
-	bottomLeftVec.x;
+	glm::vec3 vects[3] = {bottomLeftVec, topMidVec, bottomRightVec};
+
+	// calculating x and y halfway points of vectors
+	float halfwayX[3] = {};	// stores all the halfway x-coordinates
+	float halfwayY[3] = {};	// stores all the halfway y-coordinates
+
+	// half way points for vectors 0 and 1
+	halfwayX[0] = calcHalfWayX(vects[0], vects[1]);
+	halfwayY[0] = calcHalfWayY(vects[0], vects[1]);
+	// half way points for vectors 1 and 2
+	halfwayX[1] = calcHalfWayX(vects[1], vects[2]);
+	halfwayY[1] = calcHalfWayY(vects[1], vects[2]);
+	// half way points for vectors 0 and 2
+	halfwayX[2] = calcHalfWayX(vects[0], vects[2]);
+	halfwayY[2] = calcHalfWayY(vects[0], vects[2]);
+
+	// debug
+	for (int i = 0; i < 3; i++)
+	{
+		std::cout	<< "(" << halfwayX[i] << ", "
+					<< halfwayY[i] << ")" << std::endl;
+	}
+
+	for (int i = 0; i < 3; i++)
+		cpuGeom.verts.push_back(glm::vec3(halfwayX[i], halfwayY[i], 0.f));
+
 }
 
 void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
