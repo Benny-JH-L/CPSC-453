@@ -103,11 +103,20 @@ int main()
 
 
 	//squarePatternTest(cpuGeom, gpuGeom);	// Test
-	int numIter = 0;
-	std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
-	std::cin >> numIter;
-	sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
-	std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
+
+	int numIter = -1;
+	while (numIter < 0)
+	{
+		std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
+		std::cin >> numIter;
+		if (numIter < 0)
+		{
+			std::cout << "\nInvalid input..." << std::endl;
+			continue;
+		}
+		sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
+		std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
+	}
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -249,9 +258,6 @@ void sierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec
 */
 void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
-	if (numIterations < 0)
-		return;
-
 	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
 	// create base triangle
@@ -265,8 +271,17 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int 
 		<< baseTriangle[1] << "\n"
 		<< baseTriangle[2] << "\n" << std::endl;
 
-	int currentIteration = 1;
-	sierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
+	if (numIterations == 0)
+	{
+		cpuGeom.verts.push_back(baseTriangle[0]);
+		cpuGeom.verts.push_back(baseTriangle[1]);
+		cpuGeom.verts.push_back(baseTriangle[2]);
+	}
+	else
+	{
+		int currentIteration = 1;
+		sierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
+	}
 	setRainbowCol(cpuGeom);
 
 	gpuGeom.setVerts(cpuGeom.verts);
