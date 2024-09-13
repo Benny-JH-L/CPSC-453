@@ -41,6 +41,8 @@ public:
 };
 // END EXAMPLES
 
+
+
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 void setRainbowCol(CPU_Geometry& cpuGeom);
@@ -135,53 +137,145 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 	return (v1.y + v2.y) / 2;
 }
 
-void sierpinskiRecurr(CPU_Geometry& cpuGeom, int numIterations)
+//void sierpinskiRecurr(CPU_Geometry& cpuGeom, int numIterations)
+//{
+//	glm::vec3 bottomLeftVec = cpuGeom.verts.at(0);
+//	glm::vec3 topMidVec = cpuGeom.verts.at(1);
+//	glm::vec3 bottomRightVec = cpuGeom.verts.at(2);
+//
+//	// Debug
+//	printVectorLocation(bottomLeftVec, 0);
+//	printVectorLocation(topMidVec, 1);
+//	printVectorLocation(bottomRightVec, 2);
+//
+//	glm::vec3 vects[3] = {bottomLeftVec, topMidVec, bottomRightVec};
+//
+//	// calculating x and y halfway points of vectors
+//	float halfwayX[3] = {};	// stores all the halfway x-coordinates
+//	float halfwayY[3] = {};	// stores all the halfway y-coordinates
+//
+//	// half way points for vectors 0 and 1
+//	halfwayX[0] = calcHalfWayX(vects[0], vects[1]);
+//	halfwayY[0] = calcHalfWayY(vects[0], vects[1]);
+//	// half way points for vectors 1 and 2
+//	halfwayX[1] = calcHalfWayX(vects[1], vects[2]);
+//	halfwayY[1] = calcHalfWayY(vects[1], vects[2]);
+//	// half way points for vectors 0 and 2
+//	halfwayX[2] = calcHalfWayX(vects[0], vects[2]);
+//	halfwayY[2] = calcHalfWayY(vects[0], vects[2]);
+//
+//	//for (int i = 0; i < 3; i++)
+//	//	cpuGeom.verts.push_back(glm::vec3(halfwayX[i], halfwayY[i], 0.f));
+//
+//
+//	// debug
+//	//for (int i = 0; i < 3; i++)
+//	//{
+//	//	std::cout	<< "(" << halfwayX[i] << ", "
+//	//				<< halfwayY[i] << ")" << std::endl;
+//	//}
+//
+//}
+
+void sierpinskiRecurr(std::vector<glm::vec3>& allVec3, int& currentIteration, const int numIterations)
 {
-	glm::vec3 bottomLeftVec = cpuGeom.verts.at(0);
-	glm::vec3 topMidVec = cpuGeom.verts.at(1);
-	glm::vec3 bottomRightVec = cpuGeom.verts.at(2);
-
-	printVectorLocation(bottomLeftVec, 0);
-	printVectorLocation(topMidVec, 1);
-	printVectorLocation(bottomRightVec, 2);
-
-	glm::vec3 vects[3] = {bottomLeftVec, topMidVec, bottomRightVec};
-
 	// calculating x and y halfway points of vectors
 	float halfwayX[3] = {};	// stores all the halfway x-coordinates
 	float halfwayY[3] = {};	// stores all the halfway y-coordinates
 
 	// half way points for vectors 0 and 1
-	halfwayX[0] = calcHalfWayX(vects[0], vects[1]);
-	halfwayY[0] = calcHalfWayY(vects[0], vects[1]);
+	halfwayX[0] = calcHalfWayX(allVec3[0], allVec3[1]);
+	halfwayY[0] = calcHalfWayY(allVec3[0], allVec3[1]);
 	// half way points for vectors 1 and 2
-	halfwayX[1] = calcHalfWayX(vects[1], vects[2]);
-	halfwayY[1] = calcHalfWayY(vects[1], vects[2]);
+	halfwayX[1] = calcHalfWayX(allVec3[1], allVec3[2]);
+	halfwayY[1] = calcHalfWayY(allVec3[1], allVec3[2]);
 	// half way points for vectors 0 and 2
-	halfwayX[2] = calcHalfWayX(vects[0], vects[2]);
-	halfwayY[2] = calcHalfWayY(vects[0], vects[2]);
+	halfwayX[2] = calcHalfWayX(allVec3[0], allVec3[2]);
+	halfwayY[2] = calcHalfWayY(allVec3[0], allVec3[2]);
 
-	// debug
-	for (int i = 0; i < 3; i++)
+	std::vector<glm::vec3> halfWayVec3(3);
+	for (int i = 0; i < halfWayVec3.size(); i++)
 	{
-		std::cout	<< "(" << halfwayX[i] << ", "
-					<< halfwayY[i] << ")" << std::endl;
+		halfWayVec3[i] = glm::vec3(halfwayX[i], halfwayY[i], 0.f);
+		std::cout << "halfway vec3s: " << halfWayVec3[i] << std::endl;
 	}
 
+	// debug
+	std::cout << "Halfway points " << currentIteration << " iteration: \n";
 	for (int i = 0; i < 3; i++)
-		cpuGeom.verts.push_back(glm::vec3(halfwayX[i], halfwayY[i], 0.f));
+	{
+		std::cout << "(" << halfwayX[i] << ", "
+			<< halfwayY[i] << ")" << std::endl;
+	}
+
+	// debug
+	std::cout << "Printing everything in 'allVec3': \n";
+	for (std::vector<glm::vec3>::iterator it = allVec3.begin(); it != allVec3.end(); it++)
+	{
+		std::cout << (*it) << std::endl;
+
+		//if ((*it) == glm::vec3())
+		//	std::cout << "HI :) \n";
+	}
+	// NOTE: Both do the same
+	// std::cout << "Printing everything in 'allVec3': \n";
+	//for (int i = 0; i < allVec3.size(); i++)
+	//{
+	//	std::cout << allVec3[i] << std::endl;
+	//	if (allVec3[i] == glm::vec3())
+	//		std::cout << "HI :) \n";
+	//}
+
+	std::vector<glm::vec3> newVec3(allVec3.size());
+	// sub-triangle 1
+	newVec3[0] = allVec3[0];
+	newVec3[1] = halfWayVec3[2];
+	newVec3[2] = halfWayVec3[0];
+	// sub-triangle 2
+	newVec3[3] = allVec3[1];
+	newVec3[4] = halfWayVec3[0];
+	newVec3[5] = halfWayVec3[1];
+	// sub-triangle 3
+	newVec3[6] = allVec3[2];
+	newVec3[7] = halfWayVec3[1];
+	newVec3[8] = halfWayVec3[2];
+
+	allVec3 = newVec3;
+
+	// add vec3
+	//for (int i = 0, j = 0; j < 3; i++)
+	//{
+	//	if (allVec3[i] == glm::vec3())
+	//	{
+	//		allVec3[i] = glm::vec3(halfwayX[j], halfwayY[j], 0.f);
+	//		j++;
+	//	}
+	//}
 
 }
 
-void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
+void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations < 0)
 		return;
+
+	std::vector<glm::vec3> allVec3(int ((pow(3, numIterations)) * 3), glm::vec3());	// stores all the vec3's used to create the triangles.
+
+	// Add base triangle vec3's to 'allVec3'
+	allVec3[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
+	allVec3[1] = (glm::vec3(0.f, 0.5f, 0.f));
+	allVec3[2] = (glm::vec3(0.5f, -0.5f, 0.f));
+
+	// Debug
+	std::cout << "Printing first 3 elements in 'allVec3': \n"
+		<< allVec3[0] << "\n"
+		<< allVec3[1] << "\n"
+		<< allVec3[2] << "\n" << std::endl;
+
 	// Create base triangle
-	cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
-	cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
-	cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-	setRainbowCol(cpuGeom);
+	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
 
 	 //Test decolor (works)
 	//cpuGeom.verts.push_back(glm::vec3(-0.25f, -0.25f, 0.f));
@@ -191,7 +285,21 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIte
 	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
 	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
 
-	sierpinskiRecurr(cpuGeom, numIterations);
+	int currentIteration = 1;
+	sierpinskiRecurr(allVec3, currentIteration, numIterations);
+
+	for (int i = 0; i < allVec3.size(); i++)
+	{
+		if (allVec3[i] != glm::vec3())
+		{
+			std::cout << "Added vec3: " << allVec3[i] << std::endl;
+			cpuGeom.verts.push_back(allVec3[i]);
+		}
+	}
+	setRainbowCol(cpuGeom);
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 1.f));
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 1.f));
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 0.f));
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
