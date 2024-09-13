@@ -1,3 +1,8 @@
+/*
+* CPSC 453 | Assignment 1 Points, Lines and Triangles
+* UCID: 30192142
+* NAME: BENNY LIANG
+*/
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -42,8 +47,7 @@ public:
 // END EXAMPLES
 
 
-
-void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);
 void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 void setRainbowCol(CPU_Geometry& cpuGeom);
 void printVectorLocation(glm::vec3 vec, int vecNum);
@@ -98,8 +102,12 @@ int main()
 	*/
 
 
-	//squarePatternTest(cpuGeom, gpuGeom);
-	sierpinskiTriangle(cpuGeom, gpuGeom, 2);
+	//squarePatternTest(cpuGeom, gpuGeom);	// Test
+
+
+	int numIter = 10;
+	sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
+	std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -120,7 +128,7 @@ int main()
 }
 
 /**
-* Calculates the halfway x-coord. of two vectors
+* Calculates the halfway x-coord. of two vectors.
 * @return float, the halfway x-coord. of two vectors.
 */
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
@@ -129,7 +137,7 @@ float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
 }
 
 /**
-* Calculates the halfway y-coord. of two vectors
+* Calculates the halfway y-coord. of two vectors.
 * @return float, the halfway y-coord. of two vectors.
 */
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
@@ -137,86 +145,54 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 	return (v1.y + v2.y) / 2;
 }
 
-//void sierpinskiRecurr(CPU_Geometry& cpuGeom, int numIterations)
-//{
-//	glm::vec3 bottomLeftVec = cpuGeom.verts.at(0);
-//	glm::vec3 topMidVec = cpuGeom.verts.at(1);
-//	glm::vec3 bottomRightVec = cpuGeom.verts.at(2);
-//
-//	// Debug
-//	printVectorLocation(bottomLeftVec, 0);
-//	printVectorLocation(topMidVec, 1);
-//	printVectorLocation(bottomRightVec, 2);
-//
-//	glm::vec3 vects[3] = {bottomLeftVec, topMidVec, bottomRightVec};
-//
-//	// calculating x and y halfway points of vectors
-//	float halfwayX[3] = {};	// stores all the halfway x-coordinates
-//	float halfwayY[3] = {};	// stores all the halfway y-coordinates
-//
-//	// half way points for vectors 0 and 1
-//	halfwayX[0] = calcHalfWayX(vects[0], vects[1]);
-//	halfwayY[0] = calcHalfWayY(vects[0], vects[1]);
-//	// half way points for vectors 1 and 2
-//	halfwayX[1] = calcHalfWayX(vects[1], vects[2]);
-//	halfwayY[1] = calcHalfWayY(vects[1], vects[2]);
-//	// half way points for vectors 0 and 2
-//	halfwayX[2] = calcHalfWayX(vects[0], vects[2]);
-//	halfwayY[2] = calcHalfWayY(vects[0], vects[2]);
-//
-//	//for (int i = 0; i < 3; i++)
-//	//	cpuGeom.verts.push_back(glm::vec3(halfwayX[i], halfwayY[i], 0.f));
-//
-//
-//	// debug
-//	//for (int i = 0; i < 3; i++)
-//	//{
-//	//	std::cout	<< "(" << halfwayX[i] << ", "
-//	//				<< halfwayY[i] << ")" << std::endl;
-//	//}
-//
-//}
-
-void sierpinskiRecurr(std::vector<glm::vec3>& allVec3, int& currentIteration, const int numIterations)
+/**
+* Recursively calls itself to find Sierpinski Triangle's at sub-divisions/iterations.
+* @param CPU_Geometry& cpuGeom, a CPU_GEOMETRY.
+* @param std::vector<glm::vec3>& triangleVec3, a std::vector of type <glm::vec3> that contains 3 vec3 'vectors' that make up a triangle.
+* @param int currentIteration, the current iteration, or sub-division, to be calculated.
+* @param const int numIterations, the total number of iterations, or sub-divisions, to be calculate.
+*/
+void sierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec3, int currentIteration, const int numIterations)
 {
 	// calculating x and y halfway points of vectors
 	float halfwayX[3] = {};	// stores all the halfway x-coordinates
 	float halfwayY[3] = {};	// stores all the halfway y-coordinates
 
 	// half way points for vectors 0 and 1
-	halfwayX[0] = calcHalfWayX(allVec3[0], allVec3[1]);
-	halfwayY[0] = calcHalfWayY(allVec3[0], allVec3[1]);
+	halfwayX[0] = calcHalfWayX(triangleVec3[0], triangleVec3[1]);
+	halfwayY[0] = calcHalfWayY(triangleVec3[0], triangleVec3[1]);
 	// half way points for vectors 1 and 2
-	halfwayX[1] = calcHalfWayX(allVec3[1], allVec3[2]);
-	halfwayY[1] = calcHalfWayY(allVec3[1], allVec3[2]);
+	halfwayX[1] = calcHalfWayX(triangleVec3[1], triangleVec3[2]);
+	halfwayY[1] = calcHalfWayY(triangleVec3[1], triangleVec3[2]);
 	// half way points for vectors 0 and 2
-	halfwayX[2] = calcHalfWayX(allVec3[0], allVec3[2]);
-	halfwayY[2] = calcHalfWayY(allVec3[0], allVec3[2]);
+	halfwayX[2] = calcHalfWayX(triangleVec3[0], triangleVec3[2]);
+	halfwayY[2] = calcHalfWayY(triangleVec3[0], triangleVec3[2]);
 
+	// Create 'vec3' vectors using the halfway points calculated.
 	std::vector<glm::vec3> halfWayVec3(3);
 	for (int i = 0; i < halfWayVec3.size(); i++)
 	{
 		halfWayVec3[i] = glm::vec3(halfwayX[i], halfwayY[i], 0.f);
-		std::cout << "halfway vec3s: " << halfWayVec3[i] << std::endl;
+		// std::cout << "halfway vec3s: " << halfWayVec3[i] << std::endl; // debug
 	}
 
 	// debug
-	std::cout << "Halfway points " << currentIteration << " iteration: \n";
-	for (int i = 0; i < 3; i++)
-	{
-		std::cout << "(" << halfwayX[i] << ", "
-			<< halfwayY[i] << ")" << std::endl;
-	}
+	//std::cout << "Halfway points " << currentIteration << " iteration: \n";
+	//for (int i = 0; i < 3; i++)
+	//{
+	//	std::cout << "(" << halfwayX[i] << ", "
+	//		<< halfwayY[i] << ")" << std::endl;
+	//}
 
 	// debug
-	std::cout << "Printing everything in 'allVec3': \n";
-	for (std::vector<glm::vec3>::iterator it = allVec3.begin(); it != allVec3.end(); it++)
-	{
-		std::cout << (*it) << std::endl;
+	//std::cout << "Printing everything in 'triangleVec3': \n";
+	//for (std::vector<glm::vec3>::iterator it = triangleVec3.begin(); it != triangleVec3.end(); it++)
+	//{
+	//	std::cout << (*it) << std::endl;
 
-		//if ((*it) == glm::vec3())
-		//	std::cout << "HI :) \n";
-	}
+	//	//if ((*it) == glm::vec3())
+	//	//	std::cout << "HI :) \n";
+	//}
 	// NOTE: Both do the same
 	// std::cout << "Printing everything in 'allVec3': \n";
 	//for (int i = 0; i < allVec3.size(); i++)
@@ -226,80 +202,72 @@ void sierpinskiRecurr(std::vector<glm::vec3>& allVec3, int& currentIteration, co
 	//		std::cout << "HI :) \n";
 	//}
 
-	std::vector<glm::vec3> newVec3(allVec3.size());
+	// Creating sub-triangle groups
+	std::vector<glm::vec3> subTriangle1(3);
+	std::vector<glm::vec3> subTriangle2(3);
+	std::vector<glm::vec3> subTriangle3(3);
+
 	// sub-triangle 1
-	newVec3[0] = allVec3[0];
-	newVec3[1] = halfWayVec3[2];
-	newVec3[2] = halfWayVec3[0];
+	subTriangle1[0] = triangleVec3[0];
+	subTriangle1[1] = halfWayVec3[2];
+	subTriangle1[2] = halfWayVec3[0];
 	// sub-triangle 2
-	newVec3[3] = allVec3[1];
-	newVec3[4] = halfWayVec3[0];
-	newVec3[5] = halfWayVec3[1];
+	subTriangle2[0] = triangleVec3[1];
+	subTriangle2[1] = halfWayVec3[0];
+	subTriangle2[2] = halfWayVec3[1];
 	// sub-triangle 3
-	newVec3[6] = allVec3[2];
-	newVec3[7] = halfWayVec3[1];
-	newVec3[8] = halfWayVec3[2];
+	subTriangle3[0] = triangleVec3[2];
+	subTriangle3[1] = halfWayVec3[1];
+	subTriangle3[2] = halfWayVec3[2];
 
-	allVec3 = newVec3;
+	// Base case
+	if (currentIteration == numIterations)
+	{
+		// Add the sub-triangles to the cpuGeom
+		for (int i = 0; i < subTriangle1.size(); i++)
+			cpuGeom.verts.push_back(subTriangle1[i]);
+		for (int i = 0; i < subTriangle2.size(); i++)
+			cpuGeom.verts.push_back(subTriangle2[i]);
+		for (int i = 0; i < subTriangle3.size(); i++)
+			cpuGeom.verts.push_back(subTriangle3[i]);
 
-	// add vec3
-	//for (int i = 0, j = 0; j < 3; i++)
-	//{
-	//	if (allVec3[i] == glm::vec3())
-	//	{
-	//		allVec3[i] = glm::vec3(halfwayX[j], halfwayY[j], 0.f);
-	//		j++;
-	//	}
-	//}
-
+		return;
+	}
+	// Recursive case
+	else
+	{
+		// Continue with recursion
+		currentIteration++;
+		sierpinskiRecurr(cpuGeom, subTriangle1, currentIteration, numIterations);
+		sierpinskiRecurr(cpuGeom, subTriangle2, currentIteration, numIterations);
+		sierpinskiRecurr(cpuGeom, subTriangle3, currentIteration, numIterations);
+	}
 }
 
+/**
+* 2.1 Part 1 : Sierpinski Triangle
+*/
 void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations < 0)
 		return;
 
-	std::vector<glm::vec3> allVec3(int ((pow(3, numIterations)) * 3), glm::vec3());	// stores all the vec3's used to create the triangles.
+	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
-	// Add base triangle vec3's to 'allVec3'
-	allVec3[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
-	allVec3[1] = (glm::vec3(0.f, 0.5f, 0.f));
-	allVec3[2] = (glm::vec3(0.5f, -0.5f, 0.f));
+	// create base triangle
+	baseTriangle[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
+	baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
+	baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
 
 	// Debug
-	std::cout << "Printing first 3 elements in 'allVec3': \n"
-		<< allVec3[0] << "\n"
-		<< allVec3[1] << "\n"
-		<< allVec3[2] << "\n" << std::endl;
-
-	// Create base triangle
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-
-	 //Test decolor (works)
-	//cpuGeom.verts.push_back(glm::vec3(-0.25f, -0.25f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.25f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.25f, -0.25f, 0.f));
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
+	std::cout << "Printing base triangle': \n"
+		<< baseTriangle[0] << "\n"
+		<< baseTriangle[1] << "\n"
+		<< baseTriangle[2] << "\n" << std::endl;
 
 	int currentIteration = 1;
-	sierpinskiRecurr(allVec3, currentIteration, numIterations);
-
-	for (int i = 0; i < allVec3.size(); i++)
-	{
-		if (allVec3[i] != glm::vec3())
-		{
-			std::cout << "Added vec3: " << allVec3[i] << std::endl;
-			cpuGeom.verts.push_back(allVec3[i]);
-		}
-	}
+	sierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
 	setRainbowCol(cpuGeom);
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 1.f));
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 1.f));
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 0.f));
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
@@ -342,101 +310,101 @@ void printVectorLocation(glm::vec3 vec, int vecNum)
 	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ")" << std::endl;
 }
 
-//void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
-//{
-//	//int numVerts = 10;
-//	float xOffset = 0;
-//	float yOffset = 0;
-//	bool posDirection = true;
-//	bool xAxis = true;	// true = x-axis, false = y-axis
-//
-//	for (int i = 1; i <= numVerts; i++)
-//	{
-//		if (xAxis)
-//		{
-//			if (xOffset >= 0 && i != 1)
-//				xOffset += 0.05 * i;
-//			else if (xOffset < 0)
-//				xOffset -= 0.05 * i;
-//
-//			if (posDirection)
-//			{
-//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
-//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
-//			}
-//			else
-//			{
-//				xOffset = -xOffset;
-//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
-//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
-//				yOffset = -yOffset;
-//			}
-//		}
-//		else
-//		{
-//			if (xOffset == 0)
-//				yOffset = 0.05;
-//
-//			yOffset += xOffset;
-//
-//			if (posDirection)
-//			{
-//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
-//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
-//			}
-//			else
-//			{
-//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
-//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
-//				xOffset = -xOffset;
-//			}
-//			posDirection = !posDirection;
-//		}
-//
-//		xAxis = !xAxis;
-//	}
-//
-//	std::cout << "Number of vertices inside cpuGeom = " << cpuGeom.verts.size() << std::endl;
-//
-//	for (int i = 0, j = 0; i < numVerts; i++, j++)
-//	{
-//		switch (j)
-//		{
-//		case 0:
-//			cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
-//			break;
-//		case 1:
-//			cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
-//			break;
-//		case 2:
-//			cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
-//			break;
-//		}
-//
-//		if (j == 2)
-//			j = 0;
-//	}
-//
-//	// equivalent code:
-//	//int count = 0, count2 = 0;;
-//	//while (count2 < numVerts)
-//	//{
-//	//	if (count == 0)
-//	//		cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
-//	//	else if (count == 1)
-//	//		cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
-//	//	else
-//	//		cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
-//
-//	//	if (count == 2)
-//	//		count = 0;
-//	//	count++;
-//	//	count2++;
-//	//}
-//
-//	gpuGeom.setVerts(cpuGeom.verts);
-//	gpuGeom.setCols(cpuGeom.cols);
-//}
+void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts)
+{
+	//int numVerts = 10;
+	float xOffset = 0;
+	float yOffset = 0;
+	bool posDirection = true;
+	bool xAxis = true;	// true = x-axis, false = y-axis
+
+	for (int i = 1; i <= numVerts; i++)
+	{
+		if (xAxis)
+		{
+			if (xOffset >= 0 && i != 1)
+				xOffset += 0.05 * i;
+			else if (xOffset < 0)
+				xOffset -= 0.05 * i;
+
+			if (posDirection)
+			{
+				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+			}
+			else
+			{
+				xOffset = -xOffset;
+				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+				yOffset = -yOffset;
+			}
+		}
+		else
+		{
+			if (xOffset == 0)
+				yOffset = 0.05;
+
+			yOffset += xOffset;
+
+			if (posDirection)
+			{
+				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+			}
+			else
+			{
+				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+				xOffset = -xOffset;
+			}
+			posDirection = !posDirection;
+		}
+
+		xAxis = !xAxis;
+	}
+
+	std::cout << "Number of vertices inside cpuGeom = " << cpuGeom.verts.size() << std::endl;
+
+	for (int i = 0, j = 0; i < numVerts; i++, j++)
+	{
+		switch (j)
+		{
+		case 0:
+			cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+			break;
+		case 1:
+			cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+			break;
+		case 2:
+			cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+			break;
+		}
+
+		if (j == 2)
+			j = 0;
+	}
+
+	// equivalent code:
+	//int count = 0, count2 = 0;;
+	//while (count2 < numVerts)
+	//{
+	//	if (count == 0)
+	//		cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+	//	else if (count == 1)
+	//		cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+	//	else
+	//		cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+
+	//	if (count == 2)
+	//		count = 0;
+	//	count++;
+	//	count2++;
+	//}
+
+	gpuGeom.setVerts(cpuGeom.verts);
+	gpuGeom.setCols(cpuGeom.cols);
+}
 
 
 
