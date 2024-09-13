@@ -42,6 +42,10 @@ public:
 // END EXAMPLES
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
+void setRainbowCol(CPU_Geometry& cpuGeom);
+void printVectorLocation(glm::vec3 vec, int vecNum);
+void printVectorLocation(glm::vec3 vec);
 
 int main()
 {
@@ -63,22 +67,37 @@ int main()
 	CPU_Geometry cpuGeom;
 	GPU_Geometry gpuGeom;
 
-	/* DEMO (from og file)
+	// DEMO (from og file)
 	// vertices
-	cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
-	cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-	cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
 
-	// colours (these should be in linear space)
-	cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
-	cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
-	cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+	//// colours (these should be in linear space)
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
 
-	gpuGeom.setVerts(cpuGeom.verts);
-	gpuGeom.setCols(cpuGeom.cols);
+	//gpuGeom.setVerts(cpuGeom.verts);
+	//gpuGeom.setCols(cpuGeom.cols);
+
+	/* my tests
+	// vertices
+	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));	// (1.f, 1.f, 1.f) will be the top right corner of the window
+	//cpuGeom.verts.push_back(glm::vec3(-0.5f, 0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.5f, 0.5f, 0.f));
+
+	//// colours (these should be in linear space)
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));	// if i used all 1's the triangle will be white,
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));	// all 0's for black
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
 	*/
 
-	squarePatternTest(cpuGeom, gpuGeom);
+
+	//squarePatternTest(cpuGeom, gpuGeom);
+	sierpinskiTriangle(cpuGeom, gpuGeom, 2);
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -89,7 +108,7 @@ int main()
 
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawArrays(GL_LINE_LOOP, 0, 10);	
+		glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
 
 		window.swapBuffers();
 	}
@@ -98,71 +117,186 @@ int main()
 	return 0;
 }
 
-void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
 {
-	int numVerts = 10;
-	float offset = 0.2;
-	bool posDirection = true;
-	bool xAxis = true;	// true = x-axis, false = y-axis
+	return (v1.x + v2.x) / 2;
+}
 
-	for (int i = 0; i < numVerts; i++)
-	{
-		if (xAxis)
-		{
-			if (posDirection)
-			{
-				cpuGeom.verts.push_back(glm::vec3(offset * i, offset * i, 0.f));
-				std::cout << "added @ " << offset * i << ", " << offset * i << std::endl;
-			}
-			else
-			{
-				cpuGeom.verts.push_back(glm::vec3(-offset * i, offset * (i-1), 0.f));
-				std::cout << "added @ " << -offset * i << ", " << offset * (i-1) << std::endl;
-				offset *= -1;
-			}
-		}
-		else
-		{
-			if (posDirection)
-			{
-				cpuGeom.verts.push_back(glm::vec3(offset * (i-1), offset * i, 0.f));
-				posDirection = !posDirection;
-				std::cout << "added @ " << offset * (i-1) << ", " << offset * i << std::endl;
+float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
+{
+	return (v1.y + v2.y) / 2;
+}
 
-			}
-			else
-			{
-				cpuGeom.verts.push_back(glm::vec3(offset * (i-1), offset * i, 0.f));
-				posDirection = !posDirection;
-				std::cout << "added @ " << offset * (i-1) << ", " << offset * i << std::endl;
-				offset *= -1;
+void sierpinskiRecurr(CPU_Geometry& cpuGeom, int numIterations)
+{
+	glm::vec3 bottomLeftVec = cpuGeom.verts.at(0);
+	glm::vec3 topMidVec = cpuGeom.verts.at(1);
+	glm::vec3 bottomRightVec = cpuGeom.verts.at(2);
 
-			}
-		}
-		xAxis = !xAxis;
-		//if (!posDirection)
-		//{
-		//	posDirection = !posDirection;
-		//}
-	}
+	printVectorLocation(bottomLeftVec, 0);
+	printVectorLocation(topMidVec, 1);
+	printVectorLocation(bottomRightVec, 2);
 
-	std::cout << "Number of verticies inside cpuGeom = " << cpuGeom.verts.size() << std::endl;
+	// calculate 3 other vectors (1st iteration test)
+	bottomLeftVec.x;
+}
 
-	// vertices
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));	// (1.f, 1.f, 1.f) will be the top right corner of the window
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, 0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, 0.5f, 0.f));
+void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
+{
+	if (numIterations < 0)
+		return;
+	// Create base triangle
+	cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
+	cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
+	cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
+	setRainbowCol(cpuGeom);
 
-	//// colours (these should be in linear space)
-	cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));	// if i used all 1's the triangle will be white,
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));	// all 0's for black
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+	 //Test decolor (works)
+	//cpuGeom.verts.push_back(glm::vec3(-0.25f, -0.25f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.25f, 0.f));
+	//cpuGeom.verts.push_back(glm::vec3(0.25f, -0.25f, 0.f));
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
+	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 0.f));
+
+	sierpinskiRecurr(cpuGeom, numIterations);
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 }
+
+/**
+* Sets the colours for vertices inside the cpuGeom, rainbow.
+* @param CPU_Geometry& cpuGeom, the address of cpuGeom that contains the vertices.
+*/
+void setRainbowCol(CPU_Geometry& cpuGeom)
+{
+	for (int i = 0, j = 0; i < cpuGeom.verts.size(); i++, j++)
+	{
+		if (j == 3)
+			j = 0;
+
+		switch (j)
+		{
+		case 0:
+			cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+			break;
+		case 1:
+			cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+			break;
+		case 2:
+			cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+			break;
+		}
+	}
+}
+
+
+void printVectorLocation(glm::vec3 vec)
+{
+	printVectorLocation(vec, -1);
+}
+
+void printVectorLocation(glm::vec3 vec, int vecNum)
+{
+	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ")" << std::endl;
+}
+
+//void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+//{
+//	//int numVerts = 10;
+//	float xOffset = 0;
+//	float yOffset = 0;
+//	bool posDirection = true;
+//	bool xAxis = true;	// true = x-axis, false = y-axis
+//
+//	for (int i = 1; i <= numVerts; i++)
+//	{
+//		if (xAxis)
+//		{
+//			if (xOffset >= 0 && i != 1)
+//				xOffset += 0.05 * i;
+//			else if (xOffset < 0)
+//				xOffset -= 0.05 * i;
+//
+//			if (posDirection)
+//			{
+//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+//			}
+//			else
+//			{
+//				xOffset = -xOffset;
+//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+//				yOffset = -yOffset;
+//			}
+//		}
+//		else
+//		{
+//			if (xOffset == 0)
+//				yOffset = 0.05;
+//
+//			yOffset += xOffset;
+//
+//			if (posDirection)
+//			{
+//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+//			}
+//			else
+//			{
+//				cpuGeom.verts.push_back(glm::vec3(xOffset, yOffset, 0.f));
+//				std::cout << "added @ " << xOffset << ", " << yOffset << std::endl;
+//				xOffset = -xOffset;
+//			}
+//			posDirection = !posDirection;
+//		}
+//
+//		xAxis = !xAxis;
+//	}
+//
+//	std::cout << "Number of vertices inside cpuGeom = " << cpuGeom.verts.size() << std::endl;
+//
+//	for (int i = 0, j = 0; i < numVerts; i++, j++)
+//	{
+//		switch (j)
+//		{
+//		case 0:
+//			cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+//			break;
+//		case 1:
+//			cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+//			break;
+//		case 2:
+//			cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+//			break;
+//		}
+//
+//		if (j == 2)
+//			j = 0;
+//	}
+//
+//	// equivalent code:
+//	//int count = 0, count2 = 0;;
+//	//while (count2 < numVerts)
+//	//{
+//	//	if (count == 0)
+//	//		cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
+//	//	else if (count == 1)
+//	//		cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
+//	//	else
+//	//		cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
+//
+//	//	if (count == 2)
+//	//		count = 0;
+//	//	count++;
+//	//	count2++;
+//	//}
+//
+//	gpuGeom.setVerts(cpuGeom.verts);
+//	gpuGeom.setCols(cpuGeom.cols);
+//}
 
 
 
