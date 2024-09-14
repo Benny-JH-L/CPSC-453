@@ -53,6 +53,8 @@ void setRainbowCol(CPU_Geometry& cpuGeom);
 void printVectorLocation(glm::vec3 vec, int vecNum);
 void printVectorLocation(glm::vec3 vec);
 
+void pythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
 int main()
 {
 	Log::debug("Starting main");
@@ -104,19 +106,21 @@ int main()
 
 	//squarePatternTest(cpuGeom, gpuGeom);	// Test
 
-	int numIter = -1;
-	while (numIter < 0)
-	{
-		std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
-		std::cin >> numIter;
-		if (numIter < 0)
-		{
-			std::cout << "\nInvalid input..." << std::endl;
-			continue;
-		}
-		sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
-		std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
-	}
+	int numIter = 1;	// set back to -1 
+	//while (numIter < 0)
+	//{
+	//	std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
+	//	std::cin >> numIter;
+	//	if (numIter < 0)
+	//	{
+	//		std::cout << "\nInvalid input..." << std::endl;
+	//		continue;
+	//	}
+	//	sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
+	//	std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
+	//}
+
+	pythagorasTree(cpuGeom, gpuGeom);
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -127,7 +131,7 @@ int main()
 
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
+		glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
 
 		window.swapBuffers();
 	}
@@ -282,6 +286,36 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int 
 		int currentIteration = 1;
 		sierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
 	}
+	setRainbowCol(cpuGeom);
+
+	gpuGeom.setVerts(cpuGeom.verts);
+	gpuGeom.setCols(cpuGeom.cols);
+}
+
+void pythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	// Create base square
+	std::vector<glm::vec3> baseVec3(4);
+	baseVec3[0] = glm::vec3(-0.25, -0.5, 0.f);	// bottom left
+	baseVec3[1] = glm::vec3(0.25, -0.5, 0.f);	// bottom right
+	baseVec3[2] = glm::vec3(0.25, 0.f,0.f);		// top right
+	baseVec3[3] = glm::vec3(-0.25, 0.f, 0.f);	// top left
+
+	for (int i = 0; i < baseVec3.size(); i++)
+	{
+		cpuGeom.verts.push_back(baseVec3[i]);
+		printVectorLocation(baseVec3[i], i);
+	}
+
+	std::cout << "cpu geom size = " << cpuGeom.verts.size() << std::endl;
+
+	// first iteration test, left square
+	std::vector<glm::vec3> sq1(4);
+	sq1[0] = glm::vec3(-0.25, 0.f, 0.f);	// bottom
+	sq1[1] = glm::vec3(0.f, 1 / (2 * sqrt(2)), 0.f);	// right
+	sq1[2] = glm::vec3(-0.25, 2 / (2 * sqrt(2)), 0.f);	// top
+
+
 	setRainbowCol(cpuGeom);
 
 	gpuGeom.setVerts(cpuGeom.verts);
