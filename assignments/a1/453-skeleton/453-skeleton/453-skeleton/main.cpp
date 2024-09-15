@@ -47,33 +47,31 @@ public:
 // END EXAMPLES
 
 
-void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);
-void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
+void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
+
+void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 void setRainbowCol(CPU_Geometry& cpuGeom);
+float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2);
+float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2);
+
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
+void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
+void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
+// Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
 void printVectorLocation(glm::vec3 vec);
 
-void pythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+
+int numSubDiv = -1;
 
 int main()
 {
 	Log::debug("Starting main");
-
-	// WINDOW
-	glfwInit();
-	Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
-
-	GLDebug::enable();
-
-	// SHADERS
-	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
-
-	// CALLBACKS
-	window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
-
-	// GEOMETRY
-	CPU_Geometry cpuGeom;
-	GPU_Geometry gpuGeom;
 
 	// DEMO (from og file)
 	// vertices
@@ -106,56 +104,164 @@ int main()
 
 	//squarePatternTest(cpuGeom, gpuGeom);	// Test
 
-	int numIter = 1;	// set back to -1 
-	//while (numIter < 0)
+	bool exit = false;
+	int option = -1;
+
+	while (!exit)
+	{
+		// WINDOW
+		glfwInit();
+		Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
+
+		GLDebug::enable();
+
+		// SHADERS
+		ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
+
+		// CALLBACKS
+		window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
+
+		// GEOMETRY
+		CPU_Geometry cpuGeom;
+		GPU_Geometry gpuGeom;
+
+		numSubDiv = -1;
+
+		// Option menu
+		std::cout
+			<< "\nWhat would you like to generate?\n"
+			<< "1: Sierpinski's Triangle\n"
+			<< "2: Pythagoras Tree\n"
+			<< "3: Koch Snowflake\n"
+			<< "4: Dragon Curve\n"
+			<< "0: EXIT\n"
+			<< std::endl;
+
+		std::cin >> option;
+
+		// Checking if the user entered an int
+		if (std::cin.fail())
+		{
+			// If the user entered a non-int -> invalid input
+			std::cout << "\Invalid option..." << std::endl;
+			std::cin.clear();													// clear fail flag
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	// ignore the rest of the user's input
+			option = -1;
+			continue;			// iterate loop from start
+		}
+
+		//// Checking the option chosen
+		//if (option == 0)
+		//	sierpinskiOption(cpuGeom, gpuGeom);
+		//else if (option == 1)
+		//	pythagorasOption(cpuGeom, gpuGeom);
+		//else if (option == 2)
+		//	snowflakeOption(cpuGeom, gpuGeom);
+		//else if (option == 3)
+		//	dragonCurveOption(cpuGeom, gpuGeom); 
+		//else
+		//{
+		//	std::cout << "\Invalid option..." << std::endl;
+		//	std::cin.ignore();	// ignore the rest of the user's input
+		//	option = -1;
+		//	continue;			// iterate loop from start
+		//}
+
+		// Checking the option chosen
+		switch(option)
+		{
+			case 0:
+				exit = !exit;
+				std::cout << "\nExiting..." << std::endl;
+				continue;			// iterate loop from start
+			case 1:
+				sierpinskiOption(cpuGeom, gpuGeom);
+				break;
+			case 2:
+				pythagorasOption(cpuGeom, gpuGeom);
+				break;
+			case 3:
+				snowflakeOption(cpuGeom, gpuGeom);
+				break;
+			case 4:
+				dragonCurveOption(cpuGeom, gpuGeom);
+				break;
+			default:
+				std::cout << "\Invalid option..." << std::endl;
+				std::cin.ignore();	// ignore the rest of the user's input
+				option = -1;
+				continue;			// iterate loop from start
+		}
+
+		std::cout << "Please close the shape generation window to go back to selection menu.\n" << std::endl;
+
+		// RENDER LOOP
+		while (!window.shouldClose()) {
+			glfwPollEvents();
+
+			shader.use();
+			gpuGeom.bind();
+
+			glEnable(GL_FRAMEBUFFER_SRGB);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
+
+			window.swapBuffers();
+		}
+
+		glfwTerminate();	// close the shape generation window
+	}
+
+	return 0;
+
+	//int numSubDiv = 1;	// set back to -1 
+	//while (numSubDiv < 0)
 	//{
 	//	std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
-	//	std::cin >> numIter;
-	//	if (numIter < 0)
+	//	std::cin >> numSubDiv;
+	//	if (numSubDiv < 0)
 	//	{
 	//		std::cout << "\nInvalid input..." << std::endl;
 	//		continue;
 	//	}
-	//	sierpinskiTriangle(cpuGeom, gpuGeom, numIter);
-	//	std::cout << "Sierpinski Triangle with " << numIter << " subdivisions created." << std::endl;
+	//	sierpinskiTriangle(cpuGeom, gpuGeom, numSubDiv);
+	//	std::cout << "Sierpinski Triangle with " << numSubDiv << " subdivisions created." << std::endl;
 	//}
 
-	pythagorasTree(cpuGeom, gpuGeom);
+	// pythagorasTree(cpuGeom, gpuGeom);
 
-	// RENDER LOOP
-	while (!window.shouldClose()) {
-		glfwPollEvents();
+	//// RENDER LOOP
+	//while (!window.shouldClose()) {
+	//	glfwPollEvents();
 
-		shader.use();
-		gpuGeom.bind();
+	//	shader.use();
+	//	gpuGeom.bind();
 
-		glEnable(GL_FRAMEBUFFER_SRGB);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
+	//	glEnable(GL_FRAMEBUFFER_SRGB);
+	//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//	glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
 
-		window.swapBuffers();
+	//	window.swapBuffers();
+	//}
+
+	//glfwTerminate();
+	//return 0;
+}
+
+void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	while (numSubDiv < 0)
+	{
+		std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
+		std::cin >> numSubDiv;
+		if (numSubDiv < 0)
+		{
+			std::cout << "\nInvalid input..." << std::endl;
+			continue;
+		}
+		generateSierpinskiTriangle(cpuGeom, gpuGeom, numSubDiv);
+		std::cout << "\nSierpinski Triangle with " << numSubDiv << " subdivisions created." << std::endl;
 	}
-
-	glfwTerminate();
-	return 0;
-}
-
-/**
-* Calculates the halfway x-coord. of two vectors.
-* @return float, the halfway x-coord. of two vectors.
-*/
-float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
-{
-	return (v1.x + v2.x) / 2;
-}
-
-/**
-* Calculates the halfway y-coord. of two vectors.
-* @return float, the halfway y-coord. of two vectors.
-*/
-float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
-{
-	return (v1.y + v2.y) / 2;
 }
 
 /**
@@ -165,7 +271,7 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 * @param int currentIteration, the current iteration, or sub-division, to be calculated.
 * @param const int numIterations, the total number of iterations, or sub-divisions, to be calculate.
 */
-void sierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec3, int currentIteration, const int numIterations)
+void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec3, int currentIteration, const int numIterations)
 {
 	// calculating x and y halfway points of vectors
 	float halfwayX[3] = {};	// stores all the halfway x-coordinates
@@ -251,16 +357,16 @@ void sierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec
 	{
 		// Continue with recursion
 		currentIteration++;
-		sierpinskiRecurr(cpuGeom, subTriangle1, currentIteration, numIterations);
-		sierpinskiRecurr(cpuGeom, subTriangle2, currentIteration, numIterations);
-		sierpinskiRecurr(cpuGeom, subTriangle3, currentIteration, numIterations);
+		generateSierpinskiRecurr(cpuGeom, subTriangle1, currentIteration, numIterations);
+		generateSierpinskiRecurr(cpuGeom, subTriangle2, currentIteration, numIterations);
+		generateSierpinskiRecurr(cpuGeom, subTriangle3, currentIteration, numIterations);
 	}
 }
 
 /**
 * 2.1 Part 1 : Sierpinski Triangle
 */
-void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
+void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
@@ -284,7 +390,7 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int 
 	else
 	{
 		int currentIteration = 1;
-		sierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
+		generateSierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
 	}
 	setRainbowCol(cpuGeom);
 
@@ -292,7 +398,31 @@ void sierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int 
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
-void pythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+/**
+* Calculates the halfway x-coord. of two vectors.
+* @return float, the halfway x-coord. of two vectors.
+*/
+float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
+{
+	return (v1.x + v2.x) / 2;
+}
+
+/**
+* Calculates the halfway y-coord. of two vectors.
+* @return float, the halfway y-coord. of two vectors.
+*/
+float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
+{
+	return (v1.y + v2.y) / 2;
+}
+
+
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	std::cout << "NOT IMPLMENTED YET";
+}
+
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	// Create base square
 	std::vector<glm::vec3> baseVec3(4);
@@ -322,6 +452,22 @@ void pythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
+void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	std::cout << "NOT IMPLMENTED YET";
+}
+
+void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
+{
+	std::cout << "NOT IMPLMENTED YET";
+}
+
+void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+{
+	std::cout << "NOT IMPLMENTED YET";
+
+}
+
 /**
 * Sets the colours for vertices inside the cpuGeom, rainbow.
 * @param CPU_Geometry& cpuGeom, the address of cpuGeom that contains the vertices.
@@ -330,7 +476,7 @@ void setRainbowCol(CPU_Geometry& cpuGeom)
 {
 	for (int i = 0, j = 0; i < cpuGeom.verts.size(); i++, j++)
 	{
-		if (j == 3)
+		if (j == 3)	// reset the count for 'j'
 			j = 0;
 
 		switch (j)
@@ -348,12 +494,19 @@ void setRainbowCol(CPU_Geometry& cpuGeom)
 	}
 }
 
-
+/**
+* Prints the x and y locations of a "vec3"
+* with a designated number, default is -1.
+*/
 void printVectorLocation(glm::vec3 vec)
 {
 	printVectorLocation(vec, -1);
 }
 
+/**
+* Prints the x and y locations of a "vec3"
+* with a designated number, default is -1.
+*/
 void printVectorLocation(glm::vec3 vec, int vecNum)
 {
 	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ")" << std::endl;
