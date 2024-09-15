@@ -62,6 +62,8 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
+void drawFractal(int option, CPU_Geometry& cpuGeom);
+
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
 void printVectorLocation(glm::vec3 vec);
@@ -109,6 +111,38 @@ int main()
 
 	while (!exit)
 	{
+		// Option menu
+		std::cout
+			<< "\nWhat would you like to generate?\n"
+			<< "1: Sierpinski's Triangle\n"
+			<< "2: Pythagoras Tree\n"
+			<< "3: Koch Snowflake\n"
+			<< "4: Dragon Curve\n"
+			<< "0: EXIT\n"
+			<< std::endl;
+
+		std::cin >> option;
+
+		bool invalidMenuInput = false;
+		// Checking if the user entered an valid menu input.
+		if (std::cin.fail())				// non-int entered
+		{
+			std::cin.clear();				// clear fail flag
+			invalidMenuInput = true;
+		}
+		else if (option < 0 || option > 4)	// out of menu range
+			invalidMenuInput = true;
+
+		if (invalidMenuInput)
+		{
+			// If the user entered a non-int or
+			// the user typed an int but then a non-int after -> invalid input.
+			std::cout << "\Invalid option..." << std::endl;
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		
+			option = -1;
+			continue;			// iterate loop from start
+		}
+
 		// WINDOW
 		glfwInit();
 		Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
@@ -126,46 +160,6 @@ int main()
 		GPU_Geometry gpuGeom;
 
 		numSubDiv = -1;
-
-		// Option menu
-		std::cout
-			<< "\nWhat would you like to generate?\n"
-			<< "1: Sierpinski's Triangle\n"
-			<< "2: Pythagoras Tree\n"
-			<< "3: Koch Snowflake\n"
-			<< "4: Dragon Curve\n"
-			<< "0: EXIT\n"
-			<< std::endl;
-
-		std::cin >> option;
-
-		// Checking if the user entered an int
-		if (std::cin.fail())
-		{
-			// If the user entered a non-int -> invalid input
-			std::cout << "\Invalid option..." << std::endl;
-			std::cin.clear();													// clear fail flag
-			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	// ignore the rest of the user's input
-			option = -1;
-			continue;			// iterate loop from start
-		}
-
-		//// Checking the option chosen
-		//if (option == 0)
-		//	sierpinskiOption(cpuGeom, gpuGeom);
-		//else if (option == 1)
-		//	pythagorasOption(cpuGeom, gpuGeom);
-		//else if (option == 2)
-		//	snowflakeOption(cpuGeom, gpuGeom);
-		//else if (option == 3)
-		//	dragonCurveOption(cpuGeom, gpuGeom); 
-		//else
-		//{
-		//	std::cout << "\Invalid option..." << std::endl;
-		//	std::cin.ignore();	// ignore the rest of the user's input
-		//	option = -1;
-		//	continue;			// iterate loop from start
-		//}
 
 		// Checking the option chosen
 		switch(option)
@@ -188,12 +182,12 @@ int main()
 				break;
 			default:
 				std::cout << "\Invalid option..." << std::endl;
-				std::cin.ignore();	// ignore the rest of the user's input
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	// ignore the rest of the user's input
 				option = -1;
 				continue;			// iterate loop from start
 		}
 
-		std::cout << "Please close the shape generation window to go back to selection menu.\n" << std::endl;
+		std::cout << "\nPlease close the shape/fractal generation window to go back to selection menu.\n" << std::endl;
 
 		// RENDER LOOP
 		while (!window.shouldClose()) {
@@ -201,15 +195,15 @@ int main()
 
 			shader.use();
 			gpuGeom.bind();
-
+			
 			glEnable(GL_FRAMEBUFFER_SRGB);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
-
+			//glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part, and "GL_TRIANGLE_FAN" for pythagoras
+			drawFractal(option, cpuGeom);
 			window.swapBuffers();
 		}
 
-		glfwTerminate();	// close the shape generation window
+		glfwTerminate();	// close the shape/generated fractal window
 	}
 
 	return 0;
@@ -246,6 +240,28 @@ int main()
 
 	//glfwTerminate();
 	//return 0;
+}
+
+void drawFractal(int option, CPU_Geometry& cpuGeom)
+{
+	switch (option)
+	{
+		case 1:
+			glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
+			break;
+		case 2:
+			// "squareVec3Start" is the starting 'vec3' in 'cpuGeom' for this square.
+			// 'j' is how many 'vec3's to draw (4) for a square.
+			for (int squareVec3Start = 0, j = 4; squareVec3Start < cpuGeom.verts.size(); squareVec3Start += 4)
+				glDrawArrays(GL_TRIANGLE_FAN, squareVec3Start, j);
+			break;
+		case 3:
+			// use "GL_TRIANGLE_STRIP" ???
+			break;
+		default:
+			std::cout << "\nerror drawing...\n" << std::endl;
+			break;
+	}
 }
 
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
@@ -420,6 +436,7 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	std::cout << "NOT IMPLMENTED YET";
+	generatePythagorasTree(cpuGeom, gpuGeom);
 }
 
 void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
