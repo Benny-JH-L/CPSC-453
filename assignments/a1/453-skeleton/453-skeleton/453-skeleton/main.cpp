@@ -62,7 +62,7 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
-void drawFractal(int option, CPU_Geometry& cpuGeom);
+void drawFractal(int option, const CPU_Geometry& cpuGeom);
 
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
@@ -75,40 +75,10 @@ int main()
 {
 	Log::debug("Starting main");
 
-	// DEMO (from og file)
-	// vertices
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.f, 0.5f, 0.f));
-
-	//// colours (these should be in linear space)
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
-
-	//gpuGeom.setVerts(cpuGeom.verts);
-	//gpuGeom.setCols(cpuGeom.cols);
-
-	/* my tests
-	// vertices
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, -0.5f, 0.f));	// (1.f, 1.f, 1.f) will be the top right corner of the window
-	//cpuGeom.verts.push_back(glm::vec3(-0.5f, 0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, -0.5f, 0.f));
-	//cpuGeom.verts.push_back(glm::vec3(0.5f, 0.5f, 0.f));
-
-	//// colours (these should be in linear space)
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));	// if i used all 1's the triangle will be white,
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 1.f, 0.f));	// all 0's for black
-	//cpuGeom.cols.push_back(glm::vec3(0.f, 0.f, 1.f));
-	//cpuGeom.cols.push_back(glm::vec3(1.f, 0.f, 0.f));
-	*/
-
-
-	//squarePatternTest(cpuGeom, gpuGeom);	// Test
-
 	bool exit = false;
-	int option = -1;
+	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
 
+	// Keep looping until the user wants to exit
 	while (!exit)
 	{
 		// Option menu
@@ -124,7 +94,7 @@ int main()
 		std::cin >> option;
 
 		bool invalidMenuInput = false;
-		// Checking if the user entered an valid menu input.
+		// Checking if the user entered a valid menu input
 		if (std::cin.fail())				// non-int entered
 		{
 			std::cin.clear();				// clear fail flag
@@ -198,8 +168,7 @@ int main()
 			
 			glEnable(GL_FRAMEBUFFER_SRGB);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			//glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part, and "GL_TRIANGLE_FAN" for pythagoras
-			drawFractal(option, cpuGeom);
+			drawFractal(option, cpuGeom);	// Drawing
 			window.swapBuffers();
 		}
 
@@ -208,41 +177,14 @@ int main()
 
 	return 0;
 
-	//int numSubDiv = 1;	// set back to -1 
-	//while (numSubDiv < 0)
-	//{
-	//	std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
-	//	std::cin >> numSubDiv;
-	//	if (numSubDiv < 0)
-	//	{
-	//		std::cout << "\nInvalid input..." << std::endl;
-	//		continue;
-	//	}
-	//	sierpinskiTriangle(cpuGeom, gpuGeom, numSubDiv);
-	//	std::cout << "Sierpinski Triangle with " << numSubDiv << " subdivisions created." << std::endl;
-	//}
-
-	// pythagorasTree(cpuGeom, gpuGeom);
-
-	//// RENDER LOOP
-	//while (!window.shouldClose()) {
-	//	glfwPollEvents();
-
-	//	shader.use();
-	//	gpuGeom.bind();
-
-	//	glEnable(GL_FRAMEBUFFER_SRGB);
-	//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//	glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());	// Use "GL_TRIANGLES" for sierpinski part
-
-	//	window.swapBuffers();
-	//}
-
-	//glfwTerminate();
-	//return 0;
 }
 
-void drawFractal(int option, CPU_Geometry& cpuGeom)
+/**
+* Draws the fractal the user chose.
+* @param int option, the fractal option generated.
+* @param const CPU_Geometry& cpuGeom, the CPU_Geometry reference that contains the 'vec3's of the fractal shape.
+*/
+void drawFractal(int option, const CPU_Geometry& cpuGeom)
 {
 	switch (option)
 	{
@@ -257,13 +199,22 @@ void drawFractal(int option, CPU_Geometry& cpuGeom)
 			break;
 		case 3:
 			// use "GL_TRIANGLE_STRIP" ???
+			std::cout << "\nSnowflake drawing not implemented...\n" << std::endl;
+			break;
+		case 4:
+			std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
 			break;
 		default:
-			std::cout << "\nerror drawing...\n" << std::endl;
+			std::cout << "\nError drawing...\n" << std::endl;
 			break;
 	}
 }
 
+/**
+* Asks the user how many subdivisions and then generates said number of subdivisions.
+* @param CPU_Geometry& cpuGeom, reference to the CPU_Geometry to contain the 'vec3's generated.
+* @param GPU_Geometry& gpuGeom, reference to the GPU_Geometry to set its 'vec3's and colours.
+*/
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	while (numSubDiv < 0)
@@ -282,7 +233,7 @@ void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 
 /**
 * Recursively calls itself to find Sierpinski Triangle's at sub-divisions/iterations.
-* @param CPU_Geometry& cpuGeom, a CPU_GEOMETRY.
+* @param CPU_Geometry& cpuGeom, a reference to a CPU_Geometry.
 * @param std::vector<glm::vec3>& triangleVec3, a std::vector of type <glm::vec3> that contains 3 vec3 'vectors' that make up a triangle.
 * @param int currentIteration, the current iteration, or sub-division, to be calculated.
 * @param const int numIterations, the total number of iterations, or sub-divisions, to be calculate.
@@ -392,10 +343,10 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
 
 	// Debug
-	std::cout << "Printing base triangle: \n"
-		<< baseTriangle[0] << "\n"
-		<< baseTriangle[1] << "\n"
-		<< baseTriangle[2] << "\n" << std::endl;
+	//std::cout << "Printing base triangle: \n"
+	//	<< baseTriangle[0] << "\n"
+	//	<< baseTriangle[1] << "\n"
+	//	<< baseTriangle[2] << "\n" << std::endl;
 
 	if (numIterations == 0)
 	{
