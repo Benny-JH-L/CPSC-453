@@ -24,7 +24,8 @@ public:
 	MyCallbacks(ShaderProgram& shader) : shader(shader) {}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods) {
-		if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		{
 			shader.recompile();
 		}
 	}
@@ -45,6 +46,39 @@ public:
 	}
 };
 // END EXAMPLES
+
+class switchScene : public CallbackInterface
+{
+	public:
+		switchScene(ShaderProgram& shader) : shader(shader) {}
+
+	virtual void keyCallback(int key, int scancode, int action, int mods)
+	{
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		{
+			shader.recompile();
+		}
+		else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+		{
+			std::cout << "\nswitching scene ->... (not implmented)\n" << std::endl;
+		}
+		else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+		{
+			std::cout << "\nswitching scene <-... (not implmented)\n" << std::endl;
+		}
+		else if (key == GLFW_KEY_UP)
+		{
+			std::cout << "\n increasing sub-div... (not implmented)\n" << std::endl;
+		}
+		else if (key == GLFW_KEY_DOWN)
+		{
+			std::cout << "\n decrease sub-div... (not implmented)\n" << std::endl;
+		}
+	}
+
+	private:
+		ShaderProgram& shader;
+};
 
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
@@ -130,7 +164,8 @@ int main()
 		ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
 
 		// CALLBACKS
-		window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
+		//window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
+		window.setCallbacks(std::make_shared<switchScene>(shader));
 
 		// GEOMETRY
 		CPU_Geometry cpuGeom;
@@ -172,7 +207,6 @@ int main()
 
 			shader.use();
 			gpuGeom.bind();
-			
 			glEnable(GL_FRAMEBUFFER_SRGB);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			drawFractal(option, cpuGeom);	// Drawing
@@ -349,6 +383,11 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
 	baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
 
+	// this way works too
+	//baseTriangle[2] = (glm::vec3(-0.5f, -0.5f, 0.f));
+	//baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
+	//baseTriangle[0] = (glm::vec3(0.5f, -0.5f, 0.f));
+
 	// Debug
 	//std::cout << "Printing base triangle: \n"
 	//	<< baseTriangle[0] << "\n"
@@ -444,11 +483,11 @@ void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, c
 	float s = calcSideS(hypotenuse);
 
 	// Find left square points
-	float topLeftPtY = calcHypotenuse(s);
-	float topLeftPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
-	leftSq[2] = glm::vec3(topLeftPtX, topLeftPtY, 0.f);
+	float topPtY = calcHypotenuse(s) + leftVec.y;	// 'top' point y-coord will be 's' + 'leftVec.y'
+	float topPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
+	leftSq[2] = glm::vec3(topPtX, topPtY, 0.f);
 
-	float sidePtY = topLeftPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
+	float sidePtY = topPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
 	float sidePtXDiff = calcSideS(s);			// the 'side' x-ccord for the square will be the difference of length (s) of a smaller square with side lengths of 'sidePtY' val with 'leftVec.x'
 	float sideXRight = leftVec.x + sidePtXDiff;
 	float sideXLeft = leftVec.x - sidePtXDiff;
@@ -476,6 +515,62 @@ void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, c
 	// Find right square points
 	
 }
+
+// FIRST TRY - DOES NOT WORK SINCE THE SQUARES ROTATE AFTER EACH ITERATION...
+//// debug
+//std::cout << "using vec3s: " << std::endl;
+//printVectorLocation(leftVec);
+//printVectorLocation(rightVec);
+//
+//// leftVec is used to calculate the 'left side' square, rightVec is used to calculate the 'right side' square.
+//
+//// Initialize the two squares, and set what we know about their points
+//std::vector<glm::vec3> leftSq(4);
+//leftSq[0] = leftVec;				// we know the left square will have this as a point
+//std::vector<glm::vec3> rightSq(4);
+//rightSq[0] = rightVec;				// we know the right square will have this as a point
+///* Note:
+//* [0] is reserved for initial point from parent square
+//* [1] is reserved for 'right' point
+//* [2] is reserved for 'top' point
+//* [3] is reserved for 'left' point
+//*/
+//
+//// Find side 's' (side of square) of the 2 new squares to be created
+//float hypotenuse = abs(rightVec.x) + abs(leftVec.x);	// length of the hypotenuse made by 'leftVec' and 'rightVec'
+//float s = calcSideS(hypotenuse);
+//
+//// Find left square points
+//float topPtY = calcHypotenuse(s) + leftVec.y;	// 'top' point y-coord will be 's' + 'leftVec.y'
+//float topPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
+//leftSq[2] = glm::vec3(topPtX, topPtY, 0.f);
+//
+//float sidePtY = topPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
+//float sidePtXDiff = calcSideS(s);			// the 'side' x-ccord for the square will be the difference of length (s) of a smaller square with side lengths of 'sidePtY' val with 'leftVec.x'
+//float sideXRight = leftVec.x + sidePtXDiff;
+//float sideXLeft = leftVec.x - sidePtXDiff;
+//glm::vec3 rightSide = glm::vec3(sideXRight, sidePtY, 0.f);
+//glm::vec3 leftSide = glm::vec3(sideXLeft, sidePtY, 0.f);
+//leftSq[1] = rightSide;
+//leftSq[3] = leftSide;
+//
+//for (int i = 0; i < leftSq.size(); i++)
+//{
+//	cpuGeom.verts.push_back(leftSq[i]);
+//	printVectorLocation(leftSq[i], i);
+//}
+//
+//if (currentIteration == numIterations)
+//{
+//	std::cout << "done making left" << std::endl;
+//	return;
+//}
+//else
+//{
+//	++currentIteration;
+//	generatePythagorasRecurr(cpuGeom, leftSq[3], leftSq[2], currentIteration, numIterations);
+//}
+//// Find right square points
 
 void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
@@ -545,6 +640,11 @@ float calcHypotenuse(float squareSide)
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	std::cout << "NOT IMPLMENTED YET";
+}
+
+void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, int currentIteration, const int numIterations)
+{
+
 }
 
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
