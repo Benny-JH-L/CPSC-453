@@ -16,6 +16,7 @@
 #include "Shader.h"
 #include "Window.h"
 
+#include <glm/gtc/quaternion.hpp>
 
 // EXAMPLE CALLBACKS
 class MyCallbacks : public CallbackInterface {
@@ -104,6 +105,7 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
 void drawFractal(int option, const CPU_Geometry& cpuGeom);
+glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption);
 
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
@@ -115,6 +117,31 @@ int numSubDiv = -1;
 int main()
 {
 	Log::debug("Starting main");
+
+	//glm::vec3 originalVec(1.0f, 0.0f, 0.0f); // Original vector (1, 0, 0)
+
+	//float angle = glm::radians(90.0f); // Rotate by 90 degrees
+	//glm::vec3 axis(0.0f, 0.0f, 1.0f); // Axis of rotation (z-axis)
+
+	//// Create a quaternion representing the rotation
+	//glm::quat quaternion = glm::angleAxis(angle, axis);
+
+	//// Apply the quaternion rotation to the vector
+	//glm::vec3 rotatedVec = quaternion * originalVec;
+	//printVectorLocation(rotatedVec);
+
+	// test/debug
+	glm::vec3 v1 = glm::vec3(1.0f, 0.f, 0.f);
+	printVectorLocation(v1);
+	std::cout << "Rotating around y-axis 180-degrees" << std::endl;
+	glm::vec3 rotatedV1 = rotateVec3(v1, 180.f, 1);
+	printVectorLocation(rotatedV1);
+	std::cout << "Rotating around x-axis 180-degrees" << std::endl;
+	rotatedV1 = rotateVec3(v1, 180.f, 0);
+	printVectorLocation(rotatedV1);
+	std::cout << "Rotating around z-axis 180-degrees" << std::endl;
+	rotatedV1 = rotateVec3(v1, 180.f, 2);
+	printVectorLocation(rotatedV1);
 
 	bool exit = false;
 	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: Pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
@@ -249,6 +276,45 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 			std::cout << "\nError drawing...\n" << std::endl;
 			break;
 	}
+}
+
+glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption)
+{
+	float angle = glm::radians(degree);
+	glm::vec3 axis;
+	glm::quat quaternion;
+
+	switch (axisOption)
+	{
+		case 0:	// rotate about x-axis
+			axis = glm::vec3(1.0f, 0.f, 0.f);
+			quaternion = glm::angleAxis(angle, axis);
+			break;
+		case 1:	// rotate about y-axis
+			//glm::vec3 axis(0.f, 1.0f, 0.f);
+			axis = glm::vec3(0.f, 1.0f, 0.f);
+			quaternion = glm::angleAxis(angle, axis);
+			break;
+		case 2:	// rotate about z-axis
+			axis = glm::vec3(0.f, 0.f, 1.f);
+			quaternion = glm::angleAxis(angle, axis);
+			break;
+		default:
+			std::cout << "\nInvalid axis of rotation\n" << std::endl;
+			break;
+	}
+
+	glm::vec3 rotatedVec3 = quaternion * vec3;
+
+	// If values are very small, round to zero
+	if (glm::abs(rotatedVec3.x) < 1e-7)
+		rotatedVec3.x = 0.0f;
+	if (glm::abs(rotatedVec3.y) < 1e-7)
+		rotatedVec3.y = 0.0f;
+	if (glm::abs(rotatedVec3.z) < 1e-7)
+		rotatedVec3.z = 0.0f;
+
+	return rotatedVec3;
 }
 
 /**
@@ -699,7 +765,7 @@ void printVectorLocation(glm::vec3 vec)
 */
 void printVectorLocation(glm::vec3 vec, int vecNum)
 {
-	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ")" << std::endl;
+	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
 }
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts)
