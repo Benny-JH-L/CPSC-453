@@ -49,17 +49,24 @@ public:
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
 
+// Sierpinski Triangle prototypes
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 void setRainbowCol(CPU_Geometry& cpuGeom);
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2);
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2);
 
+// Pythagoras Tree prototypes
 void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
-void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
+void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations);
+float calcSideS(float hypotenuse);
+float calcHypotenuse(float squareSide);
 
+// Koch Snowflake prototypes
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
+// Dragon Curve prototypes
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
 void drawFractal(int option, const CPU_Geometry& cpuGeom);
@@ -76,7 +83,7 @@ int main()
 	Log::debug("Starting main");
 
 	bool exit = false;
-	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
+	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: Pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
 
 	// Keep looping until the user wants to exit
 	while (!exit)
@@ -107,7 +114,7 @@ int main()
 		{
 			// If the user entered a non-int or
 			// the user typed an int but then a non-int after -> invalid input.
-			std::cout << "\Invalid option..." << std::endl;
+			std::cout << "\nInvalid option..." << std::endl;
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');		
 			option = -1;
 			continue;			// iterate loop from start
@@ -151,7 +158,7 @@ int main()
 				dragonCurveOption(cpuGeom, gpuGeom);
 				break;
 			default:
-				std::cout << "\Invalid option..." << std::endl;
+				std::cout << "\nInvalid option..." << std::endl;
 				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	// ignore the rest of the user's input
 				option = -1;
 				continue;			// iterate loop from start
@@ -386,11 +393,91 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 
 void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
-	std::cout << "NOT IMPLMENTED YET";
-	generatePythagorasTree(cpuGeom, gpuGeom);
+	//while (numSubDiv < 0)
+	//{
+	//	std::cout << "\n--Pythagoras Tree--\n How many subdivisions would you like? ";
+	//	std::cin >> numSubDiv;
+	//	if (numSubDiv < 0)
+	//	{
+	//		std::cout << "\nInvalid input..." << std::endl;
+	//		continue;
+	//	}
+	//	generatePythagorasTree(cpuGeom, gpuGeom, numSubDiv);
+	//	std::cout << "\nPythagoras Tree with " << numSubDiv << " subdivisions created." << std::endl;
+	//}
+	generatePythagorasTree(cpuGeom, gpuGeom, 2);
 }
 
-void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+//void leftPythagorasRecurrHelper()
+//{
+//
+//}
+//
+//void rightPythagorasRecurrHelper()
+//{
+//
+//}
+
+void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations)
+{
+	// debug
+	std::cout << "using vec3s: " << std::endl;
+	printVectorLocation(leftVec);
+	printVectorLocation(rightVec);
+
+	// leftVec is used to calculate the 'left side' square, rightVec is used to calculate the 'right side' square.
+
+	// Initialize the two squares, and set what we know about their points
+	std::vector<glm::vec3> leftSq(4);
+	leftSq[0] = leftVec;				// we know the left square will have this as a point
+	std::vector<glm::vec3> rightSq(4);
+	rightSq[0] = rightVec;				// we know the right square will have this as a point
+	/* Note:
+	* [0] is reserved for initial point from parent square
+	* [1] is reserved for 'right' point
+	* [2] is reserved for 'top' point
+	* [3] is reserved for 'left' point
+	*/
+
+	// Find side 's' (side of square) of the 2 new squares to be created
+	float hypotenuse = abs(rightVec.x) + abs(leftVec.x);	// length of the hypotenuse made by 'leftVec' and 'rightVec'
+	float s = calcSideS(hypotenuse);
+
+	// Find left square points
+	float topLeftPtY = calcHypotenuse(s);
+	float topLeftPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
+	leftSq[2] = glm::vec3(topLeftPtX, topLeftPtY, 0.f);
+
+	float sidePtY = topLeftPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
+	float sidePtXDiff = calcSideS(s);			// the 'side' x-ccord for the square will be the difference of length (s) of a smaller square with side lengths of 'sidePtY' val with 'leftVec.x'
+	float sideXRight = leftVec.x + sidePtXDiff;
+	float sideXLeft = leftVec.x - sidePtXDiff;
+	glm::vec3 rightSide = glm::vec3(sideXRight, sidePtY, 0.f);
+	glm::vec3 leftSide = glm::vec3(sideXLeft, sidePtY, 0.f);
+	leftSq[1] = rightSide;
+	leftSq[3] = leftSide;
+
+	for (int i = 0; i < leftSq.size(); i++)
+	{
+		cpuGeom.verts.push_back(leftSq[i]);
+		printVectorLocation(leftSq[i], i);
+	}
+
+	if (currentIteration == numIterations)
+	{
+		std::cout << "done making left" << std::endl;
+		return;
+	}
+	else
+	{
+		++currentIteration;
+		generatePythagorasRecurr(cpuGeom, leftSq[3], leftSq[2], currentIteration, numIterations);
+	}
+	// Find right square points
+	
+}
+
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	// Create base square
 	std::vector<glm::vec3> baseVec3(4);
@@ -402,22 +489,57 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 	for (int i = 0; i < baseVec3.size(); i++)
 	{
 		cpuGeom.verts.push_back(baseVec3[i]);
-		printVectorLocation(baseVec3[i], i);
+		//printVectorLocation(baseVec3[i], i);
 	}
 
 	std::cout << "cpu geom size = " << cpuGeom.verts.size() << std::endl;
 
-	// first iteration test, left square
-	std::vector<glm::vec3> sq1(4);
-	sq1[0] = glm::vec3(-0.25, 0.f, 0.f);	// bottom
-	sq1[1] = glm::vec3(0.f, 1 / (2 * sqrt(2)), 0.f);	// right
-	sq1[2] = glm::vec3(-0.25, 2 / (2 * sqrt(2)), 0.f);	// top
+	// (debug)
+	// first iteration test, left square 
+	//std::vector<glm::vec3> sq1(4);
 
+	//sq1[0] = glm::vec3(-0.25, 0.f, 0.f);	// bottom
+	//sq1[1] = glm::vec3(0.f, 0.25, 0.f);		// right
+	//sq1[2] = glm::vec3(-0.25, 0.5, 0.f);	// top
+	//sq1[3] = glm::vec3(-0.5, 0.25, 0.f);	// left
+
+	// right square
+	std::vector<glm::vec3> sq2(4);
+	sq2[0] = glm::vec3(0.25, 0.f, 0.f);	// bottom
+	sq2[1] = glm::vec3(0.5, 0.25, 0.f);		// right
+	sq2[2] = glm::vec3(0.25, 0.5, 0.f);	// top
+	sq2[3] = glm::vec3(0.f, 0.25, 0.f);	// left
+
+	//for (int i = 0; i < sq1.size(); i++)
+	//{
+	//	cpuGeom.verts.push_back(sq1[i]);
+	//	printVectorLocation(sq1[i], i);
+	//}
+
+	std::cout << "iter1 sq right vec3:" << std::endl;
+	for (int i = 0; i < sq2.size(); i++)
+	{
+		cpuGeom.verts.push_back(sq2[i]);
+		printVectorLocation(sq2[i], i);
+	}
+	std::cout << "\n" << std::endl;
+
+	generatePythagorasRecurr(cpuGeom, baseVec3[3], baseVec3[2], 1, numIterations);
 
 	setRainbowCol(cpuGeom);
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
+}
+
+float calcSideS(float hypotenuse)
+{
+	return hypotenuse / (sqrt(2));
+}
+
+float calcHypotenuse(float squareSide)
+{
+	return sqrt((2 * pow(squareSide, 2)));
 }
 
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
