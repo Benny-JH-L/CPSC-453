@@ -16,12 +16,13 @@
 #include "Shader.h"
 #include "Window.h"
 
-#include <glm/gtc/quaternion.hpp>
+//#include <glm/gtc/quaternion.hpp>
+#include <cmath>;
 
 struct data
 {
 	int fractalOption;
-	int& numSubDiv;
+	int numSubDiv;
 	CPU_Geometry& cpuGeom;
 	GPU_Geometry& gpuGeom;
 };
@@ -56,7 +57,7 @@ struct data
 //};
 // END EXAMPLES
 
-void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
+//void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
 
 // Sierpinski Triangle prototypes
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
@@ -66,9 +67,9 @@ float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2);
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2);
 
 // Pythagoras Tree prototypes
-void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
 void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
-void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations);
+void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations, float radianOffset);
 float calcSideS(float hypotenuse);
 float calcHypotenuse(float squareSide);
 
@@ -79,7 +80,8 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 
 void drawFractal(int option, const CPU_Geometry& cpuGeom);
-glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption);
+//glm::vec3& rotateVec3(glm::vec3& vec3, float degree, int axisOption);
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
 
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
@@ -92,7 +94,7 @@ class switchSceneCallBack : public CallbackInterface
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
-		int option = sceneData.fractalOption;
+		int& option = sceneData.fractalOption;
 		int& subDiv = sceneData.numSubDiv;
 		CPU_Geometry& cpuGeom = sceneData.cpuGeom;
 		GPU_Geometry& gpuGeom = sceneData.gpuGeom;
@@ -112,14 +114,13 @@ class switchSceneCallBack : public CallbackInterface
 		else if (key == GLFW_KEY_UP && action == GLFW_PRESS)
 		{
 			sceneData.numSubDiv++;	// increment the current subdivisions by 1
-			std::cout << "\nIncrementing number of subdivisions by 1...\n" << std::endl;
+			std::cout << "\nIncrementing number of subdivisions by 1 (Current = " << subDiv << ")...\n" << std::endl;
 
 			// Checking the option chosen
 			switch (option)
 			{
 				case 1:
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
-					drawFractal(option, cpuGeom);
 					break;
 				case 2:
 					//pythagorasOption(cpuGeom, gpuGeom);
@@ -133,6 +134,8 @@ class switchSceneCallBack : public CallbackInterface
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
 			}
+			drawFractal(option, cpuGeom);
+
 		}
 		else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
 		{
@@ -145,14 +148,13 @@ class switchSceneCallBack : public CallbackInterface
 				return;
 			}
 
-			std::cout << "\nDecrementing number of subdivisions by 1...\n" << std::endl;
+			std::cout << "\nDecrementing number of subdivisions by 1 (Current = " << subDiv << ")...\n" << std::endl;
 
 			// Checking the option chosen
 			switch (option)
 			{
 				case 1:
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
-					drawFractal(option, cpuGeom);
 					break;
 				case 2:
 					//pythagorasOption(cpuGeom, gpuGeom);
@@ -166,6 +168,8 @@ class switchSceneCallBack : public CallbackInterface
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
 			}
+			drawFractal(option, cpuGeom);
+
 		}
 	}
 
@@ -180,6 +184,26 @@ int main()
 {
 	Log::debug("Starting main");
 
+	// test/debug
+	glm::vec3 v1(2.f, 3.f, 0.f);
+	glm::vec3 v2(5.f, 1.f, 0.f);
+	glm::vec3 aboutV(-5.f, 4.f, 0.f);
+
+	std::cout << "\ncos(100)= " << cos(100) << std::endl;	// 100 is rads
+	std::cout << "\nsin(100)= " << sin(100) << std::endl;
+
+	rotateCCWAboutVec3(v1, aboutV, 100.f);	// expected = (-5.2, 11.1, 0)
+	rotateCCWAboutVec3(v2, aboutV, 100.f);	// expected = (-3.8, 14.4, 0)
+
+	std::cout << "\nrotated v1: " << std::endl;
+	printVectorLocation(v1, 1);
+
+	std::cout << "\nrotated v2: " << std::endl;
+	printVectorLocation(v2, 2);
+
+	std::cout << "\nAbout rotate vec: " << std::endl;
+	printVectorLocation(aboutV, 0);
+
 	//glm::vec3 originalVec(1.0f, 0.0f, 0.0f); // Original vector (1, 0, 0)
 
 	//float angle = glm::radians(90.0f); // Rotate by 90 degrees
@@ -193,17 +217,35 @@ int main()
 	//printVectorLocation(rotatedVec);
 
 	// test/debug
-	glm::vec3 v1 = glm::vec3(1.0f, 0.f, 0.f);
-	printVectorLocation(v1);
-	std::cout << "Rotating around y-axis 180-degrees" << std::endl;
-	glm::vec3 rotatedV1 = rotateVec3(v1, 180.f, 1);
-	printVectorLocation(rotatedV1);
-	std::cout << "Rotating around x-axis 180-degrees" << std::endl;
-	rotatedV1 = rotateVec3(v1, 180.f, 0);
-	printVectorLocation(rotatedV1);
-	std::cout << "Rotating around z-axis 180-degrees" << std::endl;
-	rotatedV1 = rotateVec3(v1, 180.f, 2);
-	printVectorLocation(rotatedV1);
+	//glm::vec3 v1 = glm::vec3(1.0f, 0.f, 0.f);
+	//printVectorLocation(v1);
+	//std::cout << "Rotating around y-axis 45-degrees" << std::endl;
+	//glm::vec3 rotatedV1 = rotateVec3(v1, 45.f, 2);
+	//printVectorLocation(rotatedV1);
+	//std::cout << "Rotating around x-axis 180-degrees" << std::endl;
+	//rotatedV1 = rotateVec3(v1, 45.f, 0);
+	//printVectorLocation(rotatedV1);
+	//std::cout << "Rotating around z-axis 180-degrees" << std::endl;
+	//rotatedV1 = rotateVec3(v1, 45.f, 2);
+	//printVectorLocation(rotatedV1);
+
+	//glm::vec3 point(1.0f, 0.0f, 0.0f);  // Example point (1, 0, 0)
+
+	//// Define the rotation angle in radians (45 degrees counterclockwise)
+	//float angle = glm::radians(45.0f);  // Convert degrees to radians
+
+	//// Define the rotation matrix for rotation along the z-axis
+	//glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
+
+	//// Apply the rotation to the point (convert to vec4 for matrix multiplication)
+	//glm::vec4 rotatedPoint = rotationMatrix * glm::vec4(point, 1.0f);
+
+	//// Output the rotated point (we cast vec4 back to vec3 to ignore the w component)
+	//std::cout << "Rotated point: ("
+	//	<< rotatedPoint.x << ", "
+	//	<< rotatedPoint.y << ", "
+	//	<< rotatedPoint.z << ")" << std::endl;
+
 
 	bool exit = false;
 	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: Pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
@@ -255,12 +297,10 @@ int main()
 		// GEOMETRY
 		CPU_Geometry cpuGeom;
 		GPU_Geometry gpuGeom;
-		int defaultVal = -1;
 
-		data newData = {option, defaultVal, cpuGeom, gpuGeom};
+		data newData = {option, -1, cpuGeom, gpuGeom};
 
 		// CALLBACKS
-		//window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
 		window.setCallbacks(std::make_shared<switchSceneCallBack>(shader, newData));
 
 		//numSubDiv = -1;
@@ -276,7 +316,7 @@ int main()
 				sierpinskiOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 2:
-				pythagorasOption(cpuGeom, gpuGeom);
+				pythagorasOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 3:
 				snowflakeOption(cpuGeom, gpuGeom);
@@ -291,7 +331,13 @@ int main()
 				continue;			// iterate loop from start
 		}
 
-		std::cout << "\nPlease close the shape/fractal generation window to go back to selection menu.\n" << std::endl;
+		std::cout	<< "\nPlease close the shape/fractal generation window to go back to selection menu/console.\n"
+					<< "---Additionally you use the following keys to:\n"
+					<< "UP_ARROW:			Increment the number of current subdivisions by 1.\n"
+					<< "DOWN_ARROW:			Decrement the number of current subdivisions by 1.\n"
+					<< "LEFT_SIDE_ARROW:	Move to another scene <-.\n"
+					<< "RIGHT_UP_ARROW:		Move to another scene ->.\n"
+					<< "\n" << std::endl;
 
 		// RENDER LOOP
 		while (!window.shouldClose()) {
@@ -309,7 +355,6 @@ int main()
 	}
 
 	return 0;
-
 }
 
 /**
@@ -343,43 +388,83 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 	}
 }
 
-glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption)
+/**
+* @param glm::vec3& vec3ToRotate, the glm::vec3 to be rotated.
+* @param glm::vec3 rotateAboutVec, the glm::vec3 to rotate about.
+* @param float degree, the number of radians the glm::vec3 needs to be rotated.
+* @param int axisOption, 0: rotate about x-axis, 1: rotate about y-axis, 2: rotate about z-axis
+*/
+//glm::vec3& rotateVec3(glm::vec3& vec3, float degree, int axisOption)
+//{
+
+	// first attempt....
+	//float angle = glm::radians(degree);
+	//glm::vec3 axis;
+	//glm::quat quaternion;
+
+	//switch (axisOption)
+	//{
+	//	case 0:	// rotate about x-axis
+	//		axis = glm::vec3(1.0f, 0.f, 0.f);
+	//		quaternion = glm::angleAxis(angle, axis);
+	//		break;
+	//	case 1:	// rotate about y-axis
+	//		//glm::vec3 axis(0.f, 1.0f, 0.f);
+	//		axis = glm::vec3(0.f, 1.0f, 0.f);
+	//		quaternion = glm::angleAxis(angle, axis);
+	//		break;
+	//	case 2:	// rotate about z-axis
+	//		axis = glm::vec3(0.f, 0.f, 1.f);
+	//		quaternion = glm::angleAxis(angle, axis);
+	//		break;
+	//	default:
+	//		std::cout << "\nInvalid axis of rotation\n" << std::endl;
+	//		break;
+	//}
+
+	//vec3 = quaternion * vec3;
+
+	//// If values are very small, round to zero
+	//if (glm::abs(vec3.x) < 1e-7)
+	//	vec3.x = 0.0f;
+	//if (glm::abs(vec3.y) < 1e-7)
+	//	vec3.y = 0.0f;
+	//if (glm::abs(vec3.z) < 1e-7)
+	//	vec3.z = 0.0f;
+
+	//return vec3;
+//}
+
+/**
+* Rotates a glm::vec3 around another glm::vec3 with a specified angle on the x-y plane (z coord. is not used).
+* @param glm::vec3& vec3ToRotate, the glm::vec3 to be rotated.
+* @param const glm::vec3 rotateAboutVec, the glm::vec3 that will be rotated about.
+* @param const float angleOfRotation, the angle to rotate 'vec3ToRotate' about 'rotateAboutVec', in degree's.
+*/
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation)
 {
-	float angle = glm::radians(degree);
-	glm::vec3 axis;
-	glm::quat quaternion;
+	// To rotate 'vec3ToRotate' around 'rotateAboutVec' I'll do these steps:
+	// 1) Translate 'vec3ToRotate's x and y values by 'translateByX' and 'translateByY' respectively, getting x' and y'.
+	// 2) Rotate the translated x' and y' by 'degree', getting x'' and y''.
+	// 3) Translate x'' and y'' by the inverse of 'translateByX' and 'translateByY' (subtract). The result will be the rotated 'vec3ToRotate' about 'rotateAboutVec'.
 
-	switch (axisOption)
-	{
-		case 0:	// rotate about x-axis
-			axis = glm::vec3(1.0f, 0.f, 0.f);
-			quaternion = glm::angleAxis(angle, axis);
-			break;
-		case 1:	// rotate about y-axis
-			//glm::vec3 axis(0.f, 1.0f, 0.f);
-			axis = glm::vec3(0.f, 1.0f, 0.f);
-			quaternion = glm::angleAxis(angle, axis);
-			break;
-		case 2:	// rotate about z-axis
-			axis = glm::vec3(0.f, 0.f, 1.f);
-			quaternion = glm::angleAxis(angle, axis);
-			break;
-		default:
-			std::cout << "\nInvalid axis of rotation\n" << std::endl;
-			break;
-	}
+	// Convert 'degree' into radians
+	double pi = atan(1) * 4;			// pi approx.
+	float rads = angleOfRotation * (pi/ 180);
 
-	glm::vec3 rotatedVec3 = quaternion * vec3;
+	// get x and y values that would translate 'rotateAboutVec' to origin
+	float translateByX = -rotateAboutVec.x;
+	float translateByY = -rotateAboutVec.y;
 
-	// If values are very small, round to zero
-	if (glm::abs(rotatedVec3.x) < 1e-7)
-		rotatedVec3.x = 0.0f;
-	if (glm::abs(rotatedVec3.y) < 1e-7)
-		rotatedVec3.y = 0.0f;
-	if (glm::abs(rotatedVec3.z) < 1e-7)
-		rotatedVec3.z = 0.0f;
+	// Calculate the final x and y coordinates using the steps described above. (Note: The steps above have been merged into one 'step')
+	float originalX = vec3ToRotate.x;
+	float originalY = vec3ToRotate.y;
+	float finalX = (originalX * cos(rads)) - (originalY * sin(rads)) + (translateByX * cos(rads) - translateByY * sin(rads) - translateByX);
+	float finalY = (originalX * sin(rads)) + (originalY * cos(rads)) + (translateByX * sin(rads) + translateByY * cos(rads) - translateByY);
 
-	return rotatedVec3;
+	// Set the x and y values.
+	vec3ToRotate.x = finalX;
+	vec3ToRotate.y = finalY;
 }
 
 /**
@@ -573,7 +658,7 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 }
 
 
-void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
 	//while (numSubDiv < 0)
 	//{
@@ -600,61 +685,108 @@ void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 //
 //}
 
-void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations)
+void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations, float radianOffset)
 {
 	// debug
-	std::cout << "using vec3s: " << std::endl;
+	std::cout << "using thes vec3's to calculate left/right squares: " << std::endl;
 	printVectorLocation(leftVec);
 	printVectorLocation(rightVec);
 
-	// leftVec is used to calculate the 'left side' square, rightVec is used to calculate the 'right side' square.
+	float hypotenuse = abs(rightVec.x) + abs(leftVec.x);
 
-	// Initialize the two squares, and set what we know about their points
-	std::vector<glm::vec3> leftSq(4);
-	leftSq[0] = leftVec;				// we know the left square will have this as a point
-	std::vector<glm::vec3> rightSq(4);
-	rightSq[0] = rightVec;				// we know the right square will have this as a point
-	/* Note:
-	* [0] is reserved for initial point from parent square
-	* [1] is reserved for 'right' point
-	* [2] is reserved for 'top' point
-	* [3] is reserved for 'left' point
-	*/
+	// Calc. left Square points
+	float side = calcSideS(hypotenuse);
 
-	// Find side 's' (side of square) of the 2 new squares to be created
-	float hypotenuse = abs(rightVec.x) + abs(leftVec.x);	// length of the hypotenuse made by 'leftVec' and 'rightVec'
-	float s = calcSideS(hypotenuse);
+	std::vector< glm::vec3> leftSq(4);
+	// bottom left point
+	leftSq[0] = leftVec;
 
-	// Find left square points
-	float topPtY = calcHypotenuse(s) + leftVec.y;	// 'top' point y-coord will be 's' + 'leftVec.y'
-	float topPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
-	leftSq[2] = glm::vec3(topPtX, topPtY, 0.f);
+	// bottom right point
+	leftSq[1] = glm::vec3(leftVec.x + side, leftVec.y, 0.f);
+	// top right point
+	glm::vec3 bottomRight = leftSq[1];
+	leftSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, 0.f);
+	// top left point
+	glm::vec3 topRight = leftSq[2];
+	leftSq[3] = glm::vec3(leftVec.x, topRight.y, 0.f);
 
-	float sidePtY = topPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
-	float sidePtXDiff = calcSideS(s);			// the 'side' x-ccord for the square will be the difference of length (s) of a smaller square with side lengths of 'sidePtY' val with 'leftVec.x'
-	float sideXRight = leftVec.x + sidePtXDiff;
-	float sideXLeft = leftVec.x - sidePtXDiff;
-	glm::vec3 rightSide = glm::vec3(sideXRight, sidePtY, 0.f);
-	glm::vec3 leftSide = glm::vec3(sideXLeft, sidePtY, 0.f);
-	leftSq[1] = rightSide;
-	leftSq[3] = leftSide;
+	// debug
+	std::cout << "\nvec3's before rotation: " << std::endl;
+	for (int i = 0; i < leftSq.size(); i++)
+	{
+		printVectorLocation(leftSq[i], i);
+	}
 
+	float rOffset = radianOffset;
+	for (int i = 1; i < leftSq.size(); i++, rOffset += 45.0f)
+	{
+		std::cout << "\nBefore rotation vec:" << std::endl;
+		printVectorLocation(leftSq[i], i);
+
+		//rotateVec3(leftSq[i], rOffset, 2);
+		//rotateCCWAboutVec3(leftSq[i], rOffset);
+
+		std::cout << "After rotation vec:" << std::endl;
+		printVectorLocation(leftSq[i], i);
+	}
+
+	// debug
+	std::cout << "\nprinting vec3 inside cpuGeom..." << std::endl;
 	for (int i = 0; i < leftSq.size(); i++)
 	{
 		cpuGeom.verts.push_back(leftSq[i]);
 		printVectorLocation(leftSq[i], i);
 	}
 
-	if (currentIteration == numIterations)
-	{
-		std::cout << "done making left" << std::endl;
-		return;
-	}
-	else
-	{
-		++currentIteration;
-		generatePythagorasRecurr(cpuGeom, leftSq[3], leftSq[2], currentIteration, numIterations);
-	}
+	// -------------- OLD
+	//// leftVec is used to calculate the 'left side' square, rightVec is used to calculate the 'right side' square.
+
+	//// Initialize the two squares, and set what we know about their points
+	//std::vector<glm::vec3> leftSq(4);
+	//leftSq[0] = leftVec;				// we know the left square will have this as a point
+	//std::vector<glm::vec3> rightSq(4);
+	//rightSq[0] = rightVec;				// we know the right square will have this as a point
+	///* Note:
+	//* [0] is reserved for initial point from parent square
+	//* [1] is reserved for 'right' point
+	//* [2] is reserved for 'top' point
+	//* [3] is reserved for 'left' point
+	//*/
+
+	//// Find side 's' (side of square) of the 2 new squares to be created
+	//float hypotenuse = abs(rightVec.x) + abs(leftVec.x);	// length of the hypotenuse made by 'leftVec' and 'rightVec'
+	//float s = calcSideS(hypotenuse);
+
+	//// Find left square points
+	//float topPtY = calcHypotenuse(s) + leftVec.y;	// 'top' point y-coord will be 's' + 'leftVec.y'
+	//float topPtX = leftVec.x;				// 'leftVec' and the left square's 'top' point share the same x coord.
+	//leftSq[2] = glm::vec3(topPtX, topPtY, 0.f);
+
+	//float sidePtY = topPtY / 2;				// the 'side' y-coord for the square will be half of the 'top' points y coord.
+	//float sidePtXDiff = calcSideS(s);			// the 'side' x-ccord for the square will be the difference of length (s) of a smaller square with side lengths of 'sidePtY' val with 'leftVec.x'
+	//float sideXRight = leftVec.x + sidePtXDiff;
+	//float sideXLeft = leftVec.x - sidePtXDiff;
+	//glm::vec3 rightSide = glm::vec3(sideXRight, sidePtY, 0.f);
+	//glm::vec3 leftSide = glm::vec3(sideXLeft, sidePtY, 0.f);
+	//leftSq[1] = rightSide;
+	//leftSq[3] = leftSide;
+
+	//for (int i = 0; i < leftSq.size(); i++)
+	//{
+	//	cpuGeom.verts.push_back(leftSq[i]);
+	//	printVectorLocation(leftSq[i], i);
+	//}
+
+	//if (currentIteration == numIterations)
+	//{
+	//	std::cout << "done making left" << std::endl;
+	//	return;
+	//}
+	//else
+	//{
+	//	++currentIteration;
+	//	generatePythagorasRecurr(cpuGeom, leftSq[3], leftSq[2], currentIteration, numIterations);
+	//}
 	// Find right square points
 	
 }
@@ -724,11 +856,11 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const 
 	baseVec3[2] = glm::vec3(0.25, 0.f,0.f);		// top right
 	baseVec3[3] = glm::vec3(-0.25, 0.f, 0.f);	// top left
 
-	for (int i = 0; i < baseVec3.size(); i++)
-	{
-		cpuGeom.verts.push_back(baseVec3[i]);
-		//printVectorLocation(baseVec3[i], i);
-	}
+	//for (int i = 0; i < baseVec3.size(); i++)
+	//{
+	//	cpuGeom.verts.push_back(baseVec3[i]);
+	//	//printVectorLocation(baseVec3[i], i);
+	//}
 
 	std::cout << "cpu geom size = " << cpuGeom.verts.size() << std::endl;
 
@@ -762,7 +894,7 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const 
 	}
 	std::cout << "\n" << std::endl;
 
-	generatePythagorasRecurr(cpuGeom, baseVec3[3], baseVec3[2], 1, numIterations);
+	generatePythagorasRecurr(cpuGeom, baseVec3[3], baseVec3[2], 1, numIterations, 45.0f);
 
 	setRainbowCol(cpuGeom);
 
