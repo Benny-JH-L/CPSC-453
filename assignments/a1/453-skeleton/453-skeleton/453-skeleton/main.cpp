@@ -688,7 +688,7 @@ void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneD
 void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, int currentIteration, const int numIterations, float radianOffset)
 {
 	// debug
-	std::cout << "using thes vec3's to calculate left/right squares: " << std::endl;
+	std::cout << "using these vec3's to calculate left/right squares: " << std::endl;
 	printVectorLocation(leftVec);
 	printVectorLocation(rightVec);
 
@@ -717,25 +717,31 @@ void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, c
 		printVectorLocation(leftSq[i], i);
 	}
 
-	float rOffset = radianOffset;
-	for (int i = 1; i < leftSq.size(); i++, rOffset += 45.0f)
+	for (int i = 1; i < leftSq.size(); i++)
 	{
 		std::cout << "\nBefore rotation vec:" << std::endl;
 		printVectorLocation(leftSq[i], i);
 
 		//rotateVec3(leftSq[i], rOffset, 2);
-		//rotateCCWAboutVec3(leftSq[i], rOffset);
+		rotateCCWAboutVec3(leftSq[i], leftVec, radianOffset);
 
 		std::cout << "After rotation vec:" << std::endl;
 		printVectorLocation(leftSq[i], i);
 	}
 
-	// debug
-	std::cout << "\nprinting vec3 inside cpuGeom..." << std::endl;
+	//std::cout << "\nprinting vec3 inside cpuGeom..." << std::endl; 	 // debug
+
 	for (int i = 0; i < leftSq.size(); i++)
 	{
 		cpuGeom.verts.push_back(leftSq[i]);
-		printVectorLocation(leftSq[i], i);
+		//printVectorLocation(leftSq[i], i); 	 // debug
+	}
+
+	if (currentIteration != numIterations)
+	{
+		currentIteration++;
+		radianOffset += radianOffset;
+		generatePythagorasRecurr(cpuGeom, leftSq[3], leftSq[2], currentIteration, numIterations, radianOffset);
 	}
 
 	// -------------- OLD
@@ -856,11 +862,11 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const 
 	baseVec3[2] = glm::vec3(0.25, 0.f,0.f);		// top right
 	baseVec3[3] = glm::vec3(-0.25, 0.f, 0.f);	// top left
 
-	//for (int i = 0; i < baseVec3.size(); i++)
-	//{
-	//	cpuGeom.verts.push_back(baseVec3[i]);
-	//	//printVectorLocation(baseVec3[i], i);
-	//}
+	for (int i = 0; i < baseVec3.size(); i++)
+	{
+		cpuGeom.verts.push_back(baseVec3[i]);
+		//printVectorLocation(baseVec3[i], i);
+	}
 
 	std::cout << "cpu geom size = " << cpuGeom.verts.size() << std::endl;
 
