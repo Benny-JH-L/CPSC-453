@@ -18,74 +18,48 @@
 
 #include <glm/gtc/quaternion.hpp>
 
-// EXAMPLE CALLBACKS
-class MyCallbacks : public CallbackInterface {
-
-public:
-	MyCallbacks(ShaderProgram& shader) : shader(shader) {}
-
-	virtual void keyCallback(int key, int scancode, int action, int mods) {
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-		{
-			shader.recompile();
-		}
-	}
-
-private:
-	ShaderProgram& shader;
-};
-
-class MyCallbacks2 : public CallbackInterface {
-
-public:
-	MyCallbacks2() {}
-
-	virtual void keyCallback(int key, int scancode, int action, int mods) {
-		if (key == GLFW_KEY_R && action == GLFW_PRESS) {
-			std::cout << "called back" << std::endl;
-		}
-	}
-};
-// END EXAMPLES
-
-class switchScene : public CallbackInterface
+struct data
 {
-	public:
-		switchScene(ShaderProgram& shader) : shader(shader) {}
-
-	virtual void keyCallback(int key, int scancode, int action, int mods)
-	{
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-		{
-			shader.recompile();
-		}
-		else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
-		{
-			std::cout << "\nswitching scene ->... (not implmented)\n" << std::endl;
-		}
-		else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
-		{
-			std::cout << "\nswitching scene <-... (not implmented)\n" << std::endl;
-		}
-		else if (key == GLFW_KEY_UP)
-		{
-			std::cout << "\n increasing sub-div... (not implmented)\n" << std::endl;
-		}
-		else if (key == GLFW_KEY_DOWN)
-		{
-			std::cout << "\n decrease sub-div... (not implmented)\n" << std::endl;
-		}
-	}
-
-	private:
-		ShaderProgram& shader;
+	int fractalOption;
+	int& numSubDiv;
+	CPU_Geometry& cpuGeom;
+	GPU_Geometry& gpuGeom;
 };
 
+// EXAMPLE CALLBACKS
+//class MyCallbacks : public CallbackInterface {
+//
+//public:
+//	MyCallbacks(ShaderProgram& shader) : shader(shader) {}
+//
+//	virtual void keyCallback(int key, int scancode, int action, int mods) {
+//		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+//		{
+//			shader.recompile();
+//		}
+//	}
+//
+//private:
+//	ShaderProgram& shader;
+//};
+//
+//class MyCallbacks2 : public CallbackInterface {
+//
+//public:
+//	MyCallbacks2() {}
+//
+//	virtual void keyCallback(int key, int scancode, int action, int mods) {
+//		if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+//			std::cout << "called back" << std::endl;
+//		}
+//	}
+//};
+// END EXAMPLES
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
 
 // Sierpinski Triangle prototypes
-void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 void setRainbowCol(CPU_Geometry& cpuGeom);
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2);
@@ -111,8 +85,96 @@ glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption);
 void printVectorLocation(glm::vec3 vec, int vecNum);
 void printVectorLocation(glm::vec3 vec);
 
+class switchSceneCallBack : public CallbackInterface
+{
+	public:
+		switchSceneCallBack(ShaderProgram& shader, data& d) : shader(shader), sceneData(d) {}
 
-int numSubDiv = -1;
+	virtual void keyCallback(int key, int scancode, int action, int mods)
+	{
+		int option = sceneData.fractalOption;
+		int& subDiv = sceneData.numSubDiv;
+		CPU_Geometry& cpuGeom = sceneData.cpuGeom;
+		GPU_Geometry& gpuGeom = sceneData.gpuGeom;
+
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		{
+			shader.recompile();
+		}
+		else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+		{
+			std::cout << "\nswitching scene ->... (not implmented)\n" << std::endl;
+		}
+		else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+		{
+			std::cout << "\nswitching scene <-... (not implmented)\n" << std::endl;
+		}
+		else if (key == GLFW_KEY_UP && action == GLFW_PRESS)
+		{
+			sceneData.numSubDiv++;	// increment the current subdivisions by 1
+			std::cout << "\nIncrementing number of subdivisions by 1...\n" << std::endl;
+
+			// Checking the option chosen
+			switch (option)
+			{
+				case 1:
+					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
+					drawFractal(option, cpuGeom);
+					break;
+				case 2:
+					//pythagorasOption(cpuGeom, gpuGeom);
+					break;
+				case 3:
+					//snowflakeOption(cpuGeom, gpuGeom);
+					break;
+				case 4:
+					//dragonCurveOption(cpuGeom, gpuGeom);
+					break;
+				default:
+					std::cout << "\nInvalid option..." << std::endl;
+			}
+		}
+		else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
+		{
+			sceneData.numSubDiv--;	// decrement the current subdivisions by 1
+
+			if (sceneData.numSubDiv < 0)
+			{
+				sceneData.numSubDiv = 0;
+				std::cout << "\nCannot have negative subdivisions...\n" << std::endl;
+				return;
+			}
+
+			std::cout << "\nDecrementing number of subdivisions by 1...\n" << std::endl;
+
+			// Checking the option chosen
+			switch (option)
+			{
+				case 1:
+					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
+					drawFractal(option, cpuGeom);
+					break;
+				case 2:
+					//pythagorasOption(cpuGeom, gpuGeom);
+					break;
+				case 3:
+					//snowflakeOption(cpuGeom, gpuGeom);
+					break;
+				case 4:
+					//dragonCurveOption(cpuGeom, gpuGeom);
+					break;
+				default:
+					std::cout << "\nInvalid option..." << std::endl;
+			}
+		}
+	}
+
+	private:
+		ShaderProgram& shader;
+		data& sceneData;
+};
+
+//int numSubDiv = -1;
 
 int main()
 {
@@ -190,15 +252,18 @@ int main()
 		// SHADERS
 		ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
 
-		// CALLBACKS
-		//window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
-		window.setCallbacks(std::make_shared<switchScene>(shader));
-
 		// GEOMETRY
 		CPU_Geometry cpuGeom;
 		GPU_Geometry gpuGeom;
+		int defaultVal = -1;
 
-		numSubDiv = -1;
+		data newData = {option, defaultVal, cpuGeom, gpuGeom};
+
+		// CALLBACKS
+		//window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
+		window.setCallbacks(std::make_shared<switchSceneCallBack>(shader, newData));
+
+		//numSubDiv = -1;
 
 		// Checking the option chosen
 		switch(option)
@@ -208,7 +273,7 @@ int main()
 				std::cout << "\nExiting..." << std::endl;
 				continue;			// iterate loop from start
 			case 1:
-				sierpinskiOption(cpuGeom, gpuGeom);
+				sierpinskiOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 2:
 				pythagorasOption(cpuGeom, gpuGeom);
@@ -322,8 +387,9 @@ glm::vec3 rotateVec3(glm::vec3 vec3, float degree, int axisOption)
 * @param CPU_Geometry& cpuGeom, reference to the CPU_Geometry to contain the 'vec3's generated.
 * @param GPU_Geometry& gpuGeom, reference to the GPU_Geometry to set its 'vec3's and colours.
 */
-void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
+	int numSubDiv = -1;
 	while (numSubDiv < 0)
 	{
 		std::cout << "\n--Sierpinski Triangle--\n How many subdivisions would you like? ";
@@ -333,6 +399,7 @@ void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 			std::cout << "\nInvalid input..." << std::endl;
 			continue;
 		}
+		sceneData.numSubDiv = numSubDiv;
 		generateSierpinskiTriangle(cpuGeom, gpuGeom, numSubDiv);
 		std::cout << "\nSierpinski Triangle with " << numSubDiv << " subdivisions created." << std::endl;
 	}
@@ -442,6 +509,16 @@ void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& tri
 */
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
+	if (numIterations == -1)
+	{
+		std::cout << "\nCannot have negative subdivisions\n" << std::endl;
+		return;
+	}
+
+	// Clear what is inside the cpuGeom
+	cpuGeom.verts.clear();
+	cpuGeom.cols.clear();
+
 	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
 	// create base triangle
