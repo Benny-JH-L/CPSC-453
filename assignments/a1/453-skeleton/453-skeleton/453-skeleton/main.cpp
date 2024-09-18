@@ -25,6 +25,7 @@ struct data
 	int numSubDiv;
 	CPU_Geometry& cpuGeom;
 	GPU_Geometry& gpuGeom;
+	Window& window;
 };
 
 // EXAMPLE CALLBACKS
@@ -95,7 +96,7 @@ void printVectorLocation(glm::vec3 vec);
 class switchSceneCallBack : public CallbackInterface
 {
 	public:
-		switchSceneCallBack(ShaderProgram& shader, data& d, Window& win) : shader(shader), sceneData(d), window(win) {}
+		switchSceneCallBack(ShaderProgram& shader, data& d) : shader(shader), sceneData(d), win(d.window) {}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
@@ -128,7 +129,7 @@ class switchSceneCallBack : public CallbackInterface
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 2:
-					generatePythagorasTree(window, cpuGeom, gpuGeom, subDiv);
+					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
 					
@@ -162,7 +163,7 @@ class switchSceneCallBack : public CallbackInterface
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 2:
-					generatePythagorasTree(window, cpuGeom, gpuGeom, subDiv);
+					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
 					//snowflakeOption(cpuGeom, gpuGeom);
@@ -181,77 +182,12 @@ class switchSceneCallBack : public CallbackInterface
 	private:
 		ShaderProgram& shader;
 		data& sceneData;
-		Window& window;
+		Window& win;
 };
-
-//int numSubDiv = -1;
 
 int main()
 {
 	Log::debug("Starting main");
-
-	// test/debug
-	//glm::vec3 v1(2.f, 3.f, 0.f);
-	//glm::vec3 v2(5.f, 1.f, 0.f);
-	//glm::vec3 aboutV(-5.f, 4.f, 0.f);
-
-	//std::cout << "\ncos(100)= " << cos(100) << std::endl;	// 100 is rads
-	//std::cout << "\nsin(100)= " << sin(100) << std::endl;
-
-	//rotateCCWAboutVec3(v1, aboutV, 100.f);	// expected = (-5.2, 11.1, 0)
-	//rotateCCWAboutVec3(v2, aboutV, 100.f);	// expected = (-3.8, 14.4, 0)
-
-	//std::cout << "\nrotated v1: " << std::endl;
-	//printVectorLocation(v1, 1);
-
-	//std::cout << "\nrotated v2: " << std::endl;
-	//printVectorLocation(v2, 2);
-
-	//std::cout << "\nAbout rotate vec: " << std::endl;
-	//printVectorLocation(aboutV, 0);
-
-	//glm::vec3 originalVec(1.0f, 0.0f, 0.0f); // Original vector (1, 0, 0)
-
-	//float angle = glm::radians(90.0f); // Rotate by 90 degrees
-	//glm::vec3 axis(0.0f, 0.0f, 1.0f); // Axis of rotation (z-axis)
-
-	//// Create a quaternion representing the rotation
-	//glm::quat quaternion = glm::angleAxis(angle, axis);
-
-	//// Apply the quaternion rotation to the vector
-	//glm::vec3 rotatedVec = quaternion * originalVec;
-	//printVectorLocation(rotatedVec);
-
-	// test/debug
-	//glm::vec3 v1 = glm::vec3(1.0f, 0.f, 0.f);
-	//printVectorLocation(v1);
-	//std::cout << "Rotating around y-axis 45-degrees" << std::endl;
-	//glm::vec3 rotatedV1 = rotateVec3(v1, 45.f, 2);
-	//printVectorLocation(rotatedV1);
-	//std::cout << "Rotating around x-axis 180-degrees" << std::endl;
-	//rotatedV1 = rotateVec3(v1, 45.f, 0);
-	//printVectorLocation(rotatedV1);
-	//std::cout << "Rotating around z-axis 180-degrees" << std::endl;
-	//rotatedV1 = rotateVec3(v1, 45.f, 2);
-	//printVectorLocation(rotatedV1);
-
-	//glm::vec3 point(1.0f, 0.0f, 0.0f);  // Example point (1, 0, 0)
-
-	//// Define the rotation angle in radians (45 degrees counterclockwise)
-	//float angle = glm::radians(45.0f);  // Convert degrees to radians
-
-	//// Define the rotation matrix for rotation along the z-axis
-	//glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
-
-	//// Apply the rotation to the point (convert to vec4 for matrix multiplication)
-	//glm::vec4 rotatedPoint = rotationMatrix * glm::vec4(point, 1.0f);
-
-	//// Output the rotated point (we cast vec4 back to vec3 to ignore the w component)
-	//std::cout << "Rotated point: ("
-	//	<< rotatedPoint.x << ", "
-	//	<< rotatedPoint.y << ", "
-	//	<< rotatedPoint.z << ")" << std::endl;
-
 
 	bool exit = false;
 	int option = -1; 	// used to determine what fractal the user wants to generate (1: triangle, 2: Pythagoras, 3: snowflake, 4: dragon curve, 0: exit) 
@@ -304,10 +240,10 @@ int main()
 		CPU_Geometry cpuGeom;
 		GPU_Geometry gpuGeom;
 
-		data newData = {option, -1, cpuGeom, gpuGeom};
+		data newData = {option, -1, cpuGeom, gpuGeom, window};
 
 		// CALLBACKS
-		window.setCallbacks(std::make_shared<switchSceneCallBack>(shader, newData, window));
+		window.setCallbacks(std::make_shared<switchSceneCallBack>(shader, newData));
 
 		//numSubDiv = -1;
 
@@ -818,9 +754,8 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 	// debug/test
 	int height = window.getHeight();
 	int width = window.getWidth();
-
-	std::cout	<< "\nwindow height = " << height
-				<< "\nwindow width = " << width << std::endl;
+	//std::cout	<< "\nwindow height = " << height
+	//			<< "\nwindow width = " << width << std::endl;
 
 	// Create base square
 	std::vector<glm::vec3> baseVec3(4);
