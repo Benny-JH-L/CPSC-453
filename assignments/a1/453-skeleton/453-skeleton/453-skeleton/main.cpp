@@ -16,12 +16,11 @@
 #include "Shader.h"
 #include "Window.h"
 
-//#include <glm/gtc/quaternion.hpp>
-#include <cmath>;
+//#include <cmath>;
 
 struct data
 {
-	int fractalOption;
+	int fractalOption;	// 1: Sierpinski Triangle | 2: Pythagoras Tree | 3: Koch Snowflake | 4: Dragon Curve
 	int numSubDiv;
 	CPU_Geometry& cpuGeom;
 	GPU_Geometry& gpuGeom;
@@ -308,20 +307,20 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 {
 	switch (option)
 	{
-		case 1:
+		case 1:		// Draw's Sierpinski Triangle
 			glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
 			break;
-		case 2:
+		case 2:		// Draw's Pythagoras Tree
 			// "squareVec3Start" is the starting 'vec3' in 'cpuGeom' for this square.
 			// 'j' is how many 'vec3's to draw (4) for a square.
 			for (int squareVec3Start = 0, j = 4; squareVec3Start < cpuGeom.verts.size(); squareVec3Start += 4)
 				glDrawArrays(GL_TRIANGLE_FAN, squareVec3Start, j);
 			break;
-		case 3:
+		case 3:		// Draw's Koch Snowflake
 			// use "GL_TRIANGLE_STRIP" ???
 			std::cout << "\nSnowflake drawing not implemented...\n" << std::endl;
 			break;
-		case 4:
+		case 4:		// Draw's Dragon curve
 			std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
 			break;
 		default:
@@ -502,9 +501,14 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
 	// create base triangle
-	baseTriangle[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
-	baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
-	baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
+	baseTriangle[0] = (glm::vec3(-1.f, -1.f, 0.f));
+	baseTriangle[1] = (glm::vec3(0.f, 1.f, 0.f));
+	baseTriangle[2] = (glm::vec3(1.f, -1.f, 0.f));
+
+	// OLD
+	//baseTriangle[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
+	//baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
+	//baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
 
 	// this way works too
 	//baseTriangle[2] = (glm::vec3(-0.5f, -0.5f, 0.f));
