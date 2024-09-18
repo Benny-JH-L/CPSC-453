@@ -800,6 +800,9 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 	}
 }
 
+/**
+* 2.2 Part 2 : Pythagoras Tree
+*/
 void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations == -1)
@@ -830,7 +833,7 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 
 	baseVec3[0] = glm::vec3(-0.25, -1.f, 0.f);	// bottom left
 	baseVec3[1] = glm::vec3(0.25, -1.f, 0.f);	// bottom right
-	baseVec3[2] = glm::vec3(0.25, -0.5, 0.f);		// top right
+	baseVec3[2] = glm::vec3(0.25, -0.5, 0.f);	// top right
 	baseVec3[3] = glm::vec3(-0.25, -0.5, 0.f);	// top left
 
 	// Add the base (root) square to the cpuGeom
@@ -857,6 +860,10 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 	//std::cout << "\nNumber of squares to draw = " << cpuGeom.verts.size() / 4 << std::endl;
 }
 
+/**
+* Calculates the side 's' of a square using the hypotenuse (side length of its 'parent' square).
+* @param float hypotenuse, the side length of its parent square.
+*/
 float calcSideS(float hypotenuse)
 {
 	return hypotenuse / (sqrt(2));
