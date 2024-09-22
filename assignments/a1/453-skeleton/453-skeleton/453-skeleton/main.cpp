@@ -585,18 +585,18 @@ void generatePythagorasRecurrLeftRight(CPU_Geometry& cpuGeom, const glm::vec3& l
 
 	// Calc. right square vec3's
 	std::vector<glm::vec3> rightSq(4);
-
+	float z = currentIteration / numIterations;
 	// bottom left point
-	rightSq[0] = rightVec;
+	rightSq[0] = glm::vec3(rightVec.x, rightVec.y, z);  // rightVec;
 	// bottom right point
-	rightSq[1] = glm::vec3(rightVec.x + side, rightVec.y, 0.f);
+	rightSq[1] = glm::vec3(rightVec.x + side, rightVec.y, z);
 	// top right point
 	glm::vec3 bottomRight = rightSq[1];
-	rightSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, 0.f);
+	rightSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, z);
 	// top left point
 	glm::vec3 bottomLeft = rightSq[0];
 	glm::vec3 topRight = rightSq[2];
-	rightSq[3] = glm::vec3(bottomLeft.x, topRight.y, 0.f);
+	rightSq[3] = glm::vec3(bottomLeft.x, topRight.y, z);
 
 	// Rotate the right square's vec3s about 'rightVec'
 	for (int i = 0; i < rightSq.size(); i++)
@@ -626,17 +626,17 @@ void generatePythagorasRecurrLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVe
 
 	// Calc. left Square vec3's
 	std::vector< glm::vec3> leftSq(4);
-
+	float z = currentIteration / numIterations;
 	// bottom left point
-	leftSq[0] = leftVec;
+	leftSq[0] = glm::vec3(leftVec.x, leftVec.y, z); // leftVec;
 	// bottom right point
-	leftSq[1] = glm::vec3(leftVec.x + side, leftVec.y, 0.f);
+	leftSq[1] = glm::vec3(leftVec.x + side, leftVec.y, z);
 	// top right point
 	glm::vec3 bottomRight = leftSq[1];
-	leftSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, 0.f);
+	leftSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, z);
 	// top left point
 	glm::vec3 topRight = leftSq[2];
-	leftSq[3] = glm::vec3(leftVec.x, topRight.y, 0.f);
+	leftSq[3] = glm::vec3(leftVec.x, topRight.y, z);
 
 	// Rotate the left square's vec3s about 'leftVec'
 	for (int i = 0; i < leftSq.size(); i++)
@@ -666,18 +666,18 @@ void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& l
 
 	// Calc. left Square vec3's
 	std::vector< glm::vec3> leftSq(4);
-
+	float z = currentIteration / numIterations;
 	// bottom left point
-	leftSq[0] = glm::vec3(leftVec.x - side, leftVec.y, 0.f);
+	leftSq[0] = glm::vec3(leftVec.x - side, leftVec.y, z);
 	// bottom right point
-	leftSq[1] = leftVec;
+	leftSq[1] = glm::vec3(leftVec.x, leftVec.y, z); // leftVec;
 	// top right point
 	glm::vec3 bottomRight = leftSq[1];
-	leftSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, 0.f);
+	leftSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, z);
 	// top left point
 	glm::vec3 topRight = leftSq[2];
 	glm::vec3 bottomLeft = leftSq[0];
-	leftSq[3] = glm::vec3(bottomLeft.x, topRight.y, 0.f);
+	leftSq[3] = glm::vec3(bottomLeft.x, topRight.y, z);
 
 	// Rotate the left square's vec3s about 'leftVec'
 	for (int i = 0; i < leftSq.size(); i++)
@@ -708,18 +708,18 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 
 	// Calc. right square vec3's
 	std::vector<glm::vec3> rightSq(4);
-
+	float z = currentIteration / numIterations;
 	// bottom left point
-	rightSq[0] = glm::vec3(rightVec.x - side, rightVec.y, 0.f);
+	rightSq[0] = glm::vec3(rightVec.x - side, rightVec.y, z);
 	// bottom right point
-	rightSq[1] = rightVec;
+	rightSq[1] = glm::vec3(rightVec.x, rightVec.y, z); // rightVec;
 	// top right point
 	glm::vec3 bottomRight = rightSq[1];
-	rightSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, 0.f);
+	rightSq[2] = glm::vec3(bottomRight.x, bottomRight.y + side, z);
 	// top left point
 	glm::vec3 bottomLeft = rightSq[0];
 	glm::vec3 topRight = rightSq[2];
-	rightSq[3] = glm::vec3(bottomLeft.x, topRight.y, 0.f);
+	rightSq[3] = glm::vec3(bottomLeft.x, topRight.y, z);
 
 	// Rotate the right square's vec3s about 'rightVec'
 	for (int i = 0; i < rightSq.size(); i++)
