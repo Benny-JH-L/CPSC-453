@@ -16,8 +16,6 @@
 #include "Shader.h"
 #include "Window.h"
 
-//#include <cmath>;
-
 struct data
 {
 	int fractalOption;	// 1: Sierpinski Triangle | 2: Pythagoras Tree | 3: Koch Snowflake | 4: Dragon Curve
@@ -81,6 +79,7 @@ void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& l
 // Koch Snowflake prototypes
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
+void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 leftVec3, glm::vec3 rightVec3, int currentIteration, const int numIterations);
 
 // Dragon Curve prototypes
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
@@ -92,6 +91,9 @@ void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec,
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
 void printVectorLocation(glm::vec3 vec);
+
+
+void clearCPUGeom(CPU_Geometry& cpuGeom);
 
 class switchSceneCallBack : public CallbackInterface
 {
@@ -499,8 +501,7 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	}
 
 	// Clear what is inside the cpuGeom
-	cpuGeom.verts.clear();
-	cpuGeom.cols.clear();
+	clearCPUGeom(cpuGeom);
 
 	std::vector<glm::vec3> baseTriangle(3, glm::vec3());
 
@@ -820,8 +821,29 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 
 }
 
-void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, int currentIteration, const int numIterations)
+glm::vec3 scaleVec3(glm::vec3 v, float scale)
 {
+	v.x = (v.x * scale);
+	v.y = (v.y * scale);
+	v.z = (v.z * scale);
+	return v;
+}
+
+void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 leftVec3, glm::vec3 rightVec3, int currentIteration, const int numIterations)
+{
+	// Calculate sub triangle points
+
+	// bottom right
+	std::cout << "\nbefore scale: ";
+	printVectorLocation(rightVec3);
+	glm::vec3 bottomRight = scaleVec3(rightVec3, (1/3));
+	std::cout << "\nafter scale: " << std::endl;
+	printVectorLocation(bottomRight);
+
+	// top middle
+		// calc. halfway point of 'leftVec3' and 'rightVec3'
+
+	// bottom left
 
 }
 
@@ -830,15 +852,33 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 	std::cout << "NOT IMPLMENTED YET";
 	// I think the best way to do this one is to generate one side of the snowflake
 	// then copy and rotate the cpoies to 'generate' the other sides.
-	std::vector<glm::vec3> baseSide	= // store the base side of the initial triangle
+	// this could make computation not too difficult, but i should try doing it with all 3 sides.
+
+	//std::vector<glm::vec3> baseSide	= // store the base side of the initial triangle
+	//{
+	//		glm::vec3(-0.75f, 0.f, 0.f),
+	//		glm::vec3(0.75, 0.f, 0.f)
+	//};
+	//for (int i = 0; i < baseSide.size(); i++)
+		//cpuGeom.verts.push_back(baseSide[i]);
+
+	std::vector<glm::vec3> baseTriangleVec3 =
 	{
-			glm::vec3(-0.25f, 0.f, 0.f),
-			glm::vec3(0.25, 0.f, 0.f)
+		glm::vec3(1.f, 0.f, 0.f),		// bottom right point
+		glm::vec3(0.f, 1.f, 0.f),		// top point
+		glm::vec3(-1.f, 0.f, 0.f)		// bottom left point
 	};
 
-	for (int i = 0; i < baseSide.size(); i++)
-		cpuGeom.verts.push_back(baseSide[i]);
+	for (int i = 0; i < baseTriangleVec3.size(); i++) {
+		cpuGeom.verts.push_back(baseTriangleVec3[i]);
+		//printVectorLocation(baseTriangleVec3[i]);
+	}
 
+	if (numIterations > 0)
+	{
+		generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[1], baseTriangleVec3[0], 1, numIterations);	// calc right side
+	}
+		
 	setRainbowCol(cpuGeom);
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
@@ -890,7 +930,7 @@ void printVectorLocation(glm::vec3 vec)
 */
 void printVectorLocation(glm::vec3 vec, int vecNum)
 {
-	std::cout << "vec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
+	std::cout << "\nvec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
 }
 
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts)
@@ -989,5 +1029,10 @@ void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVert
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
-
+void clearCPUGeom(CPU_Geometry& cpuGeom)
+{
+	// Clear what is inside the cpuGeom
+	cpuGeom.verts.clear();
+	cpuGeom.cols.clear();
+}
 
