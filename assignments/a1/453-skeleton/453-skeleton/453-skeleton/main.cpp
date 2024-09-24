@@ -80,6 +80,7 @@ void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& l
 
 // Koch Snowflake prototypes
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
 
 // Dragon Curve prototypes
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
@@ -305,6 +306,8 @@ int main()
 */
 void drawFractal(int option, const CPU_Geometry& cpuGeom)
 {
+	//glEnable(GL_FRAMEBUFFER_SRGB);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	switch (option)
 	{
 		case 1:		// Draw's Sierpinski Triangle
@@ -317,8 +320,9 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 				glDrawArrays(GL_TRIANGLE_FAN, squareVec3Start, j);
 			break;
 		case 3:		// Draw's Koch Snowflake
-			// use "GL_TRIANGLE_STRIP" ???
-			std::cout << "\nSnowflake drawing not implemented...\n" << std::endl;
+			//// use "GL_TRIANGLE_STRIP" ???
+			//std::cout << "\nSnowflake drawing not implemented...\n" << std::endl;
+			glDrawArrays(GL_LINE_LOOP, 0, cpuGeom.verts.size());
 			break;
 		case 4:		// Draw's Dragon curve
 			std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
@@ -810,7 +814,10 @@ float calcSideS(float hypotenuse)
 
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
-	std::cout << "NOT IMPLMENTED YET";
+	//std::cout << "NOT IMPLMENTED YET";
+	std::cout << "\n---IN PROGRESS---\n";
+	generateKochSnowflake(cpuGeom, gpuGeom, 1);
+
 }
 
 void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, int currentIteration, const int numIterations)
@@ -821,12 +828,25 @@ void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, int currentIteration, co
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	std::cout << "NOT IMPLMENTED YET";
+	// I think the best way to do this one is to generate one side of the snowflake
+	// then copy and rotate the cpoies to 'generate' the other sides.
+	std::vector<glm::vec3> baseSide	= // store the base side of the initial triangle
+	{
+			glm::vec3(-0.25f, 0.f, 0.f),
+			glm::vec3(0.25, 0.f, 0.f)
+	};
+
+	for (int i = 0; i < baseSide.size(); i++)
+		cpuGeom.verts.push_back(baseSide[i]);
+
+	setRainbowCol(cpuGeom);
+	gpuGeom.setVerts(cpuGeom.verts);
+	gpuGeom.setCols(cpuGeom.cols);
 }
 
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	std::cout << "NOT IMPLMENTED YET";
-
 }
 
 /**
