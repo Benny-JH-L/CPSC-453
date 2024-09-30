@@ -1432,6 +1432,10 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 
 }
 
+/// <summary>
+/// Reverses a std::vector(glm::vec3) 'a' elements: swap a[0] with a[size-1], swap a[1] with a[size-2] ... swap a[mid -1] with a[mid+1].
+/// </summary>
+/// <param name="arr"> the std::vector glm::vec3 to be reversed. </param>
 void reverse(std::vector <glm::vec3>& arr)
 {
 	for (int i = 0, j = arr.size() - 1; i < arr.size() / 2; i++, j--)
@@ -1446,6 +1450,10 @@ void reverse(std::vector <glm::vec3>& arr)
 		}
 }
 
+/// <summary>
+/// Shifts the Dragon Curve to the origin from its center.
+/// </summary>
+/// <param name="cpuGeom"> a CPU_Geometry that contains the Dragon Curve.</param>
 void shiftDragonCurveCenterToOrigin(CPU_Geometry& cpuGeom)
 {
 	float yMax = cpuGeom.verts.at(0).y;
@@ -1477,7 +1485,7 @@ void shiftDragonCurveCenterToOrigin(CPU_Geometry& cpuGeom)
 	float xMid = xMax - xMidDiff;
 	float yMid = yMax - yMidDiff;
 
-	// Shift all points in the curve by -xMid and -yMid (center to the origin)
+	// Shift all points in the curve by -xMid and -yMid (curve center to the origin)
 	for (int i = 0; i < cpuGeom.verts.size(); i++)
 	{
 		cpuGeom.verts.at(i).x = cpuGeom.verts.at(i).x - xMid;
@@ -1491,7 +1499,13 @@ void shiftDragonCurveCenterToOrigin(CPU_Geometry& cpuGeom)
 	//	printVectorLocation(cpuGeom.verts.at(i));
 }
 
-void genDragonCurveRecurr(CPU_Geometry& cpuGeom, int currentIteration, int numIterations)
+/// <summary>
+/// Generates the Dragon Curve recursively.
+/// </summary>
+/// <param name="cpuGeom"> a CPU_Geometry that contains the Dragon Curve glm::vec3's. </param>
+/// <param name="currentIteration"> an int that counts the current subdivision. </param>
+/// <param name="numIterations"> an int, the total number of subdivisions desired. </param>
+void genDragonCurveRecur(CPU_Geometry& cpuGeom, int currentIteration, int numIterations)
 {
 	// debugging
 	//std::cout << "\n(Before starting iter: " << currentIteration << ") cpuGeom size = " << cpuGeom.verts.size() << std::endl;
@@ -1523,24 +1537,29 @@ void genDragonCurveRecurr(CPU_Geometry& cpuGeom, int currentIteration, int numIt
 	//for (int i = 0; i < cpuGeom.verts.size(); i++)
 	//	printVectorLocation(cpuGeom.verts.at(i));
 
-
+	// Keep generating the Dragon Curve
 	if (currentIteration < numIterations)
 	{
 		++currentIteration;	// increment by 1
-		genDragonCurveRecurr(cpuGeom, currentIteration, numIterations);
+		genDragonCurveRecur(cpuGeom, currentIteration, numIterations);
 	}
-
-	shiftDragonCurveCenterToOrigin(cpuGeom);
 }
 
+/// <summary>
+/// Does the set up before generating the Dragon curve by calling 'genDragonCurveRecur(...)'
+/// </summary>
+/// <param name="cpuGeom"> a CPU_Geometry that will hold the Dragon Curve glm::vec3's.</param>
+/// <param name="gpuGeom"> a GPU_Geometry. </param>
+/// <param name="numIterations"> an int, the number of subdivisions to create. </param>
 void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
 {
+	// Clear what's inside the cpuGeom
 	clearCPUGeom(cpuGeom);
 
-	// Starting 'curve'
+	// Starting/Initial 'curve'
 	std::vector<glm::vec3> startingCurve(2);
 
-	// Different levels of the starting curve, used so it can fit on the screen better for larger subdivisions
+	// Different levels/sizes of the starting curve, used so it can fit on the screen better for larger subdivisions
 	if (numIterations == 0)
 	{
 		startingCurve =
@@ -1580,18 +1599,25 @@ void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int num
 
 	// Generate the rest of the curve
 	if (numIterations > 0)
-		genDragonCurveRecurr(cpuGeom, 1, numIterations);
-	
+		genDragonCurveRecur(cpuGeom, 1, numIterations);
+
+	// Shift the generated curve
+	shiftDragonCurveCenterToOrigin(cpuGeom);
+
 	// Set the colors and gpuGeom
 	setRainbowCol(cpuGeom);
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
+/// <summary>
+/// Dragon Curve Option, interacts with the user via the command prompt, for the number of desired subdivisions.
+/// </summary>
+/// <param name="cpuGeom"> a CPU_Geometry that holds the Dragon Curve points, address. </param>
+/// <param name="gpuGeom"> a GPU_Geometry, address. </param>
+/// <param name="sceneData"> a data, address. </param>
 void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
-//	std::cout << "\n---IN PROGRESS---\n";
-//	int numIter = 0;
 //	genererateDragonCurve(cpuGeom, gpuGeom, numIter);
 //	std::cout << "\nCreated dragon curve with " << numIter << " iterations." << std::endl;
 
@@ -1611,10 +1637,10 @@ void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& scene
 	}
 }
 
-/**
-* Sets the colours for vertices inside the cpuGeom, rainbow.
-* @param CPU_Geometry& cpuGeom, the address of cpuGeom that contains the vertices.
-*/
+/// <summary>
+/// Sets the colours for vertices inside the cpuGeom, rainbow.
+/// </summary>
+/// <param name="cpuGeom"> the address of cpuGeom that contains the vertices.</param>
 void setRainbowCol(CPU_Geometry& cpuGeom)
 {
 	for (int i = 0, j = 0; i < cpuGeom.verts.size(); i++, j++)
@@ -1637,24 +1663,39 @@ void setRainbowCol(CPU_Geometry& cpuGeom)
 	}
 }
 
-/**
-* Prints the x and y locations of a "vec3"
-* with a designated number, default is -1.
-*/
+/// <summary>
+/// Prints the location of the 'vec', x, y, z coordinates.
+/// </summary>
+/// <param name="vec"> the glm::vec3's location to be printed. </param>
+/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
 void printVectorLocation(glm::vec3 vec)
 {
 	printVectorLocation(vec, -1);
 }
 
-/**
-* Prints the x and y locations of a "vec3"
-* with a designated number, default is -1.
-*/
+/// <summary>
+/// Prints the location of the 'vec', x, y, z coordinates.
+/// </summary>
+/// <param name="vec"> the glm::vec3's location to be printed. </param>
+/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
 void printVectorLocation(glm::vec3 vec, int vecNum)
 {
 	std::cout << "\nvec #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ")" << std::endl;
 }
 
+/// <summary>
+/// Clears what is inside the cpuGeom.
+/// Clears the vertices and colours.
+/// </summary>
+/// <param name="cpuGeom"> the CPU_Geometry to be cleared.</param>
+void clearCPUGeom(CPU_Geometry& cpuGeom)
+{
+	// Clear what is inside the cpuGeom
+	cpuGeom.verts.clear();
+	cpuGeom.cols.clear();
+}
+
+// Debug, delete after.
 void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts)
 {
 	//int numVerts = 10;
@@ -1750,11 +1791,3 @@ void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVert
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 }
-
-void clearCPUGeom(CPU_Geometry& cpuGeom)
-{
-	// Clear what is inside the cpuGeom
-	cpuGeom.verts.clear();
-	cpuGeom.cols.clear();
-}
-
