@@ -83,7 +83,8 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 //void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, int currentIteration, const int numIterations, float angleOffSet);
 
 // Dragon Curve prototypes
-void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
+void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
 
 void drawFractal(int option, const CPU_Geometry& cpuGeom);
 //glm::vec3& rotateVec3(glm::vec3& vec3, float degree, int axisOption);
@@ -138,7 +139,7 @@ class switchSceneCallBack : public CallbackInterface
 					
 					break;
 				case 4:
-					
+					genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
 					break;
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
@@ -172,7 +173,7 @@ class switchSceneCallBack : public CallbackInterface
 					//snowflakeOption(cpuGeom, gpuGeom);
 					break;
 				case 4:
-					//dragonCurveOption(cpuGeom, gpuGeom);
+					genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
 					break;
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
@@ -267,7 +268,7 @@ int main()
 				snowflakeOption(cpuGeom, gpuGeom);
 				break;
 			case 4:
-				dragonCurveOption(cpuGeom, gpuGeom);
+				dragonCurveOption(cpuGeom, gpuGeom, newData);
 				break;
 			default:
 				std::cout << "\nInvalid option..." << std::endl;
@@ -331,7 +332,8 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 
 			break;
 		case 4:		// Draw's Dragon curve
-			std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
+			//std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
+			glDrawArrays(GL_LINE_STRIP, 0, cpuGeom.verts.size());
 			break;
 		default:
 			std::cout << "\nError drawing...\n" << std::endl;
@@ -962,10 +964,15 @@ void drawLine()
 	//for (int i = 0; i < subTriangle.size(); i++)
 	//	cpuGeom.verts.push_back(subTriangle[i]);
 
-void addToVertsCpuGeom(CPU_Geometry& cpuGeom, std::vector<glm::vec3> arr)
+void addToCpuGeomVerts(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& arr)
 {
 	for (int i = 0; i < arr.size(); i++)
+	{
 		cpuGeom.verts.push_back(arr[i]);
+		// debugging
+		//printVectorLocation(arr[i]);
+		//std::cout << "pushed to cpuGeom[" << cpuGeom.verts.size() - 1 << "]" << std::endl;
+	}
 }
 
 /// <summary>
@@ -993,7 +1000,7 @@ void genSingleTriangle(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLengt
 	numSidesMade += 2;	// increment by 2 as this creates 2 lines
 
 	// add the points to the cpuGeom
-	addToVertsCpuGeom(cpuGeom, smTriangle);
+	addToCpuGeomVerts(cpuGeom, smTriangle);
 }
 
 void gen60degreeGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
@@ -1006,7 +1013,7 @@ void gen60degreeGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength
 	rotateCCWAboutVec3(group[1], group[0], angleOffset1 + 60);
 	numSidesMade += 2;
 
-	addToVertsCpuGeom(cpuGeom, group);
+	addToCpuGeomVerts(cpuGeom, group);
 }
 
 void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
@@ -1021,7 +1028,7 @@ void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength
 	subTriangleGroup1[1] = glm::vec3(subTriangleGroup1[0].x + sideLength, subTriangleGroup1[0].y, subTriangleGroup1[0].z);
 	rotateCCWAboutVec3(subTriangleGroup1[1], subTriangleGroup1[0], angleOffset1 - 120);
 
-	addToVertsCpuGeom(cpuGeom, subTriangleGroup1);
+	addToCpuGeomVerts(cpuGeom, subTriangleGroup1);
 	prevVec = cpuGeom.verts.back();
 
 	subTriangleGroup2[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
@@ -1029,7 +1036,7 @@ void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength
 	subTriangleGroup2[1] = glm::vec3(subTriangleGroup2[0].x + sideLength, subTriangleGroup2[0].y, subTriangleGroup2[0].z);
 	rotateCCWAboutVec3(subTriangleGroup2[1], subTriangleGroup2[0], angleOffset1 - 180);
 
-	addToVertsCpuGeom(cpuGeom, subTriangleGroup2);
+	addToCpuGeomVerts(cpuGeom, subTriangleGroup2);
 	prevVec = cpuGeom.verts.back();
 
 	subTriangleGroup3[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
@@ -1038,7 +1045,7 @@ void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength
 	rotateCCWAboutVec3(subTriangleGroup3[1], subTriangleGroup3[0], angleOffset1 - 240);
 	numSidesMade += 6;
 
-	addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
+	addToCpuGeomVerts(cpuGeom, subTriangleGroup3);
 }
 
 void genSideSet(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
@@ -1425,9 +1432,183 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 
 }
 
-void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+void reverse(std::vector <glm::vec3>& arr)
 {
-	std::cout << "NOT IMPLMENTED YET";
+	for (int i = 0, j = arr.size() - 1; i < arr.size() / 2; i++, j--)
+		if (i == j)	// when the two counters are equal -> reached the middle
+			break;
+		else
+		{
+			// Swap the elements
+			glm::vec3 tmp = arr[i];
+			arr[i] = arr[j];
+			arr[j] = tmp;
+		}
+}
+
+void shiftDragonCurveCenterToOrigin(CPU_Geometry& cpuGeom)
+{
+	float yMax = cpuGeom.verts.at(0).y;
+	float yMin = cpuGeom.verts.at(0).y;
+	// Find the maximum and minimum y in the curve
+	for (int i = 0; i < cpuGeom.verts.size(); i++)
+	{
+		if (cpuGeom.verts.at(i).y > yMax)
+			yMax = cpuGeom.verts.at(i).y;
+		else if (cpuGeom.verts.at(i).y <= yMin)
+			yMin = cpuGeom.verts.at(i).y;
+	}
+
+	float xMax = cpuGeom.verts.at(0).x;
+	float xMin = cpuGeom.verts.at(0).x;
+
+	// Find the maximum and minimum x in the curve
+	for (int i = 1; i < cpuGeom.verts.size(); i++)
+	{
+		if (cpuGeom.verts.at(i).x > xMax)
+			xMax = cpuGeom.verts.at(i).x;
+		else if (cpuGeom.verts.at(i).x <= xMin)
+			xMin = cpuGeom.verts.at(i).x;
+	}
+
+	// Find the x and y center of the Curve
+	float xMidDiff = (xMax - xMin) / 2.f;
+	float yMidDiff = (yMax - yMin) / 2.f;
+	float xMid = xMax - xMidDiff;
+	float yMid = yMax - yMidDiff;
+
+	// Shift all points in the curve by -xMid and -yMid (center to the origin)
+	for (int i = 0; i < cpuGeom.verts.size(); i++)
+	{
+		cpuGeom.verts.at(i).x = cpuGeom.verts.at(i).x - xMid;
+		cpuGeom.verts.at(i).y = cpuGeom.verts.at(i).y - yMid;
+	}
+
+	// debugging
+	//std::cout << "\nCurve center: (" << xMid << ", " << yMid << ")\n"
+	//	<< "Printing translated points:" << std::endl;
+	//for (int i = 0; i < cpuGeom.verts.size(); i++)
+	//	printVectorLocation(cpuGeom.verts.at(i));
+}
+
+void genDragonCurveRecurr(CPU_Geometry& cpuGeom, int currentIteration, int numIterations)
+{
+	// debugging
+	//std::cout << "\n(Before starting iter: " << currentIteration << ") cpuGeom size = " << cpuGeom.verts.size() << std::endl;
+
+	glm::vec3 pointOfRotation = cpuGeom.verts.back();	// vec3 to rotate about
+
+	// rotate all glm::vec3's inside cpuGeom by 45 degrees about 'rotationVec3' (excluding vec3 of rotation)
+	for (int i = 0; i < cpuGeom.verts.size() - 1; i++)
+		rotateCCWAboutVec3(cpuGeom.verts.at(i), pointOfRotation, -45.f); // rotate clockwise
+
+	// Clone the current dragon curve
+	std::vector<glm::vec3> clonedCurve(cpuGeom.verts.size() - 1);		// minus 1 to not include the pointOfRotation
+	for (int i = 0; i < clonedCurve.size(); i++)
+		clonedCurve[i] = cpuGeom.verts.at(i);
+
+	// Rotate the cloned dragon curve by 90 degrees about the 'pointOfRotation'
+	for (int i = 0; i < clonedCurve.size(); i++)
+		rotateCCWAboutVec3(clonedCurve[i], pointOfRotation, -90.f);		// rotate clockwise
+
+	// reverse the cloned curve so it is drawn correctly in order
+	reverse(clonedCurve);
+
+	// Add the rotated cloned dragon curve to the cpuGeom
+	addToCpuGeomVerts(cpuGeom, clonedCurve);
+
+	// debugging
+	//std::cout << "\n(After finishing iter: " << currentIteration << ") cpuGeom size = " << cpuGeom.verts.size() << std::endl;
+	//std::cout << "\nVectors inside: " << std::endl;
+	//for (int i = 0; i < cpuGeom.verts.size(); i++)
+	//	printVectorLocation(cpuGeom.verts.at(i));
+
+
+	if (currentIteration < numIterations)
+	{
+		++currentIteration;	// increment by 1
+		genDragonCurveRecurr(cpuGeom, currentIteration, numIterations);
+	}
+
+	shiftDragonCurveCenterToOrigin(cpuGeom);
+}
+
+void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
+{
+	clearCPUGeom(cpuGeom);
+
+	// Starting 'curve'
+	std::vector<glm::vec3> startingCurve(2);
+
+	// Different levels of the starting curve, used so it can fit on the screen better for larger subdivisions
+	if (numIterations == 0)
+	{
+		startingCurve =
+		{
+			glm::vec3(-0.75f, 0.f, 0.f),
+			glm::vec3(0.75f, 0.f, 0.f)
+		};
+	}
+	else if (numIterations == 1)
+	{
+		startingCurve =
+		{
+			glm::vec3((-0.5f / numIterations), 0.f, 0.f),
+			glm::vec3((0.5f / numIterations), 0.f, 0.f)
+		};
+	}
+	else if (numIterations < 15)	// Offers a smooth transition from subdivisions 2-14
+	{
+		startingCurve =
+		{
+			glm::vec3((-1.f / pow(numIterations, 2)), 0.f, 0.f),
+			glm::vec3((1.f / pow(numIterations, 2)), 0.f, 0.f)
+		};
+	}
+	else
+	{
+		// For larger subdivisions > 14
+		startingCurve =
+		{
+			glm::vec3((-0.5f / pow(numIterations, 2)), 0.f, 0.f),
+			glm::vec3((0.5f / pow(numIterations, 2)), 0.f, 0.f)
+		};
+	}
+
+	// Add the current curve to the cpuGeom
+	addToCpuGeomVerts(cpuGeom, startingCurve);
+
+	// Generate the rest of the curve
+	if (numIterations > 0)
+		genDragonCurveRecurr(cpuGeom, 1, numIterations);
+	
+	// Set the colors and gpuGeom
+	setRainbowCol(cpuGeom);
+	gpuGeom.setVerts(cpuGeom.verts);
+	gpuGeom.setCols(cpuGeom.cols);
+}
+
+void dragonCurveOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
+{
+//	std::cout << "\n---IN PROGRESS---\n";
+//	int numIter = 0;
+//	genererateDragonCurve(cpuGeom, gpuGeom, numIter);
+//	std::cout << "\nCreated dragon curve with " << numIter << " iterations." << std::endl;
+
+	int numSubDiv = -1;
+	while (numSubDiv < 0)
+	{
+		std::cout << "\n--Dragon Curve--\n How many subdivisions would you like? ";
+		std::cin >> numSubDiv;
+		if (numSubDiv < 0)
+		{
+			std::cout << "\nInvalid input..." << std::endl;
+			continue;
+		}
+		sceneData.numSubDiv = numSubDiv;
+		genererateDragonCurve(cpuGeom, gpuGeom, numSubDiv);
+		std::cout << "\nDragon Curve with " << numSubDiv << " subdivisions created." << std::endl;
+	}
 }
 
 /**
