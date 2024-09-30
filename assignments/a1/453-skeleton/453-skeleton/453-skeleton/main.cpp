@@ -303,27 +303,46 @@ int main()
 	return 0;
 }
 
-/**
-* Draws the fractal the user chose.
-* @param int option, the fractal option generated.
-* @param const CPU_Geometry& cpuGeom, the CPU_Geometry reference that contains the 'vec3's of the fractal shape.
-*/
+/// <summary>
+/// Adds the contents of a std::vector(glm::vec3) to the cpuGeom.
+/// </summary>
+/// <param name="cpuGeom"> a CPU_Geometry.</param>
+/// <param name="arr"> the std::vector(glm::vec3) contents to be added. </param>
+void addToCpuGeomVerts(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& arr)
+{
+	for (int i = 0; i < arr.size(); i++)
+	{
+		cpuGeom.verts.push_back(arr[i]);
+		// debugging
+		//printVectorLocation(arr[i]);
+		//std::cout << "pushed to cpuGeom[" << cpuGeom.verts.size() - 1 << "]" << std::endl;
+	}
+}
+
+/// <summary>
+/// Draws the fractal the user chose.
+/// </summary>
+/// <param name="option"> an int, the fractal option generated. </param>
+/// <param name="cpuGeom"> const CPU_Geometry, the CPU_Geometry reference that contains the 'vec3's of the fractal shape.</param>
 void drawFractal(int option, const CPU_Geometry& cpuGeom)
 {
-	//glEnable(GL_FRAMEBUFFER_SRGB);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_FRAMEBUFFER_SRGB);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	switch (option)
 	{
-		case 1:		// Draw's Sierpinski Triangle
+		// Draw's Sierpinski's Triangle
+		case 1:
 			glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
 			break;
-		case 2:		// Draw's Pythagoras Tree
+		// Draw's Pythagoras Tree
+		case 2:
 			// "squareVec3Start" is the starting 'vec3' in 'cpuGeom' for this square.
 			// 'j' is how many 'vec3's to draw (4) for a square.
 			for (int squareVec3Start = 0, j = 4; squareVec3Start < cpuGeom.verts.size(); squareVec3Start += 4)
 				glDrawArrays(GL_TRIANGLE_FAN, squareVec3Start, j);
 			break;
-		case 3:		// Draw's Koch Snowflake
+		// Draw's Koch Snowflake
+		case 3:
 			//// use "GL_TRIANGLE_STRIP" ???
 			//std::cout << "\nSnowflake drawing not implemented...\n" << std::endl;
 			//glDrawArrays(GL_LINE_LOOP, 0, cpuGeom.verts.size());
@@ -331,8 +350,8 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 			//glDrawArrays(GL_TRIANGLES, 0, cpuGeom.verts.size());
 
 			break;
-		case 4:		// Draw's Dragon curve
-			//std::cout << "\nDragon curve drawing not implemented...\n" << std::endl;
+		// Draw's Dragon curve
+		case 4:
 			glDrawArrays(GL_LINE_STRIP, 0, cpuGeom.verts.size());
 			break;
 		default:
@@ -341,12 +360,12 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 	}
 }
 
-/**
-* Rotates a glm::vec3 around another glm::vec3 with a specified angle on the x-y plane (z coord. is not used).
-* @param glm::vec3& vec3ToRotate, the glm::vec3 to be rotated.
-* @param const glm::vec3 rotateAboutVec, the glm::vec3 that will be rotated about.
-* @param const float angleOfRotation, the angle to rotate 'vec3ToRotate' about 'rotateAboutVec', in degree's.
-*/
+/// <summary>
+/// Rotates a glm::vec3 around another glm::vec3 with a specified angle on the x-y plane (z coord. is not used or affected).
+/// </summary>
+/// <param name="vec3ToRotate"> the glm::vec3 to be rotated.</param>
+/// <param name="rotateAboutVec"> a const glm::vec3 that will be rotated about.</param>
+/// <param name="angleOfRotation"> the angle to rotate 'vec3ToRotate' about 'rotateAboutVec', in degree's. </param>
 void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation)
 {
 	// To rotate 'vec3ToRotate' around 'rotateAboutVec' I'll do these steps:
@@ -355,7 +374,7 @@ void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec,
 	// 3) Translate x'' and y'' by the inverse of 'translateByX' and 'translateByY' (subtract). The result will be the rotated 'vec3ToRotate' about 'rotateAboutVec'.
 
 	// Convert 'degree' into radians
-	double pi = atan(1) * 4;			// pi approx.
+	double pi = atan(1) * 4;	// pi approximation
 	float rads = angleOfRotation * (pi/ 180);
 
 	// get x and y values that would translate 'rotateAboutVec' to origin
@@ -373,11 +392,12 @@ void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec,
 	vec3ToRotate.y = finalY;
 }
 
-/**
-* Asks the user how many subdivisions and then generates said number of subdivisions.
-* @param CPU_Geometry& cpuGeom, reference to the CPU_Geometry to contain the 'vec3's generated.
-* @param GPU_Geometry& gpuGeom, reference to the GPU_Geometry to set its 'vec3's and colours.
-*/
+/// <summary>
+/// Asks the user how many subdivisions and then generates said number of subdivisions.
+/// </summary>
+/// <param name="cpuGeom"> reference to the CPU_Geometry to contain the 'vec3's generated.</param>
+/// <param name="gpuGeom"> reference to the GPU_Geometry to set its 'vec3's and colours.</param>
+/// <param name="sceneData"> a data.</param>
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
 	int numSubDiv = -1;
@@ -495,9 +515,13 @@ void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& tri
 	}
 }
 
-/**
-* 2.1 Part 1 : Sierpinski Triangle
-*/
+/// <summary>
+/// 2.1 Part 1 : Sierpinski's Triangle.
+/// Generates the Sierpinski's Triangle.
+/// </summary>
+/// <param name="cpuGeom"> a reference to a CPU_Geometry to store the fractal. </param>
+/// <param name="gpuGeom"> a reference to a CPU_Geometry. </param>
+/// <param name="numIterations"> an int, the desired number of subdivisions. </param>
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations == -1)
@@ -540,6 +564,7 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	}
 	else
 	{
+		// Generate the fractal
 		int currentIteration = 1;
 		generateSierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
 	}
@@ -549,25 +574,35 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
-/**
-* Calculates the halfway x-coord. of two vectors.
-* @return float, the halfway x-coord. of two vectors.
-*/
+/// <summary>
+/// Calculates the halfway x-coord. of two glm::vec3's.
+/// </summary>
+/// <param name="v1"> a glm::vec3. </param>
+/// <param name="v2"> a glm::vec3. </param>
+/// <returns> the halfway x-coord., a float. </returns>
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2)
 {
 	return (v1.x + v2.x) / 2;
 }
 
-/**
-* Calculates the halfway y-coord. of two vectors.
-* @return float, the halfway y-coord. of two vectors.
-*/
+/// <summary>
+/// Calculates the halfway y-coord. of two glm::vec3's.
+/// </summary>
+/// <param name="v1"> a glm::vec3.</param>
+/// <param name="v2"> a glm::vec3.</param>
+/// <returns> the halfway y-coord, a float.</returns>
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 {
 	return (v1.y + v2.y) / 2;
 }
 
-
+/// <summary>
+/// Pythagoras Tree Option, interacts with the user via the command prompt, for the number of desired subdivisions.
+/// </summary>
+/// <param name="window"> a Window, displaying the fractal. </param>
+/// <param name="cpuGeom"> a CPU_Geometry that holds the fractal's glm::vec's, address.</param>
+/// <param name="gpuGeom"> a GPU_Geometry, address.</param>
+/// <param name="sceneData"> a data, address.</param>
 void pythagorasOption(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
 	int numSubDiv = -1;
@@ -586,10 +621,17 @@ void pythagorasOption(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGe
 	}
 }
 
-/**
-* Generates the right-hand square for squares on the "left side" of the base square (root square).
-* Should only be called by itself and 'generatePythagorasRecurrLeft(...)' methods.
-*/
+/// <summary>
+///  Generates the right-hand square for squares on the "left side" of the base square (root square).
+/// Should only be called by itself and 'generatePythagorasRecurrLeft(...)' methods.
+/// </summary>
+/// <param name="cpuGeom"></param>
+/// <param name="leftVec"></param>
+/// <param name="rightVec"></param>
+/// <param name="hypotenuse"></param>
+/// <param name="currentIteration"></param>
+/// <param name="numIterations"></param>
+/// <param name="radianOffset"></param>
 void generatePythagorasRecurrLeftRight(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset)
 {
 	float side = calcSideS(hypotenuse);	// both the left and right squares will have the same side length at the same subdiv.
@@ -627,10 +669,17 @@ void generatePythagorasRecurrLeftRight(CPU_Geometry& cpuGeom, const glm::vec3& l
 	}
 }
 
-/**
-* Generates the left-hand squares for squares on the "left side" of the base square (root square).
-* Should only be called by itself and 'generatePythagorasRecurrLeftRight(...)' methods.
-*/
+/// <summary>
+/// Generates the left-hand squares for squares on the "left side" of the base square (root square).
+/// Should only be called by itself and 'generatePythagorasRecurrLeftRight(...)' methods.
+/// </summary>
+/// <param name="cpuGeom"></param>
+/// <param name="leftVec"></param>
+/// <param name="rightVec"></param>
+/// <param name="hypotenuse"></param>
+/// <param name="currentIteration"></param>
+/// <param name="numIterations"></param>
+/// <param name="radianOffset"></param>
 void generatePythagorasRecurrLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset)
 {
 	float side = calcSideS(hypotenuse);	// both the left and right squares will have the same side legnth at the same subdiv.
@@ -667,10 +716,17 @@ void generatePythagorasRecurrLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVe
 	}
 }
 
-/**
-* Generates the left-hand square for squares on the "right side" of the base square (root square).
-* Should only be called by itself and 'generatePythagorasRecurrRight(...)' methods.
-*/
+/// <summary>
+/// Generates the left-hand square for squares on the "right side" of the base square (root square).
+/// Should only be called by itself and 'generatePythagorasRecurrRight(...)' methods.
+/// </summary>
+/// <param name="cpuGeom"></param>
+/// <param name="leftVec"></param>
+/// <param name="rightVec"></param>
+/// <param name="hypotenuse"></param>
+/// <param name="currentIteration"></param>
+/// <param name="numIterations"></param>
+/// <param name="radianOffset"></param>
 void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset)
 {
 	float side = calcSideS(hypotenuse);	// both the left and right squares will have the same side length at the same subdiv.
@@ -709,10 +765,17 @@ void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& l
 	}
 }
 
-/**
-* Generates the right-hand squares for squares on the "right side" of the base square (root square).
-* Should only be called by itself and 'generatePythagorasRecurrRightLeft(...)' methods.
-*/
+/// <summary>
+/// Generates the right-hand squares for squares on the "right side" of the base square (root square).
+/// Should only be called by itself and 'generatePythagorasRecurrRightLeft(...)' methods.
+/// </summary>
+/// <param name="cpuGeom"></param>
+/// <param name="leftVec"></param>
+/// <param name="rightVec"></param>
+/// <param name="hypotenuse"></param>
+/// <param name="currentIteration"></param>
+/// <param name="numIterations"></param>
+/// <param name="radianOffset"></param>
 void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset)
 {
 	float side = calcSideS(hypotenuse);	// both the left and right squares will have the same side length at the same subdiv.
@@ -751,9 +814,13 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 	}
 }
 
-/**
-* 2.2 Part 2 : Pythagoras Tree
-*/
+/// <summary>
+/// 2.2 Part 2 : Pythagoras Tree
+/// </summary>
+/// <param name="window"></param>
+/// <param name="cpuGeom"></param>
+/// <param name="gpuGeom"></param>
+/// <param name="numIterations"></param>
 void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations == -1)
@@ -781,10 +848,15 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 	//baseVec3[2] = glm::vec3(0.25, 0.f,0.f);		// top right
 	//baseVec3[3] = glm::vec3(-0.25, 0.f, 0.f);	// top left
 
-	baseVec3[0] = glm::vec3(-0.25, -1.f, 0.f);	// bottom left
-	baseVec3[1] = glm::vec3(0.25, -1.f, 0.f);	// bottom right
-	baseVec3[2] = glm::vec3(0.25, -0.5, 0.f);	// top right
-	baseVec3[3] = glm::vec3(-0.25, -0.5, 0.f);	// top left
+	//baseVec3[0] = glm::vec3(-0.25, -1.f, 0.f);	// bottom left
+	//baseVec3[1] = glm::vec3(0.25, -1.f, 0.f);	// bottom right
+	//baseVec3[2] = glm::vec3(0.25, -0.5, 0.f);	// top right
+	//baseVec3[3] = glm::vec3(-0.25, -0.5, 0.f);	// top left
+
+	baseVec3[0] = glm::vec3(-0.125, -0.5f, 0.f);	// bottom left
+	baseVec3[1] = glm::vec3(0.125, -0.5f, 0.f);	// bottom right
+	baseVec3[2] = glm::vec3(0.125, -0.25, 0.f);	// top right
+	baseVec3[3] = glm::vec3(-0.125, -0.25, 0.f);	// top left
 
 	// Add the base (root) square to the cpuGeom
 	for (int i = 0; i < baseVec3.size(); i++)
@@ -834,15 +906,6 @@ float calcSideS(float hypotenuse)
 //	else
 //		return num2;
 //}
-
-// Function to draw a line between two glm::vec3 points (p1, p2)
-void drawLine()
-{
-	// Use glDrawArrays to draw the lines
-	//glDrawArrays(GL_LINES, 0, cpuGeom.size());
-
-
-}
 
 //void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 leftVec3, glm::vec3 rightVec3, int currentIteration, const int numIterations, float angleOffSet)
 //{
@@ -963,17 +1026,6 @@ void drawLine()
 	//}
 	//for (int i = 0; i < subTriangle.size(); i++)
 	//	cpuGeom.verts.push_back(subTriangle[i]);
-
-void addToCpuGeomVerts(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& arr)
-{
-	for (int i = 0; i < arr.size(); i++)
-	{
-		cpuGeom.verts.push_back(arr[i]);
-		// debugging
-		//printVectorLocation(arr[i]);
-		//std::cout << "pushed to cpuGeom[" << cpuGeom.verts.size() - 1 << "]" << std::endl;
-	}
-}
 
 /// <summary>
 /// Generates a sub triangle with 2 sides (and 3 glm::vec3) and adds them to the 'cpuGeom' while also incrementing the number of sides created by 2.
@@ -1546,6 +1598,7 @@ void genDragonCurveRecur(CPU_Geometry& cpuGeom, int currentIteration, int numIte
 }
 
 /// <summary>
+/// Part 2.4 Part IV : Dragon Curve
 /// Does the set up before generating the Dragon curve by calling 'genDragonCurveRecur(...)'
 /// </summary>
 /// <param name="cpuGeom"> a CPU_Geometry that will hold the Dragon Curve glm::vec3's.</param>
@@ -1553,6 +1606,12 @@ void genDragonCurveRecur(CPU_Geometry& cpuGeom, int currentIteration, int numIte
 /// <param name="numIterations"> an int, the number of subdivisions to create. </param>
 void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations)
 {
+	if (numIterations == -1)
+	{
+		std::cout << "\nCannot have negative subdivisions\n" << std::endl;
+		return;
+	}
+
 	// Clear what's inside the cpuGeom
 	clearCPUGeom(cpuGeom);
 
@@ -1610,7 +1669,7 @@ void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int num
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
-/// <summary>
+/// <summary
 /// Dragon Curve Option, interacts with the user via the command prompt, for the number of desired subdivisions.
 /// </summary>
 /// <param name="cpuGeom"> a CPU_Geometry that holds the Dragon Curve points, address. </param>
