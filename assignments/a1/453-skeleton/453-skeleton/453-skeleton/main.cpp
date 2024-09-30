@@ -968,54 +968,217 @@ void addToVertsCpuGeom(CPU_Geometry& cpuGeom, std::vector<glm::vec3> arr)
 		cpuGeom.verts.push_back(arr[i]);
 }
 
-//void genSingleTriangle(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float sideLength, float angleOffSet)
-//{
-//	// Generate 'smaller' triangle
-//	std::vector<glm::vec3> smTriangle(3);
-//	smTriangle[0] = glm::vec3(startingVec3.x, startingVec3.y, startingVec3.z);
-//	// top point
-//	glm::vec3 top = glm::vec3(startingVec3.x + sideLength, startingVec3.y, startingVec3.z);
-//	rotateCCWAboutVec3(top, startingVec3, angleOffSet);
-//	smTriangle[1] = top;
-//	// right point
-//	glm::vec3 right = glm::vec3(top.x + sideLength, top.y, top.z);
-//	rotateCCWAboutVec3(right, top, -angleOffSet);
-//	smTriangle[2] = right;
-//	// add the points to the cpuGeom
-//	addToVertsCpuGeom(cpuGeom, smTriangle);
-//}
+void genSingleTriangle(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffSetForTopVec, float angleOffSetForRightVec, int& numSidesMade)
+{
+	std::vector<glm::vec3> smTriangle(3);
+	smTriangle[0] = glm::vec3(prevVec.x, prevVec.y, prevVec.z);
+	// top point
+	glm::vec3 top = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+	rotateCCWAboutVec3(top, smTriangle[0], angleOffSetForTopVec);
+	smTriangle[1] = top;
+	// right point
+	glm::vec3 right = glm::vec3(top.x + sideLength, top.y, top.z);
+	rotateCCWAboutVec3(right, top, angleOffSetForRightVec);
+	smTriangle[2] = right;
+
+	numSidesMade += 2;	// increment by 2 as this creates 2 lines
+
+	// add the points to the cpuGeom
+	addToVertsCpuGeom(cpuGeom, smTriangle);
+}
+
+void gen60degreeGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, float angleOffSet2, int& numSidesMade)
+{
+	// Generate 2 group 60-degree
+	std::vector<glm::vec3> group(2);
+	group[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+	rotateCCWAboutVec3(group[0], prevVec, angleOffset1);
+	group[1] = glm::vec3(group[0].x + sideLength, group[0].y, group[0].z);
+	rotateCCWAboutVec3(group[1], group[0], angleOffSet2);
+	numSidesMade += 2;
+
+	addToVertsCpuGeom(cpuGeom, group);
+}
+
+void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, float angleOffSet2, int& numSidesMade)
+{
+	// generate 3-sub-triangle group
+	std::vector <glm::vec3> subTriangleGroup1(2);
+	std::vector <glm::vec3> subTriangleGroup2(2);
+	std::vector <glm::vec3> subTriangleGroup3(2);
+
+	subTriangleGroup1[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+	rotateCCWAboutVec3(subTriangleGroup1[0], prevVec, angleOffset1);
+	subTriangleGroup1[1] = glm::vec3(subTriangleGroup1[0].x + sideLength, subTriangleGroup1[0].y, subTriangleGroup1[0].z);
+	rotateCCWAboutVec3(subTriangleGroup1[1], subTriangleGroup1[0], angleOffset1 - 120);
+
+	addToVertsCpuGeom(cpuGeom, subTriangleGroup1);
+	prevVec = cpuGeom.verts.back();
+
+	subTriangleGroup2[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+	rotateCCWAboutVec3(subTriangleGroup2[0], prevVec, angleOffset1 - 60);
+	subTriangleGroup2[1] = glm::vec3(subTriangleGroup2[0].x + sideLength, subTriangleGroup2[0].y, subTriangleGroup2[0].z);
+	rotateCCWAboutVec3(subTriangleGroup2[1], subTriangleGroup2[0], angleOffset1 - 180);
+
+	addToVertsCpuGeom(cpuGeom, subTriangleGroup2);
+	prevVec = cpuGeom.verts.back();
+
+	subTriangleGroup3[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+	rotateCCWAboutVec3(subTriangleGroup3[0], prevVec, angleOffset1 - 120);
+	subTriangleGroup3[1] = glm::vec3(subTriangleGroup3[0].x + sideLength, subTriangleGroup3[0].y, subTriangleGroup3[0].z);
+	rotateCCWAboutVec3(subTriangleGroup3[1], subTriangleGroup3[0], angleOffset1 - 240);
+	numSidesMade += 6;
+
+	addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
+}
+
 
 void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float sideLength, float angleOffSet, int& numSidesMade, int maxNumSides)
 {
-	if (maxNumSides == 12)	// Base case: 1 sub-division
+	if (maxNumSides == 12)	// Case 1: 1 sub-division
 	{
 		float angleOffset1 = 60.f;
 		float angleOffset2 = -60.f;
 		glm::vec3 prevVec = startingVec3;
 
-		for (;numSidesMade < maxNumSides; numSidesMade += 2)
+		// Generate all the subtriangles for 1 subdivision
+		for (;numSidesMade < maxNumSides;)
 		{
-			std::vector<glm::vec3> smTriangle(3);
-			smTriangle[0] = glm::vec3(prevVec.x, prevVec.y, prevVec.z);
-			// top point
-			glm::vec3 top = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
-			rotateCCWAboutVec3(top, smTriangle[0], angleOffset1);
-			smTriangle[1] = top;
-			// right point
-			glm::vec3 right = glm::vec3(top.x + sideLength, top.y, top.z);
-			rotateCCWAboutVec3(right, top, angleOffset2);
-			smTriangle[2] = right;
+			//std::vector<glm::vec3> smTriangle(3);
+			//smTriangle[0] = glm::vec3(prevVec.x, prevVec.y, prevVec.z);
+			//// top point
+			//glm::vec3 top = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(top, smTriangle[0], angleOffset1);
+			//smTriangle[1] = top;
+			//// right point
+			//glm::vec3 right = glm::vec3(top.x + sideLength, top.y, top.z);
+			//rotateCCWAboutVec3(right, top, angleOffset2);
+			//smTriangle[2] = right;
 
 			// add the points to the cpuGeom
-			addToVertsCpuGeom(cpuGeom, smTriangle);
+			//addToVertsCpuGeom(cpuGeom, smTriangle);
+
+			// Generate sub-triangle
+			genSingleTriangle(cpuGeom, prevVec, sideLength, angleOffset1, angleOffset2, numSidesMade);
+
 			prevVec = cpuGeom.verts.back();
 
 			angleOffset1 -= 60.f;
 			angleOffset2 -= 60.f;
 		}
+		numSidesMade -= 1;	// counting starting side twice
 
 		// debugging
 		std::cout << "\n1 sub-division with " << numSidesMade << " sides made (expected to be: 12)" << std::endl;
+	}
+	else
+	{
+		float angleOffsetFor60degreeGroup = 0;
+		float angleOffsetForTriangleGroup = 120;
+		glm::vec3 prevVec = startingVec3;
+
+		// Generate sub-triangle 1
+		genSingleTriangle(cpuGeom, prevVec, sideLength, 60, -60, numSidesMade);
+		prevVec = cpuGeom.verts.back();
+
+		for (; numSidesMade < maxNumSides;)
+		//for (int i = 0; i < 2; i++)
+		{
+			// Generate 2 group 60-degree
+			gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, angleOffsetFor60degreeGroup + 60.f, numSidesMade);
+			prevVec = cpuGeom.verts.back();
+
+			// generate 3-sub-triangle group
+			genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, NULL, numSidesMade);
+			prevVec = cpuGeom.verts.back();
+
+			//// Generate 2 group 60-degree
+			angleOffsetFor60degreeGroup -= 60.f;	// Update the angle offset
+			//gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, angleOffsetFor60degreeGroup + 60.f, numSidesMade);
+			//prevVec = cpuGeom.verts.back();
+
+			angleOffsetForTriangleGroup -= 60;		// Update the angle offset
+			//genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, NULL, numSidesMade);
+			//prevVec = cpuGeom.verts.back();
+
+
+
+			// Generate 2 group 60-degree
+			//std::vector<glm::vec3> group = {2, glm::vec3()};
+			//group[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(group[0], prevVec, 0);
+			//group[1] = glm::vec3(group[0].x + sideLength, group[0].y, group[0].z);
+			//rotateCCWAboutVec3(group[1], group[0], 60);
+			//numSidesMade += 2;
+			//addToVertsCpuGeom(cpuGeom, group);
+
+			// generate 3-sub-triangle group
+			//std::vector <glm::vec3> subTriangleGroup1(2);
+			//std::vector <glm::vec3> subTriangleGroup2(2);
+			//std::vector <glm::vec3> subTriangleGroup3(2);
+
+			//subTriangleGroup1[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup1[0], prevVec, 120);
+			//subTriangleGroup1[1] = glm::vec3(subTriangleGroup1[0].x + sideLength, subTriangleGroup1[0].y, subTriangleGroup1[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup1[1], subTriangleGroup1[0], 0);
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup1);
+			//prevVec = cpuGeom.verts.back();
+
+			//subTriangleGroup2[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup2[0], prevVec, 60);
+			//subTriangleGroup2[1] = glm::vec3(subTriangleGroup2[0].x + sideLength, subTriangleGroup2[0].y, subTriangleGroup2[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup2[1], subTriangleGroup2[0], -60);
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup2);
+			//prevVec = cpuGeom.verts.back();
+
+			//subTriangleGroup3[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup2[0], prevVec, 0);
+			//subTriangleGroup3[1] = glm::vec3(subTriangleGroup3[0].x + sideLength, subTriangleGroup3[0].y, subTriangleGroup3[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup3[1], subTriangleGroup3[0], -120);
+			//numSidesMade += 6;
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
+
+			// Generate 2 group 60-degree
+			//group = {2, glm::vec3()};
+			//group[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(group[0], prevVec, -60);
+			//group[1] = glm::vec3(group[0].x + sideLength, group[0].y, group[0].z);
+			//rotateCCWAboutVec3(group[1], group[0], 0);
+			//numSidesMade += 2;
+			//addToVertsCpuGeom(cpuGeom, group);
+
+			// generate 3-sub-triangle group
+			//subTriangleGroup1 = { 2, glm::vec3() };
+			//subTriangleGroup2 = { 2, glm::vec3() };
+			//subTriangleGroup3 = { 2, glm::vec3() };
+
+			//subTriangleGroup1[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup1[0], prevVec, 60);
+			//subTriangleGroup1[1] = glm::vec3(subTriangleGroup1[0].x + sideLength, subTriangleGroup1[0].y, subTriangleGroup1[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup1[1], subTriangleGroup1[0], -60);
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup1);
+			//prevVec = cpuGeom.verts.back();
+
+			//subTriangleGroup2[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup2[0], prevVec, 0);
+			//subTriangleGroup2[1] = glm::vec3(subTriangleGroup2[0].x + sideLength, subTriangleGroup2[0].y, subTriangleGroup2[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup2[1], subTriangleGroup2[0], -120);
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup2);
+			//prevVec = cpuGeom.verts.back();
+
+			//subTriangleGroup3[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
+			//rotateCCWAboutVec3(subTriangleGroup3[0], prevVec, -60);
+			//subTriangleGroup3[1] = glm::vec3(subTriangleGroup3[0].x + sideLength, subTriangleGroup3[0].y, subTriangleGroup3[0].z);
+			//rotateCCWAboutVec3(subTriangleGroup3[1], subTriangleGroup3[0], -180);
+
+			//addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
+			//numSidesMade += 6;
+		}
 	}
 
 	//// Generate 1st 'smaller' triangle
@@ -1096,6 +1259,10 @@ void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, 
 
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
+	if (numIterations < 0)
+	{
+		return;
+	}
 	std::cout << "NOT IMPLMENTED YET\n";
 	// I think the best way to do this one is to generate one side of the snowflake
 	// then copy and rotate the cpoies to 'generate' the other sides.
@@ -1123,10 +1290,6 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 	//baseTriangle[1] = (glm::vec3(0.f, 1.f, 0.f));
 	//baseTriangle[2] = (glm::vec3(1.f, -1.f, 0.f));
 
-	//for (int i = 0; i < baseTriangleVec3.size(); i++) {
-	//	cpuGeom.verts.push_back(baseTriangleVec3[i]);
-	//	//printVectorLocation(baseTriangleVec3[i]);
-	//}
 
 	cpuGeom.verts.push_back(baseTriangleVec3[2]);
 
@@ -1139,24 +1302,33 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 
 		generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[2], sideLength, 1, numIterations);
 		//generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[1], baseTriangleVec3[0], 1, numIterations);	// calc right side
-		//generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1, numIterations, 0.f);	// calc bottom 
+		//generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1, numIterations, 0.f);	// calc bottom
+	}
+	else
+	{
+		// Case where number of sub-divisions is 0
+		for (int i = 0; i < baseTriangleVec3.size(); i++)
+		{
+			cpuGeom.verts.push_back(baseTriangleVec3[i]);
+			//printVectorLocation(baseTriangleVec3[i]);
+		}
 	}
 
-	for (int i = 0; i < baseTriangleVec3.size()-1; i++) {
-		//cpuGeom.verts.push_back(baseTriangleVec3[i]);
-		//printVectorLocation(baseTriangleVec3[i]);
-	}
 		
 	setRainbowCol(cpuGeom);
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 }
 
+//
+//
+//
+//
 void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	//std::cout << "NOT IMPLMENTED YET";
 	std::cout << "\n---IN PROGRESS---\n";
-	int numIter = 1;
+	int numIter = 2;
 	generateKochSnowflake(cpuGeom, gpuGeom, numIter);
 	std::cout << "\nCreated snowflake with " << numIter << " iterations." << std::endl;
 
