@@ -968,6 +968,15 @@ void addToVertsCpuGeom(CPU_Geometry& cpuGeom, std::vector<glm::vec3> arr)
 		cpuGeom.verts.push_back(arr[i]);
 }
 
+/// <summary>
+/// Generates a sub triangle with 2 sides (and 3 glm::vec3) and adds them to the 'cpuGeom' while also incrementing the number of sides created by 2.
+/// </summary>
+/// <param name="cpuGeom"> a GPU_Geometry. </param>
+/// <param name="prevVec"> an initial glm::vec3 to make this sub triangle, a glm::vec3. </param>
+/// <param name="sideLength"> the side length of this sub triangle, a float.</param>
+/// <param name="angleOffSetForTopVec"> an angle offset for the 'top' point of the triangle (in degrees), a float.</param>
+/// <param name="angleOffSetForRightVec"> an angle offset for the 'right' point of the triangle (in degrees), a float.</param>
+/// <param name="numSidesMade"> a address to a counter for how many sides are created, an int.</param> 
 void genSingleTriangle(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffSetForTopVec, float angleOffSetForRightVec, int& numSidesMade)
 {
 	std::vector<glm::vec3> smTriangle(3);
@@ -987,20 +996,20 @@ void genSingleTriangle(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLengt
 	addToVertsCpuGeom(cpuGeom, smTriangle);
 }
 
-void gen60degreeGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, float angleOffSet2, int& numSidesMade)
+void gen60degreeGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
 {
 	// Generate 2 group 60-degree
 	std::vector<glm::vec3> group(2);
 	group[0] = glm::vec3(prevVec.x + sideLength, prevVec.y, prevVec.z);
 	rotateCCWAboutVec3(group[0], prevVec, angleOffset1);
 	group[1] = glm::vec3(group[0].x + sideLength, group[0].y, group[0].z);
-	rotateCCWAboutVec3(group[1], group[0], angleOffSet2);
+	rotateCCWAboutVec3(group[1], group[0], angleOffset1 + 60);
 	numSidesMade += 2;
 
 	addToVertsCpuGeom(cpuGeom, group);
 }
 
-void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, float angleOffSet2, int& numSidesMade)
+void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
 {
 	// generate 3-sub-triangle group
 	std::vector <glm::vec3> subTriangleGroup1(2);
@@ -1032,6 +1041,16 @@ void genTriangleGroup(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength
 	addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
 }
 
+void genSideSet(CPU_Geometry& cpuGeom, glm::vec3 prevVec, float sideLength, float angleOffset1, int& numSidesMade)
+{
+	// Generate single sub-triangle
+	genSingleTriangle(cpuGeom, prevVec, sideLength, 60, -60, numSidesMade);
+	prevVec = cpuGeom.verts.back();
+
+	// Generate 60-degree group
+	//gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffset1, );
+
+}
 
 void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float sideLength, float angleOffSet, int& numSidesMade, int maxNumSides)
 {
@@ -1058,7 +1077,7 @@ void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float
 			// add the points to the cpuGeom
 			//addToVertsCpuGeom(cpuGeom, smTriangle);
 
-			// Generate sub-triangle
+			// Generate single sub-triangle
 			genSingleTriangle(cpuGeom, prevVec, sideLength, angleOffset1, angleOffset2, numSidesMade);
 
 			prevVec = cpuGeom.verts.back();
@@ -1071,7 +1090,7 @@ void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float
 		// debugging
 		std::cout << "\n1 sub-division with " << numSidesMade << " sides made (expected to be: 12)" << std::endl;
 	}
-	else
+	else if (maxNumSides == 48) // for 2 sub divisions
 	{
 		float angleOffsetFor60degreeGroup = 0;
 		float angleOffsetForTriangleGroup = 120;
@@ -1085,11 +1104,11 @@ void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float
 		//for (int i = 0; i < 2; i++)
 		{
 			// Generate 2 group 60-degree
-			gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, angleOffsetFor60degreeGroup + 60.f, numSidesMade);
+			gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, numSidesMade);
 			prevVec = cpuGeom.verts.back();
 
 			// generate 3-sub-triangle group
-			genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, NULL, numSidesMade);
+			genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, numSidesMade);
 			prevVec = cpuGeom.verts.back();
 
 			//// Generate 2 group 60-degree
@@ -1178,6 +1197,78 @@ void genKochSnowflakeHelper(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, float
 
 			//addToVertsCpuGeom(cpuGeom, subTriangleGroup3);
 			//numSidesMade += 6;
+		}
+		numSidesMade -= 1;	// counting starting side twice
+
+		// debugging
+		std::cout << "\n1 sub-division with " << numSidesMade << " sides made (expected to be: " << 3 * pow(4, 2) << ")" << std::endl;
+	}
+	else // for all other sub divisions 
+	{
+		
+		float angleOffsetFor60degreeGroup = 0;
+		float angleOffsetForTriangleGroup = 120;
+		float angleOffsetForSingleSubTri = 60;
+
+		glm::vec3 prevVec = startingVec3;
+
+		// Generate single sub-triangle
+		genSingleTriangle(cpuGeom, prevVec, sideLength, 60, -60, numSidesMade);
+		prevVec = cpuGeom.verts.back();
+
+		// Generate 2 group 60-degree
+		gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, numSidesMade);
+		prevVec = cpuGeom.verts.back();
+
+		// generate 3-sub-triangle group
+		genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, numSidesMade);
+		prevVec = cpuGeom.verts.back();
+
+		angleOffsetFor60degreeGroup -= 60.f;	// Update the angle offset
+		//for (; numSidesMade < maxNumSides;)
+		for (int counter = 0; counter < 3; counter++)
+		{
+			if (counter + 1 == 3)
+			{
+				std::cout << "counter = " << counter;
+			}
+
+			// Generate the sides with only 1 'single' triangle
+			for (int i = 0; i < 2; i++)
+			{
+				// Generate 60-degree group
+				gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, numSidesMade);
+				prevVec = cpuGeom.verts.back();
+				angleOffsetFor60degreeGroup = -60 * counter;
+
+				// Generate single sub triangle
+				genSingleTriangle(cpuGeom, prevVec, sideLength, angleOffsetForSingleSubTri, angleOffsetForSingleSubTri - 120, numSidesMade);
+				prevVec = cpuGeom.verts.back();
+				angleOffsetForSingleSubTri += 60;
+			}
+
+			// Generate alternating group (single triangle + 60 degree group)
+			//angleOffsetFor60degreeGroup = 60 - (60 * counter);
+			angleOffsetFor60degreeGroup += 60;
+			angleOffsetForTriangleGroup += (60 * (counter + 1));
+			for (int i = 0; i < 3; i++)
+			{
+				// Generate 60-degree group
+				gen60degreeGroup(cpuGeom, prevVec, sideLength, angleOffsetFor60degreeGroup, numSidesMade);
+				prevVec = cpuGeom.verts.back();
+				angleOffsetFor60degreeGroup -= 60;
+
+				// generate 3-sub-triangle group
+				genTriangleGroup(cpuGeom, prevVec, sideLength, angleOffsetForTriangleGroup, numSidesMade);
+				prevVec = cpuGeom.verts.back();
+				angleOffsetForTriangleGroup -= 60;
+			}
+
+			std::cout << "\nangleOffsetForTriangleGroup = " << angleOffsetForTriangleGroup
+				<< " angleOffsetFor60degreeGroup = " << angleOffsetFor60degreeGroup << std::endl;
+
+			angleOffsetForSingleSubTri = -(60 * counter);
+
 		}
 	}
 
@@ -1328,7 +1419,7 @@ void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
 {
 	//std::cout << "NOT IMPLMENTED YET";
 	std::cout << "\n---IN PROGRESS---\n";
-	int numIter = 2;
+	int numIter = 4;
 	generateKochSnowflake(cpuGeom, gpuGeom, numIter);
 	std::cout << "\nCreated snowflake with " << numIter << " iterations." << std::endl;
 
