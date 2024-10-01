@@ -1453,10 +1453,7 @@ void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, 
 }
 
 
-
-
-
-void genKochSnowflake(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, float subTriangleSideLength, float angleOffset, int currentIter, const int& numIterations)
+void genKochSnowflakeTop(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, float subTriangleSideLength, float angleOffset, int currentIter, const int& numIterations)
 {
 	// debug
 	//std::cout << "\nIteration: " << currentIter << std::endl;
@@ -1485,10 +1482,10 @@ void genKochSnowflake(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, 
 	if (currentIter < numIterations)
 	{
 		++currentIter;
-		genKochSnowflake(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's leftV and bottomL
-		genKochSnowflake(cpuGeom, bottomL, top, subTriangleSideLength / 3.f, angleOffset + 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomL and top
-		genKochSnowflake(cpuGeom, top, bottomR, subTriangleSideLength / 3.f, angleOffset - 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's top and bottomR
-		genKochSnowflake(cpuGeom, bottomR, rightV, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomR rightV
+		genKochSnowflakeTop(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's leftV and bottomL
+		genKochSnowflakeTop(cpuGeom, bottomL, top, subTriangleSideLength / 3.f, angleOffset + 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomL and top
+		genKochSnowflakeTop(cpuGeom, top, bottomR, subTriangleSideLength / 3.f, angleOffset - 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's top and bottomR
+		genKochSnowflakeTop(cpuGeom, bottomR, rightV, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomR rightV
 	}
 	else
 	{
@@ -1498,8 +1495,37 @@ void genKochSnowflake(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, 
 		//std::cout << "pushed to cpuGeom[" << (cpuGeom.verts.size() - 1) << "]" << std::endl;
 		addToCpuGeomVerts(cpuGeom, subPoints);
 	}
-
 }
+
+//void genKochSnowflakeRight(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, float subTriangleSideLength, float angleOffset, int currentIter, const int& numIterations)
+//{
+//	// Calculate sub triangle's vec3's
+//	glm::vec3 bottomL = glm::vec3(leftV.x + subTriangleSideLength, leftV.y, leftV.z);
+//	rotateCCWAboutVec3(bottomL, leftV, angleOffset);
+//	glm::vec3 bottomR = glm::vec3(rightV.x - subTriangleSideLength, rightV.y, rightV.z);
+//	rotateCCWAboutVec3(bottomR, rightV, angleOffset);
+//	glm::vec3 top = glm::vec3(bottomL.x + subTriangleSideLength, bottomL.y, bottomL.z);
+//	rotateCCWAboutVec3(top, bottomL, angleOffset + 60);
+//	std::vector < glm::vec3> subPoints = { bottomL, top, bottomR };
+//
+//	// Keep Generating
+//	if (currentIter < numIterations)
+//	{
+//		++currentIter;
+//		genKochSnowflakeTop(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's leftV and bottomL
+//		genKochSnowflakeTop(cpuGeom, bottomL, top, subTriangleSideLength / 3.f, angleOffset + 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomL and top
+//		genKochSnowflakeTop(cpuGeom, top, bottomR, subTriangleSideLength / 3.f, angleOffset - 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's top and bottomR
+//		genKochSnowflakeTop(cpuGeom, bottomR, rightV, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomR rightV
+//	}
+//	else
+//	{
+//		// add the vec3's
+//		//printVectorLocation(leftV);
+//		cpuGeom.verts.push_back(leftV);
+//		//std::cout << "pushed to cpuGeom[" << (cpuGeom.verts.size() - 1) << "]" << std::endl;
+//		addToCpuGeomVerts(cpuGeom, subPoints);
+//	}
+//}
 
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
@@ -1529,9 +1555,12 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 		//glm::vec3(1.f, 0.f, 0.f),		// bottom right point
 		//glm::vec3(0.f, 1.f, 0.f),		// top point
 		//glm::vec3(-1.f, 0.f, 0.f)		// bottom left point
-		glm::vec3(0.5f, 0.5f, 0.f),		// top right point
-		glm::vec3(0.f, -0.5f, 0.f),		// bottom point
-		glm::vec3(-0.5f, 0.5f, 0.f)		// top left point
+		//glm::vec3(0.5f, 0.5f, 0.f),		// top right point
+		//glm::vec3(0.f, -0.5f, 0.f),		// bottom point
+		//glm::vec3(-0.5f, 0.5f, 0.f)		// top left point
+		glm::vec3(0.5f, 0.289f, 0.f),		// top right point
+		glm::vec3(0.f, -0.577f, 0.f),		// bottom point
+		glm::vec3(-0.5f, 0.289f, 0.f)		// top left point
 	};
 
 	//baseTriangle[0] = (glm::vec3(-1.f, -1.f, 0.f));
@@ -1544,50 +1573,34 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 	if (numIterations > 0)
 	{
 		float sideLength = (abs(baseTriangleVec3[2].x) + abs(baseTriangleVec3[0].x));
-
-		for (int i = 0; i < numIterations; i++)
-			sideLength = sideLength / 3.f;
-
 		int currentIter = 1;
-		genKochSnowflake(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1 / 3.f, 0, currentIter, numIterations);		// top side of the base triangle
-		//genKochSnowflake(cpuGeom, baseTriangleVec3[0], baseTriangleVec3[1], 1 / 3.f, -120, currentIter, numIterations);	// right side of the base triangle
-//genKochSnowflake(cpuGeom, baseTriangleVec3[1], baseTriangleVec3[2], 1 / 3.f, 120, currentIter, numIterations);	// left side of the base triangle
 
-		std::vector<glm::vec3> right = { baseTriangleVec3[0] };
-		addToCpuGeomVerts(cpuGeom, right);
+		// Generate top side
+		genKochSnowflakeTop(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1 / 3.f, 0, currentIter, numIterations);		// top side of the base triangle
+		cpuGeom.verts.push_back(baseTriangleVec3[0]);	// Add the top right point of the triangle
 
-		//// Finding the Centroid of the base triangle
-		//float centroidX = (baseTriangleVec3[0].x + baseTriangleVec3[1].x + baseTriangleVec3[2].x) / 3.f;
-		//float centroidY = (baseTriangleVec3[0].y + baseTriangleVec3[1].y + baseTriangleVec3[2].y) / 3.f;
-		//float centroidZ = (baseTriangleVec3[0].z + baseTriangleVec3[1].z + baseTriangleVec3[2].z) / 3.f;
-		//glm::vec3 triangleCentroid = glm::vec3(centroidX, centroidY, centroidZ);
+		// Generate right side
+		int sizeBeforeRightSideCalc = cpuGeom.verts.size();
+		glm::vec3 ghostVec = glm::vec3(baseTriangleVec3[0].x + sideLength, baseTriangleVec3[0].y, baseTriangleVec3[0].z);
+		// Calculate another top side of the snowflake but from the top right point and ghostVec
+		genKochSnowflakeTop(cpuGeom, baseTriangleVec3[0], ghostVec, 1 / 3.f, 0, currentIter, numIterations);			
 
-		//// Generate the rest of the sides by cloning the top side and rotating said vec3's.
+		// rotate vec3's from sizeBeforeRightSideCalc to cpuGeom.size() by 120 degrees
+		for (int i = sizeBeforeRightSideCalc; i < cpuGeom.verts.size(); i++)
+			rotateCCWAboutVec3(cpuGeom.verts.at(i), baseTriangleVec3[0], -120);	// rotate clock wise about the top right base triangle point
+		cpuGeom.verts.push_back(baseTriangleVec3[1]);
 
-		//// Generate right side by cloning the vec3's from the top side
-		//std::vector<glm::vec3> rightSide(cpuGeom.verts.size() - 1);
 
-		//for (int i = 0; i < rightSide.size(); i++)
-		//	rightSide[i] = cpuGeom.verts.at(i);
+		// Generate left side
+		int sizeBeforeLeftSideCalc = cpuGeom.verts.size();
+		ghostVec = glm::vec3(baseTriangleVec3[2].x - sideLength, baseTriangleVec3[2].y, baseTriangleVec3[2].z);
+		genKochSnowflakeTop(cpuGeom, ghostVec, baseTriangleVec3[2], 1 / 3.f, 0, currentIter, numIterations);	// top side of the base triangle
 
-		//// Rotate all cloned vec3's about the middle of the triangle by 120 degrees
-		//for (int i = 0; i < rightSide.size(); i++)
-		//	rotateCCWAboutVec3(rightSide[i], triangleCentroid, -120);
+		// rotate vec3's from sizeBeforeRightSideCalc to cpuGeom.size() by 120 degrees
+		for (int i = sizeBeforeLeftSideCalc; i < cpuGeom.verts.size(); i++)
+			rotateCCWAboutVec3(cpuGeom.verts.at(i), baseTriangleVec3[2], 120);	// rotate counter clock wise
+		cpuGeom.verts.push_back(baseTriangleVec3[2]);
 
-		//// Add the right side
-		//addToCpuGeomVerts(cpuGeom, rightSide);
-
-		//// Generate left side by cloning the vec3's from the top side
-		//std::vector<glm::vec3> leftSide(cpuGeom.verts.size() - 1);
-		//for (int i = 0; i < leftSide.size(); i++)
-		//	leftSide[i] = cpuGeom.verts.at(i);
-
-		//// Rotate all cloned vec3's about the middle of the triangle by 120 degrees
-		//for (int i = 0; i < leftSide.size(); i++)
-		//	rotateCCWAboutVec3(leftSide[i], triangleCentroid, 120);
-
-		//// Add the left side
-		//addToCpuGeomVerts(cpuGeom, leftSide);
 	}
 	else
 	{
