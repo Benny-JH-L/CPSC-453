@@ -845,15 +845,15 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const 
 	std::vector<glm::vec3> baseVec3(4);
 
 	baseVec3[0] = glm::vec3(-0.125, -0.5f, 0.f);	// bottom left
-	baseVec3[1] = glm::vec3(0.125, -0.5f, 0.f);	// bottom right
-	baseVec3[2] = glm::vec3(0.125, -0.25, 0.f);	// top right
+	baseVec3[1] = glm::vec3(0.125, -0.5f, 0.f);		// bottom right
+	baseVec3[2] = glm::vec3(0.125, -0.25, 0.f);		// top right
 	baseVec3[3] = glm::vec3(-0.125, -0.25, 0.f);	// top left
 
 	// Add the base (root) square to the cpuGeom
 	for (int i = 0; i < baseVec3.size(); i++)
 		cpuGeom.verts.push_back(baseVec3[i]);
 
-	// Brown colour for the root square
+	// Colour for the root square
 	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
 	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
 	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
@@ -868,21 +868,17 @@ void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const 
 		generatePythagorasRecurrRight(cpuGeom, baseVec3[3], baseVec3[2], hypotenuse, 1, numIterations, 45.0f);
 	}
 
-	// for now, set colors to rainbow
-	//setRainbowCol(cpuGeom);
-
 	// Add the colours and vec3's to the gpuGeom
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
 
-	// debug/test
-	//std::cout << "\nNumber of squares to draw = " << cpuGeom.verts.size() / 4 << std::endl;
 }
 
-/**
-* Calculates the side 's' of a square using the hypotenuse (side length of its 'parent' square).
-* @param float hypotenuse, the side length of its parent square.
-*/
+/// <summary>
+/// Calculates the side 's' of a square using the hypotenuse (side length of its 'parent' square).
+/// </summary>
+/// <param name="hypotenuse"> the side length of its parent square.</param>
+/// <returns>the calculated side, a float.</returns>
 float calcSideS(float hypotenuse)
 {
 	return hypotenuse / (sqrt(2));
@@ -1271,20 +1267,6 @@ void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, 
 
 void genKochSnowflakeTop(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, float subTriangleSideLength, float angleOffset, int currentIter, const int& numIterations)
 {
-	// debug
-	//std::cout << "\nIteration: " << currentIter << std::endl;
-
-	// Calculate the side length that v1 and v2 makes
-	//float sideLength = abs(leftV.x - rightV.x); // (make abs?)
-
-	//float subTriangleSideLength = sideLength;
-
-	//std::cout << "\nside length = " << sideLength << std::endl;
-	//std::cout << "side length created from vec3's: " << std::endl;
-	//printVectorLocation(leftV);
-	//printVectorLocation(rightV);
-	//std::cout << "\nSub triangle side length = " << subTriangleSideLength << std::endl;
-
 	// Calculate sub triangle's vec3's
 	glm::vec3 bottomL = glm::vec3(leftV.x + subTriangleSideLength, leftV.y, leftV.z);
 	rotateCCWAboutVec3(bottomL, leftV, angleOffset);
@@ -1298,17 +1280,15 @@ void genKochSnowflakeTop(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 right
 	if (currentIter < numIterations)
 	{
 		++currentIter;
-		genKochSnowflakeTop(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's leftV and bottomL
+		genKochSnowflakeTop(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);			// generate sub triangle on the side made from vec3's leftV and bottomL
 		genKochSnowflakeTop(cpuGeom, bottomL, top, subTriangleSideLength / 3.f, angleOffset + 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomL and top
 		genKochSnowflakeTop(cpuGeom, top, bottomR, subTriangleSideLength / 3.f, angleOffset - 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's top and bottomR
 		genKochSnowflakeTop(cpuGeom, bottomR, rightV, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomR rightV
 	}
 	else
 	{
-		// add the vec3's
-		//printVectorLocation(leftV);
+		// Add the 'vec3's to the cpuGeom
 		cpuGeom.verts.push_back(leftV);
-		//std::cout << "pushed to cpuGeom[" << (cpuGeom.verts.size() - 1) << "]" << std::endl;
 		addToCpuGeomVerts(cpuGeom, subPoints);
 	}
 }
@@ -1376,10 +1356,11 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 		for (int i = 0; i < baseTriangleVec3.size(); i++)
 		{
 			cpuGeom.verts.push_back(baseTriangleVec3[i]);
-			//printVectorLocation(baseTriangleVec3[i]);
+			//printVectorLocation(baseTriangleVec3[i]);	// debugging
 		}
 	}
 
+	// Set colours and gpuGeom stuff
 	setRainbowCol(cpuGeom);
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
@@ -1484,9 +1465,6 @@ void shiftDragonCurveCenterToOrigin(CPU_Geometry& cpuGeom)
 /// <param name="numIterations"> an int, the total number of subdivisions desired. </param>
 void genDragonCurveRecur(CPU_Geometry& cpuGeom, int currentIteration, int numIterations)
 {
-	// debugging
-	//std::cout << "\n(Before starting iter: " << currentIteration << ") cpuGeom size = " << cpuGeom.verts.size() << std::endl;
-
 	glm::vec3 pointOfRotation = cpuGeom.verts.back();	// vec3 to rotate about
 
 	// rotate all glm::vec3's inside cpuGeom by 45 degrees about 'rotationVec3' (excluding vec3 of rotation)
@@ -1507,12 +1485,6 @@ void genDragonCurveRecur(CPU_Geometry& cpuGeom, int currentIteration, int numIte
 
 	// Add the rotated cloned dragon curve to the cpuGeom
 	addToCpuGeomVerts(cpuGeom, clonedCurve);
-
-	// debugging
-	//std::cout << "\n(After finishing iter: " << currentIteration << ") cpuGeom size = " << cpuGeom.verts.size() << std::endl;
-	//std::cout << "\nVectors inside: " << std::endl;
-	//for (int i = 0; i < cpuGeom.verts.size(); i++)
-	//	printVectorLocation(cpuGeom.verts.at(i));
 
 	// Keep generating the Dragon Curve
 	if (currentIteration < numIterations)
@@ -1588,7 +1560,7 @@ void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int num
 	// Shift the generated curve
 	shiftDragonCurveCenterToOrigin(cpuGeom);
 
-	// Set the colors and gpuGeom
+	// Set the colors and gpuGeom stuff
 	setRainbowCol(cpuGeom);
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
