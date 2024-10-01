@@ -77,7 +77,7 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset);
 
 // Koch Snowflake prototypes
-void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom);
+void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
 //void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 leftVec3, glm::vec3 rightVec3, int currentIteration, const int numIterations, float angleOffSet);
 //void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, int currentIteration, const int numIterations, float angleOffSet);
@@ -115,11 +115,57 @@ class switchSceneCallBack : public CallbackInterface
 		}
 		else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
 		{
-			std::cout << "\nswitching scene ->... (not implmented)\n" << std::endl;
+			sceneData.fractalOption++;	// increment the fractal option by 1 to move right
+			if (option > 4)
+				sceneData.fractalOption = 1;
+
+			std::cout << "\nswitching scene (Right) -> (Current Option = " << option << ")\n" << std::endl;
+
+			// Checking the option chosen
+			switch (option)
+			{
+			case 1:
+				generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
+				break;
+			case 2:
+				generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+				break;
+			case 3:
+				generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
+				break;
+			case 4:
+				genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
+				break;
+			default:
+				std::cout << "\nInvalid option..." << std::endl;
+			}
 		}
 		else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
 		{
-			std::cout << "\nswitching scene <-... (not implmented)\n" << std::endl;
+			sceneData.fractalOption--;	// decrement the fractal option by 1 to move left
+			if (option < 1)
+				sceneData.fractalOption = 4;
+
+			std::cout << "\nswitching scene (Left) <- (Current Option = " << option << ")\n" << std::endl;
+
+			// Checking the option chosen
+			switch (option)
+			{
+			case 1:
+				generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
+				break;
+			case 2:
+				generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+				break;
+			case 3:
+				generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
+				break;
+			case 4:
+				genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
+				break;
+			default:
+				std::cout << "\nInvalid option..." << std::endl;
+			}
 		}
 		else if (key == GLFW_KEY_UP && action == GLFW_PRESS)
 		{
@@ -136,7 +182,7 @@ class switchSceneCallBack : public CallbackInterface
 					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
-					
+					generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 4:
 					genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
@@ -144,8 +190,6 @@ class switchSceneCallBack : public CallbackInterface
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
 			}
-			drawFractal(option, cpuGeom);
-
 		}
 		else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
 		{
@@ -170,7 +214,7 @@ class switchSceneCallBack : public CallbackInterface
 					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
-					//snowflakeOption(cpuGeom, gpuGeom);
+					generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 4:
 					genererateDragonCurve(cpuGeom, gpuGeom, subDiv);
@@ -178,8 +222,6 @@ class switchSceneCallBack : public CallbackInterface
 				default:
 					std::cout << "\nInvalid option..." << std::endl;
 			}
-			drawFractal(option, cpuGeom);
-
 		}
 	}
 
@@ -265,7 +307,7 @@ int main()
 				pythagorasOption(window, cpuGeom, gpuGeom, newData);
 				break;
 			case 3:
-				snowflakeOption(cpuGeom, gpuGeom);
+				snowflakeOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 4:
 				dragonCurveOption(cpuGeom, gpuGeom, newData);
@@ -286,7 +328,9 @@ int main()
 					<< "\n" << std::endl;
 
 		// RENDER LOOP
-		while (!window.shouldClose()) {
+		while (!window.shouldClose())
+		{
+			option = newData.fractalOption;	// make sure to keep updating option
 			glfwPollEvents();
 
 			shader.use();
@@ -314,8 +358,8 @@ void addToCpuGeomVerts(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& arr)
 	{
 		cpuGeom.verts.push_back(arr[i]);
 		// debugging
-		//printVectorLocation(arr[i]);
-		//std::cout << "pushed to cpuGeom[" << cpuGeom.verts.size() - 1 << "]" << std::endl;
+		printVectorLocation(arr[i]);
+		std::cout << "pushed to cpuGeom[" << cpuGeom.verts.size() - 1 << "]" << std::endl;
 	}
 }
 
@@ -328,6 +372,7 @@ void drawFractal(int option, const CPU_Geometry& cpuGeom)
 {
 	glEnable(GL_FRAMEBUFFER_SRGB);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	switch (option)
 	{
 		// Draw's Sierpinski's Triangle
@@ -1407,12 +1452,65 @@ void generateKochSnowflakeRecurr(CPU_Geometry& cpuGeom, glm::vec3 startingVec3, 
 	genKochSnowflakeHelper(cpuGeom, v, sideLength, 60, numSidesMade, totalNumberOfSides);
 }
 
+
+
+
+
+void genKochSnowflake(CPU_Geometry& cpuGeom, glm::vec3 leftV, glm::vec3 rightV, float subTriangleSideLength, float angleOffset, int currentIter, const int& numIterations)
+{
+	// debug
+	//std::cout << "\nIteration: " << currentIter << std::endl;
+
+	// Calculate the side length that v1 and v2 makes
+	//float sideLength = abs(leftV.x - rightV.x); // (make abs?)
+
+	//float subTriangleSideLength = sideLength;
+
+	//std::cout << "\nside length = " << sideLength << std::endl;
+	//std::cout << "side length created from vec3's: " << std::endl;
+	//printVectorLocation(leftV);
+	//printVectorLocation(rightV);
+	//std::cout << "\nSub triangle side length = " << subTriangleSideLength << std::endl;
+
+	// Calculate sub triangle's vec3's
+	glm::vec3 bottomL = glm::vec3(leftV.x + subTriangleSideLength, leftV.y, leftV.z);
+	rotateCCWAboutVec3(bottomL, leftV, angleOffset);
+	glm::vec3 bottomR = glm::vec3(rightV.x - subTriangleSideLength, rightV.y, rightV.z);
+	rotateCCWAboutVec3(bottomR, rightV, angleOffset);
+	glm::vec3 top = glm::vec3(bottomL.x + subTriangleSideLength, bottomL.y, bottomL.z);
+	rotateCCWAboutVec3(top, bottomL, angleOffset + 60);
+	std::vector < glm::vec3> subPoints = { bottomL, top, bottomR };
+
+	// Keep Generating
+	if (currentIter < numIterations)
+	{
+		++currentIter;
+		genKochSnowflake(cpuGeom, leftV, bottomL, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's leftV and bottomL
+		genKochSnowflake(cpuGeom, bottomL, top, subTriangleSideLength / 3.f, angleOffset + 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomL and top
+		genKochSnowflake(cpuGeom, top, bottomR, subTriangleSideLength / 3.f, angleOffset - 60, currentIter, numIterations);		// generate sub triangle on the side made from vec3's top and bottomR
+		genKochSnowflake(cpuGeom, bottomR, rightV, subTriangleSideLength / 3.f, angleOffset, currentIter, numIterations);		// generate sub triangle on the side made from vec3's bottomR rightV
+	}
+	else
+	{
+		// add the vec3's
+		//printVectorLocation(leftV);
+		cpuGeom.verts.push_back(leftV);
+		//std::cout << "pushed to cpuGeom[" << (cpuGeom.verts.size() - 1) << "]" << std::endl;
+		addToCpuGeomVerts(cpuGeom, subPoints);
+	}
+
+}
+
 void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
 	if (numIterations < 0)
 	{
 		return;
 	}
+
+	// Clear cpuGeom
+	clearCPUGeom(cpuGeom);
+
 	std::cout << "NOT IMPLMENTED YET\n";
 	// I think the best way to do this one is to generate one side of the snowflake
 	// then copy and rotate the cpoies to 'generate' the other sides.
@@ -1441,7 +1539,7 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 	//baseTriangle[2] = (glm::vec3(1.f, -1.f, 0.f));
 
 
-	cpuGeom.verts.push_back(baseTriangleVec3[2]);
+	//cpuGeom.verts.push_back(baseTriangleVec3[2]);
 
 	if (numIterations > 0)
 	{
@@ -1450,9 +1548,46 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 		for (int i = 0; i < numIterations; i++)
 			sideLength = sideLength / 3.f;
 
-		generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[2], sideLength, 1, numIterations);
-		//generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[1], baseTriangleVec3[0], 1, numIterations);	// calc right side
-		//generateKochSnowflakeRecurr(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1, numIterations, 0.f);	// calc bottom
+		int currentIter = 1;
+		genKochSnowflake(cpuGeom, baseTriangleVec3[2], baseTriangleVec3[0], 1 / 3.f, 0, currentIter, numIterations);		// top side of the base triangle
+		//genKochSnowflake(cpuGeom, baseTriangleVec3[0], baseTriangleVec3[1], 1 / 3.f, -120, currentIter, numIterations);	// right side of the base triangle
+//genKochSnowflake(cpuGeom, baseTriangleVec3[1], baseTriangleVec3[2], 1 / 3.f, 120, currentIter, numIterations);	// left side of the base triangle
+
+		std::vector<glm::vec3> right = { baseTriangleVec3[0] };
+		addToCpuGeomVerts(cpuGeom, right);
+
+		//// Finding the Centroid of the base triangle
+		//float centroidX = (baseTriangleVec3[0].x + baseTriangleVec3[1].x + baseTriangleVec3[2].x) / 3.f;
+		//float centroidY = (baseTriangleVec3[0].y + baseTriangleVec3[1].y + baseTriangleVec3[2].y) / 3.f;
+		//float centroidZ = (baseTriangleVec3[0].z + baseTriangleVec3[1].z + baseTriangleVec3[2].z) / 3.f;
+		//glm::vec3 triangleCentroid = glm::vec3(centroidX, centroidY, centroidZ);
+
+		//// Generate the rest of the sides by cloning the top side and rotating said vec3's.
+
+		//// Generate right side by cloning the vec3's from the top side
+		//std::vector<glm::vec3> rightSide(cpuGeom.verts.size() - 1);
+
+		//for (int i = 0; i < rightSide.size(); i++)
+		//	rightSide[i] = cpuGeom.verts.at(i);
+
+		//// Rotate all cloned vec3's about the middle of the triangle by 120 degrees
+		//for (int i = 0; i < rightSide.size(); i++)
+		//	rotateCCWAboutVec3(rightSide[i], triangleCentroid, -120);
+
+		//// Add the right side
+		//addToCpuGeomVerts(cpuGeom, rightSide);
+
+		//// Generate left side by cloning the vec3's from the top side
+		//std::vector<glm::vec3> leftSide(cpuGeom.verts.size() - 1);
+		//for (int i = 0; i < leftSide.size(); i++)
+		//	leftSide[i] = cpuGeom.verts.at(i);
+
+		//// Rotate all cloned vec3's about the middle of the triangle by 120 degrees
+		//for (int i = 0; i < leftSide.size(); i++)
+		//	rotateCCWAboutVec3(leftSide[i], triangleCentroid, 120);
+
+		//// Add the left side
+		//addToCpuGeomVerts(cpuGeom, leftSide);
 	}
 	else
 	{
@@ -1474,11 +1609,11 @@ void generateKochSnowflake(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const i
 //
 //
 //
-void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom)
+void snowflakeOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
 	//std::cout << "NOT IMPLMENTED YET";
 	std::cout << "\n---IN PROGRESS---\n";
-	int numIter = 4;
+	int numIter = 2;
 	generateKochSnowflake(cpuGeom, gpuGeom, numIter);
 	std::cout << "\nCreated snowflake with " << numIter << " iterations." << std::endl;
 
