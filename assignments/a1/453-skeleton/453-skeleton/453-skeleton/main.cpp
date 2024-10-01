@@ -16,6 +16,14 @@
 #include "Shader.h"
 #include "Window.h"
 
+/// <summary>
+/// contains:
+/// int fractalOption >> 1: Sierpinski's Triangle | 2: Pythagoras Tree | 3: Koch Snowflake | 4: Dragon Curve
+/// int numSubDiv
+/// CPU_Geometry& cpuGeom
+/// GPU_Geometry& gpuGeom
+/// Window& window
+/// </summary>
 struct data
 {
 	int fractalOption;	// 1: Sierpinski's Triangle | 2: Pythagoras Tree | 3: Koch Snowflake | 4: Dragon Curve
@@ -25,18 +33,16 @@ struct data
 	Window& window;
 };
 
-//void squarePatternTest(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numVerts);	// test, delete after.
 
 // Sierpinski's Triangle prototypes
 void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int numIterations);
-void setRainbowCol(CPU_Geometry& cpuGeom);
 float calcHalfWayX(const glm::vec3& v1, const glm::vec3& v2);
 float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2);
 
 // Pythagoras Tree prototypes
-void pythagorasOption(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
-void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData);
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations);
 void generatePythagorasRecurr(CPU_Geometry& cpuGeom, const glm::vec3& leftVec, const glm::vec3& rightVec, float hypotenuse, int currentIteration, const int numIterations, float radianOffset);
 float calcSideS(float hypotenuse);
 
@@ -58,6 +64,7 @@ void genererateDragonCurve(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, int num
 void drawFractal(int option, const CPU_Geometry& cpuGeom);
 void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
 void clearCPUGeom(CPU_Geometry& cpuGeom);
+void setRainbowCol(CPU_Geometry& cpuGeom);
 
 // Debugging prototypes
 void printVectorLocation(glm::vec3 vec, int vecNum);
@@ -97,7 +104,7 @@ class switchSceneCallBack : public CallbackInterface
 				generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 				break;
 			case 2:
-				generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+				generatePythagorasTree(cpuGeom, gpuGeom, subDiv);
 				break;
 			case 3:
 				generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
@@ -124,7 +131,7 @@ class switchSceneCallBack : public CallbackInterface
 				generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 				break;
 			case 2:
-				generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+				generatePythagorasTree(cpuGeom, gpuGeom, subDiv);
 				break;
 			case 3:
 				generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
@@ -148,7 +155,7 @@ class switchSceneCallBack : public CallbackInterface
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 2:
-					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+					generatePythagorasTree(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
 					generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
@@ -180,7 +187,7 @@ class switchSceneCallBack : public CallbackInterface
 					generateSierpinskiTriangle(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 2:
-					generatePythagorasTree(win, cpuGeom, gpuGeom, subDiv);
+					generatePythagorasTree(cpuGeom, gpuGeom, subDiv);
 					break;
 				case 3:
 					generateKochSnowflake(cpuGeom, gpuGeom, subDiv);
@@ -260,8 +267,6 @@ int main()
 		// CALLBACKS
 		window.setCallbacks(std::make_shared<switchSceneCallBack>(shader, newData));
 
-		//numSubDiv = -1;
-
 		// Checking the option chosen
 		switch(option)
 		{
@@ -273,7 +278,7 @@ int main()
 				sierpinskiOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 2:
-				pythagorasOption(window, cpuGeom, gpuGeom, newData);
+				pythagorasOption(cpuGeom, gpuGeom, newData);
 				break;
 			case 3:
 				snowflakeOption(cpuGeom, gpuGeom, newData);
@@ -425,13 +430,13 @@ void sierpinskiOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneD
 	}
 }
 
-/**
-* Recursively calls itself to find Sierpinski Triangle's at sub-divisions/iterations.
-* @param CPU_Geometry& cpuGeom, a reference to a CPU_Geometry.
-* @param std::vector<glm::vec3>& triangleVec3, a std::vector of type <glm::vec3> that contains 3 vec3 'vectors' that make up a triangle.
-* @param int currentIteration, the current iteration, or sub-division, to be calculated.
-* @param const int numIterations, the total number of iterations, or sub-divisions, to be calculate.
-*/
+/// <summary>
+/// Recursively calls itself to find Sierpinski's Triangle's at sub-divisions/iterations.
+/// </summary>
+/// <param name="cpuGeom"> a reference to a CPU_Geometry.</param>
+/// <param name="triangleVec3"> a std::vector of type glm::vec3 that contains 3 vec3 'vectors' that make up a triangle.</param>
+/// <param name="currentIteration"> the current iteration, or sub-division, to be calculated.</param>
+/// <param name="numIterations"> the total number of iterations, or sub-divisions, to be calculate.</param>
 void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& triangleVec3, int currentIteration, const int numIterations)
 {
 	// calculating x and y halfway points of vectors
@@ -456,32 +461,6 @@ void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& tri
 		// std::cout << "halfway vec3s: " << halfWayVec3[i] << std::endl; // debug
 	}
 
-	// debug
-	//std::cout << "Halfway points " << currentIteration << " iteration: \n";
-	//for (int i = 0; i < 3; i++)
-	//{
-	//	std::cout << "(" << halfwayX[i] << ", "
-	//		<< halfwayY[i] << ")" << std::endl;
-	//}
-
-	// debug
-	//std::cout << "Printing everything in 'triangleVec3': \n";
-	//for (std::vector<glm::vec3>::iterator it = triangleVec3.begin(); it != triangleVec3.end(); it++)
-	//{
-	//	std::cout << (*it) << std::endl;
-
-	//	//if ((*it) == glm::vec3())
-	//	//	std::cout << "HI :) \n";
-	//}
-	// NOTE: Both do the same
-	// std::cout << "Printing everything in 'allVec3': \n";
-	//for (int i = 0; i < allVec3.size(); i++)
-	//{
-	//	std::cout << allVec3[i] << std::endl;
-	//	if (allVec3[i] == glm::vec3())
-	//		std::cout << "HI :) \n";
-	//}
-
 	// Creating sub-triangle groups
 	std::vector<glm::vec3> subTriangle1(3);
 	std::vector<glm::vec3> subTriangle2(3);
@@ -505,12 +484,20 @@ void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& tri
 	{
 		// Add the sub-triangles to the cpuGeom
 		for (int i = 0; i < subTriangle1.size(); i++)
+		{
 			cpuGeom.verts.push_back(subTriangle1[i]);
+			//cpuGeom.cols.push_back(glm::vec3(1.f / currentIteration, 1.f / i, 1.f));
+		}
 		for (int i = 0; i < subTriangle2.size(); i++)
+		{
 			cpuGeom.verts.push_back(subTriangle2[i]);
+			//cpuGeom.cols.push_back(glm::vec3(1.f, 1.f / currentIteration, 1.f / i));
+		}
 		for (int i = 0; i < subTriangle3.size(); i++)
+		{
 			cpuGeom.verts.push_back(subTriangle3[i]);
-
+			//cpuGeom.cols.push_back(glm::vec3(1.f / i, 1.f, 1.f / currentIteration));
+		}
 		return;
 	}
 	// Recursive case
@@ -533,7 +520,7 @@ void generateSierpinskiRecurr(CPU_Geometry& cpuGeom, std::vector<glm::vec3>& tri
 /// <param name="numIterations"> an int, the desired number of subdivisions. </param>
 void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
-	if (numIterations == -1)
+	if (numIterations < 0)
 	{
 		std::cout << "\nCannot have negative subdivisions\n" << std::endl;
 		return;
@@ -549,35 +536,34 @@ void generateSierpinskiTriangle(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, co
 	baseTriangle[1] = (glm::vec3(0.f, 1.f, 0.f));
 	baseTriangle[2] = (glm::vec3(1.f, -1.f, 0.f));
 
-	// OLD
-	//baseTriangle[0] = (glm::vec3(-0.5f, -0.5f, 0.f));
-	//baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
-	//baseTriangle[2] = (glm::vec3(0.5f, -0.5f, 0.f));
-
-	// this way works too
-	//baseTriangle[2] = (glm::vec3(-0.5f, -0.5f, 0.f));
-	//baseTriangle[1] = (glm::vec3(0.f, 0.5f, 0.f));
-	//baseTriangle[0] = (glm::vec3(0.5f, -0.5f, 0.f));
-
-	// Debug
-	//std::cout << "Printing base triangle: \n"
-	//	<< baseTriangle[0] << "\n"
-	//	<< baseTriangle[1] << "\n"
-	//	<< baseTriangle[2] << "\n" << std::endl;
-
 	if (numIterations == 0)
 	{
 		cpuGeom.verts.push_back(baseTriangle[0]);
 		cpuGeom.verts.push_back(baseTriangle[1]);
 		cpuGeom.verts.push_back(baseTriangle[2]);
+		setRainbowCol(cpuGeom);		// set to rainbow colour
 	}
 	else
 	{
 		// Generate the fractal
 		int currentIteration = 1;
 		generateSierpinskiRecurr(cpuGeom, baseTriangle, currentIteration, numIterations);
+
+		// Set the colours of the triangles
+		int start = 0, cpuSize = cpuGeom.verts.size();
+		for (int i = 0, j = 1, k = 1; start < cpuSize * (1/3.f); i++, start++, j++)
+		{
+			cpuGeom.cols.push_back(glm::vec3(1.f / i, 1.f / k, 1.f / j));
+		}
+		for (int i = 0, j = 2, k = 2; start < cpuSize * (2 / 3.f); i++, start++, j++)
+		{
+			cpuGeom.cols.push_back(glm::vec3(1.f / j, 1.f / i, 1.f / k));
+		}
+		for (int i = 0, j = 3, k = 3; start < cpuSize; i++, start++, j++)
+		{
+			cpuGeom.cols.push_back(glm::vec3(1.f / k, 1.f / j, 1.f / i));
+		}
 	}
-	setRainbowCol(cpuGeom);
 
 	gpuGeom.setVerts(cpuGeom.verts);
 	gpuGeom.setCols(cpuGeom.cols);
@@ -608,11 +594,10 @@ float calcHalfWayY(const glm::vec3& v1, const glm::vec3& v2)
 /// <summary>
 /// Pythagoras Tree Option, interacts with the user via the command prompt, for the number of desired subdivisions.
 /// </summary>
-/// <param name="window"> a Window, displaying the fractal. </param>
 /// <param name="cpuGeom"> a CPU_Geometry that holds the fractal's glm::vec's, address.</param>
 /// <param name="gpuGeom"> a GPU_Geometry, address.</param>
 /// <param name="sceneData"> a data, address.</param>
-void pythagorasOption(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
+void pythagorasOption(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, data& sceneData)
 {
 	int numSubDiv = -1;
 	while (numSubDiv < 0)
@@ -625,7 +610,7 @@ void pythagorasOption(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGe
 			continue;
 		}
 		sceneData.numSubDiv = numSubDiv;
-		generatePythagorasTree(window, cpuGeom, gpuGeom, numSubDiv);
+		generatePythagorasTree(cpuGeom, gpuGeom, numSubDiv);
 		std::cout << "\nPythagoras Tree with " << numSubDiv << " subdivisions created." << std::endl;
 	}
 }
@@ -667,6 +652,10 @@ void generatePythagorasRecurrLeftRight(CPU_Geometry& cpuGeom, const glm::vec3& l
 	// Add the vec3's to the cpuGeom
 	for (int i = 0; i < rightSq.size(); i++)
 		cpuGeom.verts.push_back(rightSq[i]);
+
+	// Add colours
+	for (int i = 0; i < rightSq.size(); i++)
+		cpuGeom.cols.push_back(glm::vec3(1.f / (i + currentIteration), 1.f, 1.f));
 
 	if (currentIteration != numIterations)
 	{
@@ -714,6 +703,10 @@ void generatePythagorasRecurrLeft(CPU_Geometry& cpuGeom, const glm::vec3& leftVe
 	// Add the left square vec3's to the cpuGeom
 	for (int i = 0; i < leftSq.size(); i++)
 		cpuGeom.verts.push_back(leftSq[i]);
+
+	// Add colours
+	for (int i = 0; i < leftSq.size(); i++)
+		cpuGeom.cols.push_back(glm::vec3(1.f / (i + currentIteration), 1.f, 1.f));
 
 	if (currentIteration != numIterations)
 	{
@@ -763,6 +756,10 @@ void generatePythagorasRecurrRightLeft(CPU_Geometry& cpuGeom, const glm::vec3& l
 	// Add the left square vec3's to the cpuGeom
 	for (int i = 0; i < leftSq.size(); i++)
 		cpuGeom.verts.push_back(leftSq[i]);
+
+	// Add colours
+	for (int i = 0; i < leftSq.size(); i++)
+		cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 1.f / (i + currentIteration)));
 	
 	if (currentIteration != numIterations)
 	{
@@ -812,6 +809,10 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 	for (int i = 0; i < rightSq.size(); i++)
 		cpuGeom.verts.push_back(rightSq[i]);
 
+	// Add colours
+	for (int i = 0; i < rightSq.size(); i++)
+		cpuGeom.cols.push_back(glm::vec3(1.f, 1.f, 1.f / (i + currentIteration)));
+
 	if (currentIteration != numIterations)
 	{
 		currentIteration++;
@@ -824,43 +825,24 @@ void generatePythagorasRecurrRight(CPU_Geometry& cpuGeom, const glm::vec3& leftV
 }
 
 /// <summary>
-/// 2.2 Part 2 : Pythagora's Tree
+/// 2.2 Part 2 : Pythagoras Tree
 /// </summary>
-/// <param name="window"></param>
 /// <param name="cpuGeom"></param>
 /// <param name="gpuGeom"></param>
 /// <param name="numIterations"></param>
-void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
+void generatePythagorasTree(CPU_Geometry& cpuGeom, GPU_Geometry& gpuGeom, const int numIterations)
 {
-	if (numIterations == -1)
+	if (numIterations < 0)
 	{
 		std::cout << "\nCannot have negative subdivisions\n" << std::endl;
 		return;
 	}
 
 	// Clear what is inside the cpuGeom
-	cpuGeom.verts.clear();
-	cpuGeom.cols.clear();
-
-	// debug/test
-	int height = window.getHeight();
-	int width = window.getWidth();
-	//std::cout	<< "\nwindow height = " << height
-	//			<< "\nwindow width = " << width << std::endl;
+	clearCPUGeom(cpuGeom);
 
 	// Create base square
 	std::vector<glm::vec3> baseVec3(4);
-
-	// OLD BASE (ROOT) SQUARE
-	//baseVec3[0] = glm::vec3(-0.25, -0.5, 0.f);	// bottom left
-	//baseVec3[1] = glm::vec3(0.25, -0.5, 0.f);	// bottom right
-	//baseVec3[2] = glm::vec3(0.25, 0.f,0.f);		// top right
-	//baseVec3[3] = glm::vec3(-0.25, 0.f, 0.f);	// top left
-
-	//baseVec3[0] = glm::vec3(-0.25, -1.f, 0.f);	// bottom left
-	//baseVec3[1] = glm::vec3(0.25, -1.f, 0.f);	// bottom right
-	//baseVec3[2] = glm::vec3(0.25, -0.5, 0.f);	// top right
-	//baseVec3[3] = glm::vec3(-0.25, -0.5, 0.f);	// top left
 
 	baseVec3[0] = glm::vec3(-0.125, -0.5f, 0.f);	// bottom left
 	baseVec3[1] = glm::vec3(0.125, -0.5f, 0.f);	// bottom right
@@ -870,7 +852,13 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 	// Add the base (root) square to the cpuGeom
 	for (int i = 0; i < baseVec3.size(); i++)
 		cpuGeom.verts.push_back(baseVec3[i]);
-	
+
+	// Brown colour for the root square
+	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
+	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
+	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
+	cpuGeom.cols.push_back(glm::vec3(0.5f, 0.5f, 1.f));
+
 	float hypotenuse = abs(baseVec3[3].x) + abs(baseVec3[2].x);	// the hypotenuse will the the length of the parent square
 
 	if (numIterations > 0)
@@ -881,7 +869,7 @@ void generatePythagorasTree(Window& window, CPU_Geometry& cpuGeom, GPU_Geometry&
 	}
 
 	// for now, set colors to rainbow
-	setRainbowCol(cpuGeom);
+	//setRainbowCol(cpuGeom);
 
 	// Add the colours and vec3's to the gpuGeom
 	gpuGeom.setVerts(cpuGeom.verts);
