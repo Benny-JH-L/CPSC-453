@@ -4,7 +4,11 @@ layout (location = 1) in vec2 texCoord;
 
 out vec2 tc;
 
-void main() {
+uniform mat4 rotationMatrix;
+
+void main()
+{
 	tc = texCoord;
-	gl_Position = vec4(pos, 1.0);
+	gl_Position = rotationMatrix * vec4(pos, 1.0);
+	//gl_Position = vec4(pos, 1.0);
 }
