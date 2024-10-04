@@ -64,6 +64,7 @@ struct GameData
 	GameObject& d3;
 };
 
+float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
 void drawGameObject(ShaderProgram& shader, GameObject& obj);
 void printVec4Pos(glm::vec4 vec, int vecNum);
 void printVec4Pos(glm::vec4 vec);
@@ -233,6 +234,9 @@ void setGpuGeom(GameObject& obj)
 int main() {
 	Log::debug("Starting main");
 
+	// debug
+	calcAngle(glm::vec3(9.f, 2.f, 0.f), glm::vec3(2.f, 6.f, 0.f));
+
 	// WINDOW
 	glfwInit();
 	Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
@@ -363,6 +367,31 @@ int main() {
 	glfwTerminate();
 	return 0;
 }
+
+
+float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
+{
+	float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
+
+	float squareInitialX = initialV3.x * initialV3.x;
+	float squareInitialY = initialV3.y * initialV3.y;
+	float squareInitialZ = initialV3.z * initialV3.z;
+
+	float squareFinalX = finalV3.x * finalV3.x;
+	float squareFinalY = finalV3.y * finalV3.y;
+	float squareFinalZ = finalV3.z * finalV3.z;
+
+	float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
+	float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
+
+	float angle = acos(dotProuct / (initialV3Length * finalV3Length));
+	
+	// debug
+	cout << "\nAngle calculted (radians)= " << angle << endl;
+
+	return angle;
+}
+
 
 /// <summary>
 /// Prints the position of the 'vec4', x, y, z, w coordinates.
