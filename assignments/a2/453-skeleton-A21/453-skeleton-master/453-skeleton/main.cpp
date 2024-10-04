@@ -16,13 +16,7 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
-
-#include <glm/gtc/type_ptr.hpp>	// so i can use the "glm::value_ptr(...)"
-
 using namespace std;
-
-void printVec4Pos(glm::vec4 vec, int vecNum);
-void printVec4Pos(glm::vec4 vec);
 
 // An example struct for Game Objects.
 // You are encouraged to customize this as you see fit.
@@ -51,21 +45,16 @@ struct GameObject
 };
 
 // EXAMPLE CALLBACKS
-class MyCallbacks : public CallbackInterface
-{
+class MyCallbacks : public CallbackInterface {
 
 public:
 	MyCallbacks(ShaderProgram& shader) : shader(shader) {}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
-		cout << "Current cursor location: " << endl;
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-		{
+		if (key == GLFW_KEY_R && action == GLFW_PRESS) {
 			shader.recompile();
 		}
-
-
 	}
 
 private:
@@ -112,7 +101,15 @@ CPU_Geometry diamondGeom(float width, float height)
 	float halfWidth = width / 2.0f;
 	float halfHeight = height / 2.0f;
 	CPU_Geometry retGeom;
-	// vertices for the diamond quad
+	// vertices for the diamond quad (test)
+	//float a = -0.25;
+	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth + a, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth + a, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth + a, halfHeight, 0.f));
+
 	retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
 	retGeom.verts.push_back(glm::vec3(-halfWidth, -halfHeight, 0.f));
 	retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
@@ -139,29 +136,40 @@ CPU_Geometry diamondGeom(float width, float height)
 	retGeom.texCoords.push_back(glm::vec2(0.f, 1.f));
 	retGeom.texCoords.push_back(glm::vec2(1.f, 0.f));
 	retGeom.texCoords.push_back(glm::vec2(1.f, 1.f));
+
 	return retGeom;
 }
 
-// END EXAMPLES
-
-int main()
+// for now transformations will be done like this, until i set up the uniforms and what now.
+void translate(GameObject& obj, float val1, float val2)
 {
+	for (int i = 0; i < obj.cgeom.verts.size(); i++)
+	{
+		glm::vec3& vecToTranslate = obj.cgeom.verts.at(i);
+		vecToTranslate.x = vecToTranslate.x + val1;
+		vecToTranslate.y = vecToTranslate.y + val2;
+	}
+}
+
+void drawGameObject(ShaderProgram& shader, GameObject& obj)
+{
+	shader.use();
+	obj.ggeom.bind();
+
+	// Draw Game Object
+	obj.texture.bind();
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	obj.texture.unbind();
+}
+
+void setGpuGeom(GameObject& obj)
+{
+	obj.ggeom.setVerts(obj.cgeom.verts);
+	obj.ggeom.setTexCoords(obj.cgeom.texCoords);
+}
+
+int main() {
 	Log::debug("Starting main");
-
-	// My tests
-	glm::vec3 coord = glm::vec3(1.f, 1.f, 0.f);
-	glm::vec Position = glm::vec4(coord, 1.0f);		// Homogeneous coord sys. this is a point at (0, 0, 0)
-	cout << "position = " ;
-	printVec4Pos(Position);
-
-	glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
-	float angle = glm::radians(90.0f);		// angle of rotation (converts degree to radians)
-	glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
-	glm::mat4 Model = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
-	glm::vec4 Transformed = Model * Position;
-
-	cout << "\nTransformed = ";
-	printVec4Pos(Transformed);
 
 	// WINDOW
 	glfwInit();
@@ -175,21 +183,23 @@ int main()
 
 	// CALLBACKS
 	window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
-	
 
 	// GL_NEAREST looks a bit better for low-res pixel art than GL_LINEAR.
 	// But for most other cases, you'd want GL_LINEAR interpolation.
 	GameObject ship("textures/ship.png", GL_NEAREST);
-	GameObject diamond("textures/diamond.png", GL_NEAREST);
+	GameObject d0("textures/diamond.png", GL_NEAREST);
 
 	ship.cgeom = shipGeom(0.18f, 0.12f);
-	diamond.cgeom = diamondGeom(0.14f, 0.14f);
 
-	ship.ggeom.setVerts(ship.cgeom.verts);
-	ship.ggeom.setTexCoords(ship.cgeom.texCoords);
+	d0.cgeom = diamondGeom(0.14f, 0.14f);
+	translate(d0, -0.5f, -0.5f);
 
-	diamond.ggeom.setVerts(diamond.cgeom.verts);
-	diamond.ggeom.setTexCoords(diamond.cgeom.texCoords);
+	//ship.ggeom.setVerts(ship.cgeom.verts);
+	//ship.ggeom.setTexCoords(ship.cgeom.texCoords);
+	setGpuGeom(ship);
+
+	d0.ggeom.setVerts(d0.cgeom.verts);
+	d0.ggeom.setTexCoords(d0.cgeom.texCoords);
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -198,21 +208,23 @@ int main()
 
 		shader.use();
 
-		ship.ggeom.bind();
-		diamond.ggeom.bind();
-
-		GLuint shaderProgram = 1;	// idk what this should be, but its working xd
-		GLint rotationLoc = glGetUniformLocation(shaderProgram, "rotationMatrix");
-		glUniformMatrix4fv(rotationLoc, 1, GL_FALSE, glm::value_ptr(Model));
-
 		glEnable(GL_FRAMEBUFFER_SRGB);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		ship.texture.bind();
-		diamond.texture.bind();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// note to self: if i have this in between drawing objects, it will remove all previous ones.
 
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		ship.texture.unbind();
-		diamond.texture.unbind();
+		// Draw ship
+		//ship.ggeom.bind();
+		//ship.texture.bind();
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		//ship.texture.unbind();
+		drawGameObject(shader, ship);
+
+		// Draw Diamonds
+		//shader.use();
+		//d0.ggeom.bind();
+		//d0.texture.bind();
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		//d0.texture.unbind();
+		drawGameObject(shader, d0);
 
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 
@@ -235,7 +247,7 @@ int main()
 			ImGuiWindowFlags_NoTitleBar;			// no title; only the text should be visible
 
 		// Begin a new window with these flags. (bool *)0 is the "default" value for its argument.
-		ImGui::Begin("scoreText", (bool *)0, textWindowFlags);
+		ImGui::Begin("scoreText", (bool*)0, textWindowFlags);
 
 		// Scale up text a little, and set its value
 		ImGui::SetWindowFontScale(1.5f);
@@ -256,24 +268,4 @@ int main()
 
 	glfwTerminate();
 	return 0;
-}
-
-/// <summary>
-/// Prints the position of the 'vec4', x, y, z, w coordinates.
-/// </summary>
-/// <param name="vec"> the glm::vec4's position to be printed. </param>
-/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
-void printVec4Pos(glm::vec4 vec, int vecNum)
-{
-	std::cout << "vec4 #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")" << std::endl;
-}
-
-/// <summary>
-/// Prints the position of the 'vec4', x, y, z, w coordinates.
-/// </summary>
-/// <param name="vec"> the glm::vec4's position to be printed. </param>
-/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
-void printVec4Pos(glm::vec4 vec)
-{
-	printVec4Pos(vec, -1);
 }
