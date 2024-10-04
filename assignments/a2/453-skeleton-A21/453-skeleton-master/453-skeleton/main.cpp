@@ -16,6 +16,8 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+#include <glm/gtc/type_ptr.hpp>	// so i can use the "glm::value_ptr(...)"
+
 using namespace std;
 
 // An example struct for Game Objects.
@@ -44,22 +46,73 @@ struct GameObject
 	glm::mat4 transformationMatrix;
 };
 
-// EXAMPLE CALLBACKS
-class MyCallbacks : public CallbackInterface {
+struct GameData
+{
+	GameData(GameObject& s, GameObject& d0, GameObject& d1, GameObject& d2, GameObject& d3) :
+		ship(s),
+		d0(d0),
+		d1(d1),
+		d2(d2),
+		d3(d3)
+	{}
+
+	GameObject& ship;	// Ship object
+	// Diamond objects
+	GameObject& d0;
+	GameObject& d1;
+	GameObject& d2;
+	GameObject& d3;
+};
+
+void drawGameObject(ShaderProgram& shader, GameObject& obj);
+void printVec4Pos(glm::vec4 vec, int vecNum);
+void printVec4Pos(glm::vec4 vec);
+
+class MyCallbacks : public CallbackInterface
+{
 
 public:
-	MyCallbacks(ShaderProgram& shader) : shader(shader) {}
+	MyCallbacks(ShaderProgram& shader, GameData& data) :
+		shader(shader),
+		gameData(data)
+	{}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
-		if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+		std::cout << "key pressed " << std::endl;
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		{
 			shader.recompile();
 		}
+
+		glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+		float angle = glm::radians(90.0f * counter);		// angle of rotation (converts degree to radians)
+		glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+		glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+		gameData.ship.transformationMatrix = rotateMatrix;
+		drawGameObject(shader, gameData.ship);
+		counter++;
+
+		std::cout << "counter = " << counter << std::endl;
+
 	}
+
+	virtual void cursorPosCallback(double xpos, double ypos)
+	{
+		//std::cout << "Mouse pos: (" << xpos << ", " << ypos << ")" << std::endl;
+	}
+
+	//virtual void mouseButtonCallback(int button, int action, int mods)
+	//{
+	//	std::cout << "Hi there :)))" << std::endl;
+	//}
 
 private:
 	ShaderProgram& shader;
+	GameData& gameData;
+	int counter = 1;
 };
+
 
 CPU_Geometry shipGeom(float width, float height)
 {
@@ -153,9 +206,18 @@ void translate(GameObject& obj, float val1, float val2)
 
 void drawGameObject(ShaderProgram& shader, GameObject& obj)
 {
+	//glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+	//float angle = glm::radians(90.0f);		// angle of rotation (converts degree to radians)
+	//glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+	//glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+	//obj.transformationMatrix = rotateMatrix;
+
+	//GLuint shaderProgram = (GLuint)("shaders/test.frag"); // = 1;
+	//GLint rotationLoc = glGetUniformLocation(shaderProgram, "transformationMatrix");
+	//glUniformMatrix4fv(rotationLoc, shaderProgram, GL_FALSE, glm::value_ptr(obj.transformationMatrix));
+
 	shader.use();
 	obj.ggeom.bind();
-
 	// Draw Game Object
 	obj.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -181,25 +243,54 @@ int main() {
 	// SHADERS
 	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
 
-	// CALLBACKS
-	window.setCallbacks(std::make_shared<MyCallbacks>(shader)); // can also update callbacks to new ones
-
 	// GL_NEAREST looks a bit better for low-res pixel art than GL_LINEAR.
 	// But for most other cases, you'd want GL_LINEAR interpolation.
 	GameObject ship("textures/ship.png", GL_NEAREST);
 	GameObject d0("textures/diamond.png", GL_NEAREST);
+	GameObject d1("textures/diamond.png", GL_NEAREST);
+	GameObject d2("textures/diamond.png", GL_NEAREST);
+	GameObject d3("textures/diamond.png", GL_NEAREST);
 
+	// CALLBACKS
+	GameData newData = { ship, d0, d1, d2, d3 };
+	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData)); // can also update callbacks to new ones
+
+	// Create ship cpuGeom
 	ship.cgeom = shipGeom(0.18f, 0.12f);
-
+	// Create Diamonds cpuGeom
 	d0.cgeom = diamondGeom(0.14f, 0.14f);
+	d1.cgeom = diamondGeom(0.14f, 0.14f);
+	d2.cgeom = diamondGeom(0.14f, 0.14f);
+	d3.cgeom = diamondGeom(0.14f, 0.14f);
+	// Put the diamonds starting locations (using this method for now)
 	translate(d0, -0.5f, -0.5f);
+	translate(d1, 0.5f, 0.5f);
+	translate(d2, -0.5f, 0.5f);
+	translate(d3, 0.5f, -0.5f);
 
+	// Set gpu geoms
 	//ship.ggeom.setVerts(ship.cgeom.verts);
 	//ship.ggeom.setTexCoords(ship.cgeom.texCoords);
 	setGpuGeom(ship);
 
-	d0.ggeom.setVerts(d0.cgeom.verts);
-	d0.ggeom.setTexCoords(d0.cgeom.texCoords);
+	//d0.ggeom.setVerts(d0.cgeom.verts);
+	//d0.ggeom.setTexCoords(d0.cgeom.texCoords);
+	setGpuGeom(d0);
+	setGpuGeom(d1);
+	setGpuGeom(d2);
+	setGpuGeom(d3);
+
+	// idk
+	//glm::mat4 identity1 = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+	//float angle1 = glm::radians(90.f);		// angle of rotation (converts degree to radians)
+	//glm::vec3 axisOfRotation1 = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+	//glm::mat4 noTransform = glm::rotate(identity1, angle1, axisOfRotation1);	// transformation matrix with the 12-degrees of freedom filled out.
+	//ship.transformationMatrix = noTransform;
+	//d0.transformationMatrix = noTransform;
+
+	//GLuint shaderProgram = 1; //(GLuint)("shaders/test.frag");
+	//GLint rotationLoc = glGetUniformLocation(shaderProgram, "transformationMatrix");
+	//glUniformMatrix4fv(rotationLoc, shaderProgram, GL_FALSE, glm::value_ptr(noTransform));
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -225,6 +316,9 @@ int main() {
 		//glDrawArrays(GL_TRIANGLES, 0, 6);
 		//d0.texture.unbind();
 		drawGameObject(shader, d0);
+		drawGameObject(shader, d1);
+		drawGameObject(shader, d2);
+		drawGameObject(shader, d3);
 
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 
@@ -268,4 +362,24 @@ int main() {
 
 	glfwTerminate();
 	return 0;
+}
+
+/// <summary>
+/// Prints the position of the 'vec4', x, y, z, w coordinates.
+/// </summary>
+/// <param name="vec"> the glm::vec4's position to be printed. </param>
+/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
+void printVec4Pos(glm::vec4 vec, int vecNum)
+{
+	std::cout << "vec4 #" << vecNum << " @ (" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")" << std::endl;
+}
+
+/// <summary>
+/// Prints the position of the 'vec4', x, y, z, w coordinates.
+/// </summary>
+/// <param name="vec"> the glm::vec4's position to be printed. </param>
+/// <param name="vecNum"> an int, a number identifier, default is -1. </param>
+void printVec4Pos(glm::vec4 vec)
+{
+	printVec4Pos(vec, -1);
 }

@@ -27,9 +27,6 @@ void Window::mouseButtonMetaCallback(GLFWwindow* window, int button, int action,
 void Window::cursorPosMetaCallback(GLFWwindow* window, double xpos, double ypos) {
 	CallbackInterface* callbacks = static_cast<CallbackInterface*>(glfwGetWindowUserPointer(window));
 	callbacks->cursorPosCallback(xpos, ypos);
-
-	//std::cout << "(In Window.cpp) Current Mouse loc: pos (" << xpos << ", " << ypos << ")" << std::endl;
-
 }
 
 
