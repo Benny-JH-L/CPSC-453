@@ -62,6 +62,8 @@ struct GameData
 	GameObject& d1;
 	GameObject& d2;
 	GameObject& d3;
+	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous is not existant
+	glm::vec3 currMouseLoc;
 };
 
 float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
@@ -100,7 +102,13 @@ public:
 
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
-		//std::cout << "Mouse pos: (" << xpos << ", " << ypos << ")" << std::endl;
+		std::cout << "\nMouse pos: (" << xpos << ", " << ypos << ")" << std::endl;
+		gameData.currMouseLoc = glm::vec3(xpos, ypos, 1);
+
+		if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
+			calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+
+		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
 	}
 
 	//virtual void mouseButtonCallback(int button, int action, int mods)
@@ -235,7 +243,7 @@ int main() {
 	Log::debug("Starting main");
 
 	// debug
-	calcAngle(glm::vec3(9.f, 2.f, 0.f), glm::vec3(2.f, 6.f, 0.f));
+	calcAngle(glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees
 
 	// WINDOW
 	glfwInit();
@@ -371,23 +379,27 @@ int main() {
 
 float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
 {
-	float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
+	//float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
+	float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
 
 	float squareInitialX = initialV3.x * initialV3.x;
 	float squareInitialY = initialV3.y * initialV3.y;
-	float squareInitialZ = initialV3.z * initialV3.z;
+	//float squareInitialZ = initialV3.z * initialV3.z;
 
 	float squareFinalX = finalV3.x * finalV3.x;
 	float squareFinalY = finalV3.y * finalV3.y;
-	float squareFinalZ = finalV3.z * finalV3.z;
+	//float squareFinalZ = finalV3.z * finalV3.z;
 
-	float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
-	float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
+	//float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
+	float initialV3Length = sqrt(squareInitialX + squareInitialY);
+	//float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
+	float finalV3Length = sqrt(squareFinalX + squareFinalY);
 
 	float angle = acos(dotProuct / (initialV3Length * finalV3Length));
 	
 	// debug
-	cout << "\nAngle calculted (radians)= " << angle << endl;
+	double pi = atan(1) * 4;	// pi approximation
+	cout << "\nAngle calculted (radians) = " << angle << " (degree) = " << angle * (180.f/pi)  << endl;
 
 	return angle;
 }
