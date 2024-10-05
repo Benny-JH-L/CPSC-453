@@ -61,3 +61,27 @@ bool ShaderProgram::checkAndLogLinkSuccess() const {
 		return true;
 	}
 }
+
+// Function to set a mat4 uniform
+void ShaderProgram::setMat4Transform(const std::string& name, const glm::mat4& matrix) const
+{
+	// Get the uniform location
+	GLint location = glGetUniformLocation(programID, name.c_str());
+	if (location == -1) {
+		std::cerr << "Warning: uniform '" << name << "' doesn't exist or isn't used in the shader program." << std::endl;
+	}
+	// Send the matrix to the GPU
+	glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+	// GL_FALSE means the matrix is not transposed
+}
+
+void ShaderProgram::setMat4TextureTransform(const std::string& name, const glm::mat4& matrix) const
+{
+	// Get the uniform location for texture transformation matrix
+	GLint location = glGetUniformLocation(programID, name.c_str());
+	if (location == -1) {
+		//std::cerr << "Warning: uniform '" << name << "' doesn't exist or isn't used in the shader program." << std::endl;
+	}
+	// Send the texture transformation matrix to the GPU
+	glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+}

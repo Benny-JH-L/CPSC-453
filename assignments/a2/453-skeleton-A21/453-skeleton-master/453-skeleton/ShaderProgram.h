@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include <glm/gtc/type_ptr.hpp> // For glm::value_ptr
 
 class ShaderProgram {
 
@@ -26,6 +27,8 @@ public:
 	void use() const { glUseProgram(programID); }
 
 	void friend attach(ShaderProgram& sp, Shader& s);
+	void setMat4Transform(const std::string& name, const glm::mat4& matrix) const;	// added
+	void setMat4TextureTransform(const std::string& name, const glm::mat4& matrix) const;	// added
 
 private:
 	ShaderProgramHandle programID;

@@ -19,6 +19,8 @@
 #include <glm/gtc/type_ptr.hpp>	// so i can use the "glm::value_ptr(...)"
 
 using namespace std;
+using namespace glm;
+const static double piApprox = atan(1) * 4;	// pi approximation
 
 // An example struct for Game Objects.
 // You are encouraged to customize this as you see fit.
@@ -44,6 +46,7 @@ struct GameObject
 	// glm::vec3 heading;
 	float scale; // Or, alternatively, a glm::vec2 scale;
 	glm::mat4 transformationMatrix;
+	glm::mat4 transformationTexMatrix;
 };
 
 struct GameData
@@ -66,8 +69,11 @@ struct GameData
 	glm::vec3 currMouseLoc;
 };
 
-float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
+void rotateAboutObjCenter(GameObject& obj, float angleOfRotation);
+double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
 void drawGameObject(ShaderProgram& shader, GameObject& obj);
+void setGpuGeom(GameObject& obj);
+
 void printVec4Pos(glm::vec4 vec, int vecNum);
 void printVec4Pos(glm::vec4 vec);
 
@@ -87,26 +93,43 @@ public:
 		{
 			shader.recompile();
 		}
+		else if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+		{
+			glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+			float angle = glm::radians(45.0f * counter);		// angle of rotation (converts degree to radians)
+			glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+			glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+			gameData.ship.transformationMatrix = rotateMatrix;
+			drawGameObject(shader, gameData.ship);
+		}
+		else if (key == GLFW_KEY_E && action == GLFW_PRESS)
+		{
 
-		glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
-		float angle = glm::radians(90.0f * counter);		// angle of rotation (converts degree to radians)
-		glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
-		glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
-		gameData.ship.transformationMatrix = rotateMatrix;
-		drawGameObject(shader, gameData.ship);
+			double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+			cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+			// for now rotate SHIP as a test.
+			rotateAboutObjCenter(gameData.ship, angle);
+			drawGameObject(shader, gameData.ship);
+		}
+
 		counter++;
-
 		std::cout << "counter = " << counter << std::endl;
-
+		 
 	}
 
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
 		std::cout << "\nMouse pos: (" << xpos << ", " << ypos << ")" << std::endl;
-		gameData.currMouseLoc = glm::vec3(xpos, ypos, 1);
+		gameData.currMouseLoc = glm::vec3(xpos, ypos, 0);
 
 		if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
-			calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+		{
+			double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+			cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+			// for now rotate SHIP as a test.
+			rotateAboutObjCenter(gameData.ship, angle);
+			drawGameObject(shader, gameData.ship);
+		}
 
 		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
 	}
@@ -215,19 +238,13 @@ void translate(GameObject& obj, float val1, float val2)
 
 void drawGameObject(ShaderProgram& shader, GameObject& obj)
 {
-	//glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
-	//float angle = glm::radians(90.0f);		// angle of rotation (converts degree to radians)
-	//glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
-	//glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
-	//obj.transformationMatrix = rotateMatrix;
-
-	//GLuint shaderProgram = (GLuint)("shaders/test.frag"); // = 1;
-	//GLint rotationLoc = glGetUniformLocation(shaderProgram, "transformationMatrix");
-	//glUniformMatrix4fv(rotationLoc, shaderProgram, GL_FALSE, glm::value_ptr(obj.transformationMatrix));
-
+	//setGpuGeom(obj);
 	shader.use();
+
+	shader.setMat4Transform("transformationMatrix", obj.transformationMatrix);
+	shader.setMat4TextureTransform("transformationMatrixTexture", obj.transformationTexMatrix);
+	
 	obj.ggeom.bind();
-	// Draw Game Object
 	obj.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	obj.texture.unbind();
@@ -243,7 +260,8 @@ int main() {
 	Log::debug("Starting main");
 
 	// debug
-	calcAngle(glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees
+	double angle = calcAngle(glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
 
 	// WINDOW
 	glfwInit();
@@ -254,7 +272,7 @@ int main() {
 
 	// SHADERS
 	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
-
+	
 	// GL_NEAREST looks a bit better for low-res pixel art than GL_LINEAR.
 	// But for most other cases, you'd want GL_LINEAR interpolation.
 	GameObject ship("textures/ship.png", GL_NEAREST);
@@ -279,6 +297,12 @@ int main() {
 	translate(d1, 0.5f, 0.5f);
 	translate(d2, -0.5f, 0.5f);
 	translate(d3, 0.5f, -0.5f);
+	// Set positions
+	ship.position = glm::vec3(0.f, 0.f, 0.f);
+	d0.position = glm::vec3(-0.5f, -0.5f, 0.f);
+	d1.position = glm::vec3(0.5f, 0.5f, 0.f);
+	d2.position = glm::vec3(-0.5f, 0.5f, 0.f);
+	d3.position = glm::vec3(0.5f, -0.5f, 0.f);
 
 	// Set gpu geoms
 	//ship.ggeom.setVerts(ship.cgeom.verts);
@@ -292,17 +316,21 @@ int main() {
 	setGpuGeom(d2);
 	setGpuGeom(d3);
 
-	// idk
-	//glm::mat4 identity1 = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
-	//float angle1 = glm::radians(90.f);		// angle of rotation (converts degree to radians)
-	//glm::vec3 axisOfRotation1 = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
-	//glm::mat4 noTransform = glm::rotate(identity1, angle1, axisOfRotation1);	// transformation matrix with the 12-degrees of freedom filled out.
-	//ship.transformationMatrix = noTransform;
-	//d0.transformationMatrix = noTransform;
-
-	//GLuint shaderProgram = 1; //(GLuint)("shaders/test.frag");
-	//GLint rotationLoc = glGetUniformLocation(shaderProgram, "transformationMatrix");
-	//glUniformMatrix4fv(rotationLoc, shaderProgram, GL_FALSE, glm::value_ptr(noTransform));
+	// Set initial matrices 
+	glm::mat4 identity1 = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+	float angle1 = glm::radians(90.f);		// angle of rotation (converts degree to radians)
+	glm::vec3 axisOfRotation1 = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+	glm::mat4 noTransform = glm::rotate(identity1, angle1, axisOfRotation1);	// transformation matrix with the 12-degrees of freedom filled out.
+	ship.transformationMatrix = noTransform;
+	ship.transformationTexMatrix = noTransform;
+	d0.transformationMatrix = noTransform;
+	d0.transformationTexMatrix = noTransform;
+	d1.transformationMatrix = noTransform;
+	d1.transformationTexMatrix = noTransform;
+	d2.transformationMatrix = noTransform;
+	d2.transformationTexMatrix = noTransform;
+	d3.transformationMatrix = noTransform;
+	d3.transformationTexMatrix = noTransform;
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -377,10 +405,10 @@ int main() {
 }
 
 
-float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
+double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
 {
 	//float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
-	float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
+	double dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
 
 	float squareInitialX = initialV3.x * initialV3.x;
 	float squareInitialY = initialV3.y * initialV3.y;
@@ -395,15 +423,53 @@ float calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
 	//float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
 	float finalV3Length = sqrt(squareFinalX + squareFinalY);
 
-	float angle = acos(dotProuct / (initialV3Length * finalV3Length));
+	double angle = acos(dotProuct / (initialV3Length * finalV3Length));
 	
 	// debug
-	double pi = atan(1) * 4;	// pi approximation
-	cout << "\nAngle calculted (radians) = " << angle << " (degree) = " << angle * (180.f/pi)  << endl;
+	//cout << "\nAngle calculted (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
 
 	return angle;
 }
 
+void rotateAboutObjCenter(GameObject& obj, float angleOfRotation)
+{
+	mat4 translateToOrigin = glm::translate(mat4(1.0f), -obj.position);	// Used to translate all the object's vec3 verts by -Position (Position should be at origin)
+	mat4 translateBack = glm::translate(glm::mat4(1.0f), obj.position);
+
+	glm::mat4 identity = glm::mat4(1.0f);					// identity matrix for transformations (4x4)
+	float angle = glm::radians(angleOfRotation);			// angle of rotation (converts degree to radians)
+	glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+
+	glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+
+	// 1. translate by -Position (Position should be (0,0,0) after)
+	// 2. do rotation
+	// 3. translate by Position
+	mat4 model = translateBack * rotateMatrix * translateToOrigin;
+	obj.transformationMatrix = model;
+	obj.transformationTexMatrix = model;
+
+	// do the transformations on the obj's vec3's
+	for (int i = 0; i < obj.cgeom.verts.size(); i++)
+	{
+		//obj.cgeom.verts.at(i) = model * glm::vec4(obj.cgeom.verts.at(i), 0.f);	// idk if i want to have '0' or '1' for 4-th cord
+		//obj.cgeom.texCoords.at(i) = model * glm::vec4(obj.cgeom.texCoords.at(i), 0.f, 0.f);
+	}
+}
+
+void translateObj(GameObject& obj, float deltaX, float deltaY)
+{
+	// Create translation matrix
+	glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.0f));
+
+	// Update the object's position
+	obj.position += glm::vec3(deltaX, deltaY, 0.0f);
+
+	// Update the transformation matrix
+	obj.transformationMatrix = translationMatrix * obj.transformationMatrix; // Apply translation to existing transformations
+
+	//obj.transformationTexMatrix = translationMatrix * obj.transformationTexMatrix; // Apply translation to texture transformation
+}
 
 /// <summary>
 /// Prints the position of the 'vec4', x, y, z, w coordinates.
