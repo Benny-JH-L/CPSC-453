@@ -41,6 +41,7 @@ struct GameObject
 	Texture texture;
 
 	glm::vec3 position = glm::vec3(0.f, 0.f, 1.f);	// initial position
+	glm::vec3 facingDirection = glm::vec3();			// direction where the object is facing
 	float theta; // Object's rotation
 	// Alternatively, you could represent rotation via a normalized heading vec:
 	// glm::vec3 heading;
@@ -74,7 +75,7 @@ double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
 void drawGameObject(ShaderProgram& shader, GameObject& obj);
 void setGpuGeom(GameObject& obj);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
-void uniformScaleObj(GameObject& obj, float scaleVal);
+void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
 
 // Debug
@@ -98,7 +99,7 @@ public:
 			shader.recompile();
 		}
 		// TEST
-		else if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
 		{
 			glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
 			float angle = glm::radians(22.5f);		// angle of rotation (converts degree to radians)
@@ -107,7 +108,7 @@ public:
 			gameData.ship.transformationMatrix = rotateMatrix * gameData.ship.transformationMatrix;
 			drawGameObject(shader, gameData.ship);
 		}
-		else if (key == GLFW_KEY_E && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_E ) //&& action == GLFW_PRESS)
 		{
 			// for now rotate SHIP as a test. ( this is the opposite code of the above test of rotating 22.5 CCW), this rotates Clock wise 22.5 degrees
 			rotateAboutObjCenter(gameData.ship, -22.5f);
@@ -120,6 +121,13 @@ public:
 			std::cout << "counter = " << counter << std::endl;
 		}
 		 
+	}
+
+	void rotatePoint(glm::vec3& v, double theta)
+	{
+		// angle in rads
+		v.x = v.x * cos(theta) - v.y * sin(theta);
+		v.y = v.x * sin(theta) + v.y * cos(theta);
 	}
 
 	// THERE IS A PROBLEM WHERE THE SHIP DISAPEARS, -> current theory is: is due to -nand angle (refer to photos)'
@@ -136,6 +144,8 @@ public:
 		{
 			double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
 			cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+			//rotatePoint(gameData.ship.facingDirection, angle);
+
 			// for now rotate as a test.
 			angle = angle * (180.f / piApprox);
 			rotateAboutObjCenter(gameData.ship, angle);
@@ -191,33 +201,25 @@ CPU_Geometry diamondGeom(float width, float height)
 	float halfWidth = width / 2.0f;
 	float halfHeight = height / 2.0f;
 	CPU_Geometry retGeom;
-	// vertices for the diamond quad (test)
-	//float a = -0.25;
-	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, halfHeight, 0.f));
-	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, -halfHeight, 0.f));
-	//retGeom.verts.push_back(glm::vec3(halfWidth + a, -halfHeight, 0.f));
-	//retGeom.verts.push_back(glm::vec3(-halfWidth + a, halfHeight, 0.f));
-	//retGeom.verts.push_back(glm::vec3(halfWidth + a, -halfHeight, 0.f));
-	//retGeom.verts.push_back(glm::vec3(halfWidth + a, halfHeight, 0.f));
 
-	retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
-	retGeom.verts.push_back(glm::vec3(-halfWidth, -halfHeight, 0.f));
-	retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
-	retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
-	retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
-	retGeom.verts.push_back(glm::vec3(halfWidth, halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(-halfWidth, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
+	//retGeom.verts.push_back(glm::vec3(halfWidth, halfHeight, 0.f));
 
 	// For full marks (Part IV), you'll need to use the following vertex coordinates instead.
 	// Then, you'd get the correct scale/translation/rotation by passing in uniforms into
 	// the vertex shader.
-	/*
+	
 	retGeom.verts.push_back(glm::vec3(-1.f, 1.f, 0.f));
 	retGeom.verts.push_back(glm::vec3(-1.f, -1.f, 0.f));
 	retGeom.verts.push_back(glm::vec3(1.f, -1.f, 0.f));
 	retGeom.verts.push_back(glm::vec3(-1.f, 1.f, 0.f));
 	retGeom.verts.push_back(glm::vec3(1.f, -1.f, 0.f));
 	retGeom.verts.push_back(glm::vec3(1.f, 1.f, 0.f));
-	*/
+	
 
 	// texture coordinates
 	retGeom.texCoords.push_back(glm::vec2(0.f, 1.f));
@@ -267,12 +269,13 @@ int main() {
 	// debug
 	double angle = calcAngle(glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees (returns in rads)
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
+	angle = calcAngle(glm::vec3(400.f, 0.f, 1.f), glm::vec3(0.f, 400.f, 1.f));	// 90-degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
 
 	// WINDOW
 	glfwInit();
 	Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
-
-
 	GLDebug::enable();
 
 	// SHADERS
@@ -292,14 +295,16 @@ int main() {
 
 	// Create ship cpuGeom
 	ship.cgeom = shipGeom(0.18f, 0.12f);
+	ship.facingDirection = glm::vec3(400.f, 0.f, 1.f);
 	// Create Diamonds cpuGeom
 	d0.cgeom = diamondGeom(0.14f, 0.14f);
 	d1.cgeom = diamondGeom(0.14f, 0.14f);
 	d2.cgeom = diamondGeom(0.14f, 0.14f);
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
-	// Put the diamonds to their starting locations
+	// Put the GameObjects in their starting locations
+	translateObj(ship, 0.f, 0.f);	// Center of the screen
 	scaleObj(ship, 0.09f, 0.06f);
-	//translateObj(ship, 0.f, 0.f);	// Center of the screen
+	scaleObj(d0, 0.07f);
 	translateObj(d0, -1.f, -1.f);	// bottom left
 	translateObj(d1, 1.f, 1.f);	// top right
 	translateObj(d2, -1.f, 1.f);	// top left
@@ -491,22 +496,38 @@ void translateObj(GameObject& obj, double deltaX, double deltaY)
 	//obj.transformationTexMatrix = translationMatrix * obj.transformationTexMatrix; // Apply translation to texture transformation
 }
 
-void uniformScaleObj(GameObject& obj, float scaleVal)
-{
-	// Create scale matrix
-	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleVal, scaleVal, 0.f));
+//void uniformScaleObj(GameObject& obj, float scaleVal)
+//{
+//	// Create scale matrix
+//	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleVal, scaleVal, 0.f));
+//
+//	// Update the transformation matrix
+//	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
+//}
 
-	// Update the transformation matrix
-	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
+/// <summary>
+/// Uniform scaling.
+/// </summary>
+/// <param name="obj"> the GameObject to be scaled.</param>
+/// <param name="scale"> the scale factor, a float.</param>
+void scaleObj(GameObject& obj, float scale)
+{
+	scaleObj(obj, scale, scale);
 }
 
+/// <summary>
+/// Scaling.
+/// </summary>
+/// <param name="obj"> the GameObject to be scaled.</param>
+/// <param name="scaleX"> x-sacle factor, a float.</param>
+/// <param name="scaleY"> y-scale factor, a float.</param>
 void scaleObj(GameObject& obj, float scaleX, float scaleY)
 {
 	// Create scale matrix
 	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 0.f));
 
 	// Update the transformation matrix
-	obj.transformationMatrix *= scaleMatrix; // update the transformation matrix
+	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
 }
 
 /// <summary>
