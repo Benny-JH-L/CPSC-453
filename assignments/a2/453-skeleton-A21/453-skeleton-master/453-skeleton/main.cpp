@@ -114,6 +114,15 @@ public:
 			rotateAboutObjCenter(gameData.ship, -22.5f);
 			drawGameObject(shader, gameData.ship);
 		}
+		else if (key == GLFW_KEY_W)
+		{
+			translateObj(gameData.ship, 0.f, 1.f);
+		}
+		else if (key == GLFW_KEY_S)
+		{
+			translateObj(gameData.ship, 0.f, -1.f);
+
+		}
 
 		if (action == GLFW_PRESS)
 		{
@@ -142,14 +151,14 @@ public:
 
 		if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
 		{
-			double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
-			cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-			//rotatePoint(gameData.ship.facingDirection, angle);
+			//double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+			//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+			////rotatePoint(gameData.ship.facingDirection, angle);
 
-			// for now rotate as a test.
-			angle = angle * (180.f / piApprox);
-			rotateAboutObjCenter(gameData.ship, angle);
-			drawGameObject(shader, gameData.ship);
+			//// for now rotate as a test.
+			//angle = angle * (180.f / piApprox);
+			//rotateAboutObjCenter(gameData.ship, angle);
+			//drawGameObject(shader, gameData.ship);
 		}
 
 		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
@@ -302,8 +311,8 @@ int main() {
 	d2.cgeom = diamondGeom(0.14f, 0.14f);
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
 	// Put the GameObjects in their starting locations
-	translateObj(ship, 0.f, 0.f);	// Center of the screen
 	scaleObj(ship, 0.09f, 0.06f);
+	translateObj(ship, -2.f, -3.f);	// Center of the screen
 	scaleObj(d0, 0.07f);
 	translateObj(d0, -1.f, -1.f);	// bottom left
 	translateObj(d1, 1.f, 1.f);	// top right
@@ -483,14 +492,22 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
 {
+	// need to consider when ship is angled... need to rotate that translation vector and then apply the translation.
+	// prolly need a way to save the angle of the ship
+
 	// Create translation matrix
-	mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
+	//mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
+	mat4 translationMatrix = glm::translate(obj.transformationMatrix, glm::vec3(deltaX, deltaY, 0.f));
+
+	glm::vec4 c = translationMatrix[3];
 
 	// Update the object's position
 	obj.position += vec3(deltaX, deltaY, 0.0f);
 
 	// Update the transformation matrix
+	//obj.transformationMatrix = translationMatrix + obj.transformationMatrix; // update the transformation matrix
 	obj.transformationMatrix = translationMatrix + obj.transformationMatrix; // update the transformation matrix
+
 
 	// DELETE
 	//obj.transformationTexMatrix = translationMatrix * obj.transformationTexMatrix; // Apply translation to texture transformation
@@ -524,7 +541,7 @@ void scaleObj(GameObject& obj, float scale)
 void scaleObj(GameObject& obj, float scaleX, float scaleY)
 {
 	// Create scale matrix
-	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 0.f));
+	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 1.f));
 
 	// Update the transformation matrix
 	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
