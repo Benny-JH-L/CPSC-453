@@ -70,6 +70,8 @@ struct GameData
 	glm::vec3 currMouseLoc;
 };
 
+vec3 mousePos = vec3(0.f, 0.f, 0.f);
+
 void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
 double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
 void drawGameObject(ShaderProgram& shader, GameObject& obj);
@@ -77,10 +79,18 @@ void setGpuGeom(GameObject& obj);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
+float convertFromPixelSpace(float pos);
 
 // Debug
 void printVec4Pos(glm::vec4 vec, int vecNum);
 void printVec4Pos(glm::vec4 vec);
+
+// Example of transformations from tuts
+mat4 translate0 = translate(mat4(1.0), vec3(0.5f, 0.f, 0.f));	// move in x
+mat4 rotation0 = rotate(mat4(1.f), radians(90.f), vec3(0.f, 0.f, 1.f));	// rotate 90-degrees in z axis
+mat4 scale0 = scale(mat4(1.f), vec3(0.5f, 0.5f, 1.f));
+mat4 combined0 = translate0 * rotation0;	// rotate first then translate
 
 class MyCallbacks : public CallbackInterface
 {
@@ -146,22 +156,37 @@ public:
 	// ^ MAY fix the issues descrbed above...
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
-		std::cout << "\nMouse pos: (" << xpos << ", " << ypos << ")" << std::endl;
-		gameData.currMouseLoc = glm::vec3(xpos, ypos, 0.f);
+		std::cout << "\n(pixel space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
+		std::cout << "\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
 
-		if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
-		{
-			//double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
-			//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-			////rotatePoint(gameData.ship.facingDirection, angle);
+		//gameData.currMouseLoc = glm::vec3(xpos, ypos, 0.f);
 
-			//// for now rotate as a test.
-			//angle = angle * (180.f / piApprox);
-			//rotateAboutObjCenter(gameData.ship, angle);
-			//drawGameObject(shader, gameData.ship);
-		}
+		//if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
+		//{
+		//	//double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
+		//	//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+		//	////rotatePoint(gameData.ship.facingDirection, angle);
 
-		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
+		//	//// for now rotate as a test.
+		//	//angle = angle * (180.f / piApprox);
+		//	//rotateAboutObjCenter(gameData.ship, angle);
+		//	//drawGameObject(shader, gameData.ship);
+		//}
+
+		//gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
+
+		// NEW--
+
+		// convert to clip space
+		std::cout << "\n(clip space)\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
+
+		mousePos.x = convertFromPixelSpace(xpos);
+		mousePos.y = -convertFromPixelSpace(ypos);
+
+		// this tut example puts the ship to the cursor pos.
+		GameObject& ship = gameData.ship;
+		ship.transformationMatrix = translate(mat4(1.f), mousePos - ship.position) * ship.transformationMatrix;
+		ship.position = mousePos;
 	}
 
 private:
@@ -241,17 +266,6 @@ CPU_Geometry diamondGeom(float width, float height)
 	return retGeom;
 }
 
-// for now the start transformation will be done like this, until i set up the uniforms and what now.
-//void translate(GameObject& obj, float val1, float val2)
-//{
-//	for (int i = 0; i < obj.cgeom.verts.size(); i++)
-//	{
-//		glm::vec3& vecToTranslate = obj.cgeom.verts.at(i);
-//		vecToTranslate.x = vecToTranslate.x + val1;
-//		vecToTranslate.y = vecToTranslate.y + val2;
-//	}
-//}
-
 void drawGameObject(ShaderProgram& shader, GameObject& obj)
 {
 	//setGpuGeom(obj);
@@ -264,6 +278,13 @@ void drawGameObject(ShaderProgram& shader, GameObject& obj)
 	obj.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	obj.texture.unbind();
+}
+
+float convertFromPixelSpace(float pos)
+{
+	float clipPos = pos / (800 / 2.f);
+	clipPos = clipPos - 1;
+	return clipPos;
 }
 
 void setGpuGeom(GameObject& obj)
@@ -362,6 +383,11 @@ int main() {
 
 		shader.use();
 
+		// from  tutorial
+		//GLint shaderLoc = glGetUniformLocation(shader.getID(), "transformationMatrix"); // need to define 'getID()' in shaderprogram file
+		//glUniformMatrix4fv(shaderLoc, 1, GL_FALSE, &rotation0[0][0]);
+		//--
+
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// note to self: if i have this in between drawing objects, it will remove all previous ones.
 
@@ -425,6 +451,35 @@ int main() {
 
 	glfwTerminate();
 	return 0;
+}
+
+/// </summary>
+/// <param name="vec3ToRotate"> the glm::vec3 to be rotated.</param>
+/// <param name="rotateAboutVec"> a const glm::vec3 that will be rotated about.</param>
+/// <param name="angleOfRotation"> the angle to rotate 'vec3ToRotate' about 'rotateAboutVec', in degree's. </param>
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation)
+{
+	// To rotate 'vec3ToRotate' around 'rotateAboutVec' I'll do these steps:
+	// 1) Translate 'vec3ToRotate's x and y values by 'translateByX' and 'translateByY' respectively, getting x' and y'.
+	// 2) Rotate the translated x' and y' by 'degree', getting x'' and y''.
+	// 3) Translate x'' and y'' by the inverse of 'translateByX' and 'translateByY' (subtract). The result will be the rotated 'vec3ToRotate' about 'rotateAboutVec'.
+
+	// Convert 'degree' into radians
+	float rads = angleOfRotation * (piApprox / 180);
+
+	// get x and y values that would translate 'rotateAboutVec' to origin
+	float translateByX = -rotateAboutVec.x;
+	float translateByY = -rotateAboutVec.y;
+
+	// Calculate the final x and y coordinates using the steps described above. (Note: The steps above have been merged into one 'step')
+	float originalX = vec3ToRotate.x;
+	float originalY = vec3ToRotate.y;
+	float finalX = (originalX * cos(rads)) - (originalY * sin(rads)) + (translateByX * cos(rads) - translateByY * sin(rads) - translateByX);
+	float finalY = (originalX * sin(rads)) + (originalY * cos(rads)) + (translateByX * sin(rads) + translateByY * cos(rads) - translateByY);
+
+	// Set the x and y values.
+	vec3ToRotate.x = finalX;
+	vec3ToRotate.y = finalY;
 }
 
 /// <summary>
