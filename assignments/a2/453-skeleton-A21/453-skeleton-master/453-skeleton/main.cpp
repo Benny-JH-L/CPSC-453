@@ -114,13 +114,13 @@ public:
 			rotateAboutObjCenter(gameData.ship, -22.5f);
 			drawGameObject(shader, gameData.ship);
 		}
-		else if (key == GLFW_KEY_W)
+		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
 		{
-			translateObj(gameData.ship, 0.f, 1.f);
+			translateObj(gameData.ship, 0.f, 0.1f);
 		}
-		else if (key == GLFW_KEY_S)
+		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
 		{
-			translateObj(gameData.ship, 0.f, -1.f);
+			translateObj(gameData.ship, 0.f, -0.1f);
 
 		}
 
@@ -312,9 +312,11 @@ int main() {
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
 	// Put the GameObjects in their starting locations
 	scaleObj(ship, 0.09f, 0.06f);
-	translateObj(ship, -2.f, -3.f);	// Center of the screen
+	translateObj(ship, 0.5f, 0.5f);	// Center of the screen
+	// debugging rotatation
+	//rotateAboutObjCenter(ship, 90.f);
 	scaleObj(d0, 0.07f);
-	translateObj(d0, -1.f, -1.f);	// bottom left
+	translateObj(d0, -0.5f, -0.5f);	// bottom left
 	translateObj(d1, 1.f, 1.f);	// top right
 	translateObj(d2, -1.f, 1.f);	// top left
 	translateObj(d3, 1.f, -1.f);	// bottom right
@@ -458,7 +460,7 @@ double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
 }
 
 /// <summary>
-/// 
+/// NEED FIXING
 /// </summary>
 /// <param name="obj"></param>
 /// <param name="degreeOfRotation"> in degrees, a float.</param>
@@ -476,10 +478,10 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 	// 1. translate by -Position (Position should be (0,0,0) after)
 	// 2. do rotation
 	// 3. translate by Position
-	mat4 model = translateBack * rotateMatrix * translateToOrigin;	// resulting matrix of all those transformations
+	mat4 model = translateBack * rotateMatrix *  obj.transformationMatrix + translateToOrigin;	// resulting matrix of all those transformations
 
 	// Update transformation matrix
-	obj.transformationMatrix = model * obj.transformationMatrix;	// multiply the newly calculated model with the old model to get the actual model (want to retain the previous transformations)
+	// obj.transformationMatrix = model * obj.transformationMatrix;	// multiply the newly calculated model with the old model to get the actual model (want to retain the previous transformations)
 	//obj.transformationTexMatrix = model; // (DELETE)
 
 	//// do the transformations on the obj's vec3's (DELETE)
@@ -492,21 +494,26 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
 {
+	// currently works when moving striahgt up/down
 	// need to consider when ship is angled... need to rotate that translation vector and then apply the translation.
 	// prolly need a way to save the angle of the ship
 
-	// Create translation matrix
-	//mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
-	mat4 translationMatrix = glm::translate(obj.transformationMatrix, glm::vec3(deltaX, deltaY, 0.f));
+	vec3 translationVec = vec3(deltaX, deltaY, 0.f);
 
-	glm::vec4 c = translationMatrix[3];
+	// need to rotate the translationVec about the obj.theta (find code in a1, or recode it)
 
 	// Update the object's position
 	obj.position += vec3(deltaX, deltaY, 0.0f);
 
+	// Create translation matrix
+	//mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
+	mat4 translationMatrix = glm::translate(obj.transformationMatrix, glm::vec3(0.f, 0.f, 0.f));
+	translationMatrix[3] = vec4(obj.position, 1.f);	// edit the translation
+
+
 	// Update the transformation matrix
 	//obj.transformationMatrix = translationMatrix + obj.transformationMatrix; // update the transformation matrix
-	obj.transformationMatrix = translationMatrix + obj.transformationMatrix; // update the transformation matrix
+	obj.transformationMatrix = translationMatrix; // update the transformation matrix
 
 
 	// DELETE
