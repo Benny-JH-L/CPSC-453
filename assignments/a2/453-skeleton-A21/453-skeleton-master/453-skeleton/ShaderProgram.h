@@ -28,7 +28,7 @@ public:
 
 	void friend attach(ShaderProgram& sp, Shader& s);
 	void setMat4Transform(const std::string& name, const glm::mat4& matrix) const;	// added
-	void setMat4TextureTransform(const std::string& name, const glm::mat4& matrix) const;	// added
+	void setMat4TextureTransform(const std::string& name, const glm::mat4& matrix) const;	// added - DELETE
 
 private:
 	ShaderProgramHandle programID;

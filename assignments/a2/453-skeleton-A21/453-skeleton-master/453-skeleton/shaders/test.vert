@@ -5,7 +5,7 @@ layout (location = 1) in vec2 texCoord;
 out vec2 tc;
 
 uniform mat4 transformationMatrix;
-uniform mat4 transformationMatrixTexture;
+uniform mat4 transformationMatrixTexture; // delete
 
 void main()
 {
