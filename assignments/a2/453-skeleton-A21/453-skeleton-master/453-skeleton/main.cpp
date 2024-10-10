@@ -39,7 +39,7 @@ struct GameObject
 
 	glm::vec3 position = glm::vec3(0.f, 0.f, 1.f);		// initial position
 	glm::vec3 facing = glm::vec3(0.f, 1.f, 0.f);		// initial position object is facing (used by ship atm)
-	float theta;										// Object's rotation (in degrees)
+	float theta;										// Object's total rotation (in degrees)
 	// Alternatively, you could represent rotation via a normalized heading vec:
 	// glm::vec3 heading;
 	float scale;										// Or, alternatively, a glm::vec2 scale;
@@ -133,13 +133,13 @@ public:
 			//drawGameObject(shader, gameData.ship);
 		}
 		//-- end of test
-		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_W && action == GLFW_PRESS)
 		{
 			translateObj(ship, 0.f, 0.1f);
 			//drawGameObject(shader, gameData.ship);
 
 		}
-		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_S && action == GLFW_PRESS)
 		{
 			translateObj(ship, 0.f, -0.1f);
 			//drawGameObject(shader, gameData.ship);
@@ -157,7 +157,7 @@ public:
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
 		// debug
-		std::cout << "\n(Pixel space)\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
+		//std::cout << "\n(Pixel space)\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
 		std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
 		std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
 
@@ -174,11 +174,14 @@ public:
 
 		angle = convertToDegree(angle);
 
-		ship.theta = angle;									// update the ship's rotation (about its center)
+		ship.theta += angle;								// update the ship's total rotation (about its center)
 		ship.facing = gameData.currMouseLoc;				// update where the ship is facing
-		rotateAboutObjCenter(gameData.ship, ship.theta);	// do rotation of the ship
+		rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
 
 		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location (debug)
+
+		// debug
+		cout << "\nTotal ship angle (radians) = " << convertToRad(ship.theta) << " (degree) = " << ship.theta << endl;
 
 
 		// NEW-- this tut example puts the ship to the cursor pos.
@@ -474,7 +477,7 @@ void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec,
 	// 3) Translate x'' and y'' by the inverse of 'translateByX' and 'translateByY' (subtract). The result will be the rotated 'vec3ToRotate' about 'rotateAboutVec'.
 
 	// Convert 'degree' into radians
-	float rads = angleOfRotation * (piApprox / 180);
+	float rads = angleOfRotation * (piApprox / 180.f);
 
 	// get x and y values that would translate 'rotateAboutVec' to origin
 	float translateByX = -rotateAboutVec.x;
