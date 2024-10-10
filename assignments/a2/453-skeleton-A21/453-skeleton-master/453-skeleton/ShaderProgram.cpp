@@ -75,6 +75,11 @@ void ShaderProgram::setMat4Transform(const std::string& name, const glm::mat4& m
 	// GL_FALSE means the matrix is not transposed
 }
 
+/// <summary>
+/// TO BE DELETED
+/// </summary>
+/// <param name="name"></param>
+/// <param name="matrix"></param>
 void ShaderProgram::setMat4TextureTransform(const std::string& name, const glm::mat4& matrix) const
 {
 	// Get the uniform location for texture transformation matrix

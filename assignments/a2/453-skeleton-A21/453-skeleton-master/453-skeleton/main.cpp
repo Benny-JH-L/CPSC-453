@@ -16,8 +16,6 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
-#include <glm/gtc/type_ptr.hpp>	// so i can use the "glm::value_ptr(...)"
-
 using namespace std;
 using namespace glm;
 
@@ -65,8 +63,8 @@ struct GameData
 	GameObject& d1;
 	GameObject& d2;
 	GameObject& d3;
-	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous is not existant (debug)
-	glm::vec3 currMouseLoc = vec3();
+	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous mouse location is not existant (debug)
+	glm::vec3 currMouseLoc = vec3();						// current mouse location
 };
 
 // Utility function prototypes
@@ -118,7 +116,7 @@ public:
 		{
 			shader.recompile();
 		}
-		// TEST
+		// TEST : only used to see if rotationAboutObjCenter() works, otherwise do not use.
 		else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
 		{
 			glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
@@ -131,7 +129,7 @@ public:
 		else if (key == GLFW_KEY_E ) //&& action == GLFW_PRESS)
 		{
 			// for now rotate SHIP as a test. ( this is the opposite code of the above test of rotating 22.5 CCW), this rotates Clock wise 22.5 degrees
-			rotateAboutObjCenter(gameData.ship, ship.theta);
+			rotateAboutObjCenter(gameData.ship, -2*ship.theta);
 			//drawGameObject(shader, gameData.ship);
 		}
 		//-- end of test
@@ -635,7 +633,7 @@ void scaleObj(GameObject& obj, float scale)
 /// Scaling.
 /// </summary>
 /// <param name="obj"> the GameObject to be scaled.</param>
-/// <param name="scaleX"> x-sacle factor, a float.</param>
+/// <param name="scaleX"> x-scale factor, a float.</param>
 /// <param name="scaleY"> y-scale factor, a float.</param>
 void scaleObj(GameObject& obj, float scaleX, float scaleY)
 {
