@@ -20,10 +20,9 @@
 
 using namespace std;
 using namespace glm;
+
 const static double piApprox = atan(1) * 4;	// pi approximation
 
-// An example struct for Game Objects.
-// You are encouraged to customize this as you see fit.
 struct GameObject
 {
 	// Struct's constructor deals with the texture.
@@ -40,12 +39,12 @@ struct GameObject
 	GPU_Geometry ggeom;
 	Texture texture;
 
-	glm::vec3 position = glm::vec3(0.f, 0.f, 1.f);	// initial position
-	glm::vec3 facingDirection = glm::vec3();			// direction where the object is facing
-	float theta; // Object's rotation
+	glm::vec3 position = glm::vec3(0.f, 0.f, 1.f);		// initial position
+	glm::vec3 facing = glm::vec3(0.f, 1.f, 0.f);		// initial position object is facing (used by ship atm)
+	float theta;										// Object's rotation (in degrees)
 	// Alternatively, you could represent rotation via a normalized heading vec:
 	// glm::vec3 heading;
-	float scale; // Or, alternatively, a glm::vec2 scale;
+	float scale;										// Or, alternatively, a glm::vec2 scale;
 	glm::mat4 transformationMatrix = mat4(1.0f);
 	glm::mat4 transformationTexMatrix;	// not needed (DELETE)
 };
@@ -66,27 +65,35 @@ struct GameData
 	GameObject& d1;
 	GameObject& d2;
 	GameObject& d3;
-	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous is not existant
-	glm::vec3 currMouseLoc;
+	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous is not existant (debug)
+	glm::vec3 currMouseLoc = vec3();
 };
 
-vec3 mousePos = vec3(0.f, 0.f, 0.f);
-
-void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
-double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3);
+// Utility function prototypes
 void drawGameObject(ShaderProgram& shader, GameObject& obj);
+float convertFromPixelSpace(float pos);
 void setGpuGeom(GameObject& obj);
-void translateObj(GameObject& obj, double deltaX, double deltaY);
+double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3);
+float convertToDegree(float radians);
+float convertToRad(float degree);
+
+
+// Transformation function prototypes
+void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
 void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
-void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
-float convertFromPixelSpace(float pos);
+void translateObj(GameObject& obj, double deltaX, double deltaY);
 
-// Debug
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation); // dunno if i need yet
+
+
+// Debug function prototypes
 void printVec4Pos(glm::vec4 vec, int vecNum);
 void printVec4Pos(glm::vec4 vec);
 
-// Example of transformations from tuts
+
+// Example of transformations from tuts/used in tut #10
+vec3 mousePos = vec3(0.f, 0.f, 0.f);
 mat4 translate0 = translate(mat4(1.0), vec3(0.5f, 0.f, 0.f));	// move in x
 mat4 rotation0 = rotate(mat4(1.f), radians(90.f), vec3(0.f, 0.f, 1.f));	// rotate 90-degrees in z axis
 mat4 scale0 = scale(mat4(1.f), vec3(0.5f, 0.5f, 1.f));
@@ -104,6 +111,9 @@ public:
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
 		std::cout << "key pressed " << std::endl;
+
+		GameObject& ship = gameData.ship;
+
 		if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		{
 			shader.recompile();
@@ -116,21 +126,25 @@ public:
 			glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
 			glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
 			gameData.ship.transformationMatrix = rotateMatrix * gameData.ship.transformationMatrix;
-			drawGameObject(shader, gameData.ship);
+			//drawGameObject(shader, gameData.ship);
 		}
 		else if (key == GLFW_KEY_E ) //&& action == GLFW_PRESS)
 		{
 			// for now rotate SHIP as a test. ( this is the opposite code of the above test of rotating 22.5 CCW), this rotates Clock wise 22.5 degrees
-			rotateAboutObjCenter(gameData.ship, -22.5f);
-			drawGameObject(shader, gameData.ship);
+			rotateAboutObjCenter(gameData.ship, ship.theta);
+			//drawGameObject(shader, gameData.ship);
 		}
+		//-- end of test
 		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
 		{
-			translateObj(gameData.ship, 0.f, 0.1f);
+			translateObj(ship, 0.f, 0.1f);
+			//drawGameObject(shader, gameData.ship);
+
 		}
 		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
 		{
-			translateObj(gameData.ship, 0.f, -0.1f);
+			translateObj(ship, 0.f, -0.1f);
+			//drawGameObject(shader, gameData.ship);
 
 		}
 
@@ -142,51 +156,43 @@ public:
 		 
 	}
 
-	void rotatePoint(glm::vec3& v, double theta)
-	{
-		// angle in rads
-		v.x = v.x * cos(theta) - v.y * sin(theta);
-		v.y = v.x * sin(theta) + v.y * cos(theta);
-	}
-
-	// THERE IS A PROBLEM WHERE THE SHIP DISAPEARS, -> current theory is: is due to -nand angle (refer to photos)'
-	// and i need to figure a way to go negative rotations, calculated with the mouse input (look at the y values and see if one is bigger than the other... def with y values prolly.
-
-	// need to figure out how to point the ships nose to the mouse pointer (prolly need another variable for it that points somwhere initialy and moves to mouse location)
-	// ^ MAY fix the issues descrbed above...
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
-		std::cout << "\n(pixel space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
-		std::cout << "\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
+		// debug
+		std::cout << "\n(Pixel space)\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
+		std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
+		std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
 
-		//gameData.currMouseLoc = glm::vec3(xpos, ypos, 0.f);
+		// convert pixel space values to clip space values.
+		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
 
-		//if (gameData.previousMouseLoc != glm::vec3(0.f, 0.f, -1.f))
-		//{
-		//	//double angle = calcAngle(gameData.previousMouseLoc, gameData.currMouseLoc);
-		//	//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-		//	////rotatePoint(gameData.ship.facingDirection, angle);
-
-		//	//// for now rotate as a test.
-		//	//angle = angle * (180.f / piApprox);
-		//	//rotateAboutObjCenter(gameData.ship, angle);
-		//	//drawGameObject(shader, gameData.ship);
-		//}
-
-		//gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location
-
-		// NEW--
-
-		// convert to clip space
-		std::cout << "\n(clip space)\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
-
-		mousePos.x = convertFromPixelSpace(xpos);
-		mousePos.y = -convertFromPixelSpace(ypos);
-
-		// this tut example puts the ship to the cursor pos.
 		GameObject& ship = gameData.ship;
-		ship.transformationMatrix = translate(mat4(1.f), mousePos - ship.position) * ship.transformationMatrix;
-		ship.position = mousePos;
+
+		// Find the angle from where the ship is facing and current mouse location (radians)
+		double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
+
+		// debug
+		cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
+		angle = convertToDegree(angle);
+
+		ship.theta = angle;									// update the ship's rotation (about its center)
+		ship.facing = gameData.currMouseLoc;				// update where the ship is facing
+		rotateAboutObjCenter(gameData.ship, ship.theta);	// do rotation of the ship
+
+		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location (debug)
+
+
+		// NEW-- this tut example puts the ship to the cursor pos.
+		// convert to clip space
+		//std::cout << "\n(clip space)\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
+
+		//mousePos.x = convertFromPixelSpace(xpos);
+		//mousePos.y = -convertFromPixelSpace(ypos);
+
+		//GameObject& ship = gameData.ship;
+		//ship.transformationMatrix = translate(mat4(1.f), mousePos - ship.position) * ship.transformationMatrix;
+		//ship.position = mousePos;
 	}
 
 private:
@@ -266,42 +272,20 @@ CPU_Geometry diamondGeom(float width, float height)
 	return retGeom;
 }
 
-void drawGameObject(ShaderProgram& shader, GameObject& obj)
-{
-	//setGpuGeom(obj);
-	shader.use();
-
-	shader.setMat4Transform("transformationMatrix", obj.transformationMatrix);
-	shader.setMat4TextureTransform("transformationMatrixTexture", obj.transformationTexMatrix);
-	
-	obj.ggeom.bind();
-	obj.texture.bind();
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	obj.texture.unbind();
-}
-
-float convertFromPixelSpace(float pos)
-{
-	float clipPos = pos / (800 / 2.f);
-	clipPos = clipPos - 1;
-	return clipPos;
-}
-
-void setGpuGeom(GameObject& obj)
-{
-	obj.ggeom.setVerts(obj.cgeom.verts);
-	obj.ggeom.setTexCoords(obj.cgeom.texCoords);
-}
-
 int main() {
 	Log::debug("Starting main");
 
 	// debug
-	double angle = calcAngle(glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees (returns in rads)
+	double angle = calcAngle(vec3(0.f), glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees (returns in rads)
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
-	angle = calcAngle(glm::vec3(400.f, 0.f, 1.f), glm::vec3(0.f, 400.f, 1.f));	// 90-degrees
+	angle = calcAngle(vec3(0.f), glm::vec3(convertFromPixelSpace(800.f), 0.f, 1.f), glm::vec3(0.f, convertFromPixelSpace(800.f), 1.f));	// 90 degrees
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-
+	angle = calcAngle(vec3(0.f), glm::vec3(0.f, convertFromPixelSpace(800.f), 1.f), glm::vec3(convertFromPixelSpace(800.f), 0.f, 1.f));	// -90 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+	angle = calcAngle(vec3(0.f), vec3(0.7775f, -0.04f, 0.f), vec3(0.78, -0.04, 0.f));
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+	angle = calcAngle(vec3(0.f), vec3(-0.0025f, -0.f, 0.f), vec3(0.f, -0.f, 0.f));
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
 
 	// WINDOW
 	glfwInit();
@@ -325,7 +309,6 @@ int main() {
 
 	// Create ship cpuGeom
 	ship.cgeom = shipGeom(0.18f, 0.12f);
-	ship.facingDirection = glm::vec3(400.f, 0.f, 1.f);
 	// Create Diamonds cpuGeom
 	d0.cgeom = diamondGeom(0.14f, 0.14f);
 	d1.cgeom = diamondGeom(0.14f, 0.14f);
@@ -333,7 +316,8 @@ int main() {
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
 	// Put the GameObjects in their starting locations
 	scaleObj(ship, 0.09f, 0.06f);
-	translateObj(ship, 0.5f, 0.5f);	// Center of the screen
+	translateObj(ship, 0.f, 0.f);	// Center of the screen
+	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen
 	// debugging rotatation
 	//rotateAboutObjCenter(ship, 90.f);
 	scaleObj(d0, 0.07f);
@@ -453,6 +437,33 @@ int main() {
 	return 0;
 }
 
+void drawGameObject(ShaderProgram& shader, GameObject& obj)
+{
+	//setGpuGeom(obj);
+	shader.use();
+
+	shader.setMat4Transform("transformationMatrix", obj.transformationMatrix);
+	shader.setMat4TextureTransform("transformationMatrixTexture", obj.transformationTexMatrix);
+
+	obj.ggeom.bind();
+	obj.texture.bind();
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	obj.texture.unbind();
+}
+
+float convertFromPixelSpace(float pos)
+{
+	float clipPos = pos / (800 / 2.f);
+	clipPos = clipPos - 1;
+	return clipPos;
+}
+
+void setGpuGeom(GameObject& obj)
+{
+	obj.ggeom.setVerts(obj.cgeom.verts);
+	obj.ggeom.setTexCoords(obj.cgeom.texCoords);
+}
+
 /// </summary>
 /// <param name="vec3ToRotate"> the glm::vec3 to be rotated.</param>
 /// <param name="rotateAboutVec"> a const glm::vec3 that will be rotated about.</param>
@@ -483,13 +494,20 @@ void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec,
 }
 
 /// <summary>
-/// Returns the angle in radians
+/// Returns the angle in radians. Ensure initalV3 and finalV3's values are in clip space.
 /// </summary>
+/// <param name="shipPos"></param>
 /// <param name="initialV3"></param>
 /// <param name="finalV3"></param>
 /// <returns></returns>
-double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
+double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3)
 {
+	// translate the ship pos to origin and translate initial and final vec3 by -ship pos.
+	vec3 translateBack = shipPos;
+	vec3 translateToOrigin = -shipPos;
+	initialV3 = initialV3 + translateToOrigin;
+	finalV3 = finalV3 + translateToOrigin;
+
 	//float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
 	double dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
 
@@ -506,36 +524,55 @@ double calcAngle(glm::vec3 initialV3, glm::vec3 finalV3)
 	//float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
 	float finalV3Length = sqrt(squareFinalX + squareFinalY);
 
-	double angle = acos(dotProuct / (initialV3Length * finalV3Length));
+	// if the length of one of the vectors is 0, return angle = 0. -> error when we divide by 0.
+	if (initialV3Length * finalV3Length == 0)
+		return 0.0;
+
+	double calc = dotProuct / (initialV3Length * finalV3Length);
+
+	// 'calc' is out of arccos range of [-1, 1], so return with angle = 0. acos(calc) = -nan(ind) if 'calc' is not within [-1, 1].
+	if (calc > 1 || calc < -1)
+		return 0.0;
+
+	double angle = acos(calc);
 	
+	// Translate back relative to ship position
+	finalV3 = finalV3 + translateBack;
+	initialV3 = initialV3 + translateBack;
+
+	// Determining if the angle is negative/positive
+	vec3 crossProduct = cross(initialV3, finalV3);
+	if (crossProduct.z < 0)	// if the cross product of initalV3 and finalV3 z-value is < 0, initalV3 to finalV3 is clockwise -> negative angle.
+		angle = -angle;
+
 	// debug
 	//cout << "\nAngle calculted (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
-
 	return angle;
 }
 
 /// <summary>
-/// NEED FIXING
+/// Works fine atm
 /// </summary>
 /// <param name="obj"></param>
 /// <param name="degreeOfRotation"> in degrees, a float.</param>
 void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 {
 	mat4 translateToOrigin = glm::translate(mat4(1.0f), -obj.position);	// Used to translate all the object's vec3 verts by -Position (Position should be at origin)
-	mat4 translateBack = glm::translate(glm::mat4(1.0f), obj.position);
+	mat4 translateBack = glm::translate(glm::mat4(1.0f), obj.position); // Used to translate all the object's vec3 verts by Position (back to original positions)
 
 	glm::mat4 identity = glm::mat4(1.0f);					// identity matrix for transformations (4x4)
 	float angle = glm::radians(degreeOfRotation);			// angle of rotation (converts degree to radians)
-	glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+	glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis.
 
-	glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+	glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix.
 
 	// 1. translate by -Position (Position should be (0,0,0) after)
 	// 2. do rotation
-	// 3. translate by Position
-	mat4 model = translateBack * rotateMatrix *  obj.transformationMatrix + translateToOrigin;	// resulting matrix of all those transformations
+	// 3. translate by Position (back to original position)
+	mat4 model = translateBack * rotateMatrix * translateToOrigin * obj.transformationMatrix;	// resulting matrix of all those transformations
 
 	// Update transformation matrix
+	obj.transformationMatrix = model;
 	// obj.transformationMatrix = model * obj.transformationMatrix;	// multiply the newly calculated model with the old model to get the actual model (want to retain the previous transformations)
 	//obj.transformationTexMatrix = model; // (DELETE)
 
@@ -557,18 +594,18 @@ void translateObj(GameObject& obj, double deltaX, double deltaY)
 
 	// need to rotate the translationVec about the obj.theta (find code in a1, or recode it)
 
-	// Update the object's position
-	obj.position += vec3(deltaX, deltaY, 0.0f);
+	obj.position = obj.position + translationVec;	// Update the object's position
+	obj.facing = obj.facing + translationVec; 		// Update where the object is facing
 
 	// Create translation matrix
 	//mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
-	mat4 translationMatrix = glm::translate(obj.transformationMatrix, glm::vec3(0.f, 0.f, 0.f));
-	translationMatrix[3] = vec4(obj.position, 1.f);	// edit the translation
+	mat4 translationMatrix = glm::translate(mat4(1.f), translationVec);
+	//translationMatrix[3] = vec4(obj.position, 1.f);	// edit the translation
 
 
 	// Update the transformation matrix
 	//obj.transformationMatrix = translationMatrix + obj.transformationMatrix; // update the transformation matrix
-	obj.transformationMatrix = translationMatrix; // update the transformation matrix
+	obj.transformationMatrix = translationMatrix * obj.transformationMatrix; // update the transformation matrix
 
 
 	// DELETE
@@ -607,6 +644,16 @@ void scaleObj(GameObject& obj, float scaleX, float scaleY)
 
 	// Update the transformation matrix
 	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
+}
+
+float convertToDegree(float radians)
+{
+	return radians * (180.f / piApprox);	// convert to degrees
+}
+
+float convertToRad(float degree)
+{
+	return degree * (piApprox / 180.f);		// convert to radians
 }
 
 /// <summary>
