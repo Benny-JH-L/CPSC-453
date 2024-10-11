@@ -82,6 +82,9 @@ void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 
+void moveForward(GameObject& obj, float moveBy);
+void moveBackward(GameObject& obj, float moveBy);
+
 void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation); // dunno if i need yet
 
 
@@ -135,15 +138,17 @@ public:
 		//-- end of test
 		else if (key == GLFW_KEY_W && action == GLFW_PRESS)
 		{
-			translateObj(ship, 0.f, 0.1f);
+			//translateObj(ship, 0.f, 0.1f);
 			//drawGameObject(shader, gameData.ship);
-
+			moveForward(ship, 0.1f);
+			//helper(); //?
 		}
 		else if (key == GLFW_KEY_S && action == GLFW_PRESS)
 		{
-			translateObj(ship, 0.f, -0.1f);
+			//translateObj(ship, 0.f, -0.1f);
 			//drawGameObject(shader, gameData.ship);
-
+			moveBackward(ship, 0.1f);
+			//helper(); //?
 		}
 
 		if (action == GLFW_PRESS)
@@ -165,18 +170,19 @@ public:
 		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
 
 		GameObject& ship = gameData.ship;
+		helper();
 
-		// Find the angle from where the ship is facing and current mouse location (radians)
-		double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
+		//// Find the angle from where the ship is facing and current mouse location (radians)
+		//double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
 
-		// debug
-		cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+		//// debug
+		//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
 
-		angle = convertToDegree(angle);
+		//angle = convertToDegree(angle);
 
-		ship.theta += angle;								// update the ship's total rotation (about its center)
-		ship.facing = gameData.currMouseLoc;				// update where the ship is facing
-		rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
+		//ship.theta += angle;								// update the ship's total rotation (about its center)
+		//ship.facing = gameData.currMouseLoc;				// update where the ship is facing
+		//rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
 
 		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location (debug)
 
@@ -199,7 +205,23 @@ public:
 private:
 	ShaderProgram& shader;
 	GameData& gameData;
+	GameObject& ship = gameData.ship;
 	int counter = 1;
+
+	void helper()
+	{
+		// Find the angle from where the ship is facing and current mouse location (radians)
+		double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
+
+		// debug
+		cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
+		angle = convertToDegree(angle);
+
+		ship.theta += angle;								// update the ship's total rotation (about its center)
+		ship.facing = gameData.currMouseLoc;				// update where the ship is facing
+		rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
+	}
 };
 
 
@@ -283,9 +305,9 @@ int main() {
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
 	angle = calcAngle(vec3(0.f), glm::vec3(0.f, convertFromPixelSpace(800.f), 1.f), glm::vec3(convertFromPixelSpace(800.f), 0.f, 1.f));	// -90 degrees
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-	angle = calcAngle(vec3(0.f), vec3(0.7775f, -0.04f, 0.f), vec3(0.78, -0.04, 0.f));
+	angle = calcAngle(vec3(0.f), vec3(0.7775f, -0.04f, 0.f), vec3(0.78, -0.04, 0.f));								// 0 degrees
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-	angle = calcAngle(vec3(0.f), vec3(-0.0025f, -0.f, 0.f), vec3(0.f, -0.f, 0.f));
+	angle = calcAngle(vec3(0.f), vec3(-0.0025f, -0.f, 0.f), vec3(0.f, -0.f, 0.f));									// 0 degrees
 	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
 
 	// WINDOW
@@ -317,8 +339,9 @@ int main() {
 	d2.cgeom = diamondGeom(0.14f, 0.14f);
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
 	// Put the GameObjects in their starting locations
+	// if i have translate above the scale, the scale will be applied to the transformation values
 	scaleObj(ship, 0.09f, 0.06f);
-	translateObj(ship, 0.f, 0.f);	// Center of the screen
+	translateObj(ship, 0.5f, 0.5f);	// Center of the screen
 	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen
 	// debugging rotatation
 	//rotateAboutObjCenter(ship, 90.f);
@@ -584,6 +607,46 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 	//	//obj.cgeom.verts.at(i) = model * glm::vec4(obj.cgeom.verts.at(i), 0.f);	// idk if i want to have '0' or '1' for 4-th cord
 	//	//obj.cgeom.texCoords.at(i) = model * glm::vec4(obj.cgeom.texCoords.at(i), 0.f, 0.f);
 	//}
+}
+
+void rotateVec3(vec3& vecToRotate, float degree)
+{
+	float x = vecToRotate.x;
+	float y = vecToRotate.y;
+	float rad = convertToRad(degree);
+
+	float xfinal = x * cos(rad) - y * sin(rad);
+	if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
+		xfinal = 0.f;			// make xfinal 0
+	float yfinal = x * sin(rad) + y * cos(rad);
+	if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
+		yfinal = 0.f;			// make yfinal 0
+
+	// Set the rotated values
+	vecToRotate.x = xfinal;
+	vecToRotate.y = yfinal;
+}
+
+void moveForward(GameObject& obj, float moveBy)
+{
+	vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+
+	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+	obj.position += moveByVec;					// update position
+	obj.facing += moveByVec;	// ?
+	obj.transformationMatrix[3] += vec4(moveByVec, 0.f);	// update transformation
+}
+
+void moveBackward(GameObject& obj, float moveBy)
+{
+	vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+
+	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+	obj.position -= moveByVec;					// update position
+	obj.facing -= moveByVec;	// ?
+	obj.transformationMatrix[3] -= vec4(moveByVec, 0.f);	// update transformation
 }
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
