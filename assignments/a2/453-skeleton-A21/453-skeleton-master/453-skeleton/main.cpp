@@ -310,6 +310,7 @@ int main() {
 
 	// Create ship cpuGeom
 	ship.cgeom = shipGeom(0.18f, 0.12f);
+	ship.theta = 90.f;	// facing 'up', top of the screen
 	// Create Diamonds cpuGeom
 	d0.cgeom = diamondGeom(0.14f, 0.14f);
 	d1.cgeom = diamondGeom(0.14f, 0.14f);
