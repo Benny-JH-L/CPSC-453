@@ -82,7 +82,7 @@ void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 
-void moveForward(GameObject& obj, float moveBy);
+void moveForward(GameObject& obj, float moveBy, vec3 mouseLoc);
 void moveBackward(GameObject& obj, float moveBy);
 
 void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation); // dunno if i need yet
@@ -136,19 +136,19 @@ public:
 			//drawGameObject(shader, gameData.ship);
 		}
 		//-- end of test
-		else if (key == GLFW_KEY_W && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
 		{
 			//translateObj(ship, 0.f, 0.1f);
 			//drawGameObject(shader, gameData.ship);
-			moveForward(ship, 0.1f);
-			//helper(); //?
+			moveForward(ship, 0.01f, gameData.currMouseLoc);
+			helper(); //?
 		}
-		else if (key == GLFW_KEY_S && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
 		{
 			//translateObj(ship, 0.f, -0.1f);
 			//drawGameObject(shader, gameData.ship);
-			moveBackward(ship, 0.1f);
-			//helper(); //?
+			moveBackward(ship, 0.01f);
+			helper(); //?
 		}
 
 		if (action == GLFW_PRESS)
@@ -341,8 +341,8 @@ int main() {
 	// Put the GameObjects in their starting locations
 	// if i have translate above the scale, the scale will be applied to the transformation values
 	scaleObj(ship, 0.09f, 0.06f);
-	translateObj(ship, 0.5f, 0.5f);	// Center of the screen
 	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen
+	translateObj(ship, 0.f, 0.f);	// Center of the screen
 	// debugging rotatation
 	//rotateAboutObjCenter(ship, 90.f);
 	scaleObj(d0, 0.07f);
@@ -627,15 +627,29 @@ void rotateVec3(vec3& vecToRotate, float degree)
 	vecToRotate.y = yfinal;
 }
 
-void moveForward(GameObject& obj, float moveBy)
+void moveForward(GameObject& obj, float moveBy, vec3 mouseLoc)
 {
 	vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
 
 	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
 
+	// ????????
+	//vec3 test = (moveByVec + obj.position);
+	//vec3 toT = mouseLoc - test;
+	//bool withinEpsilonX = abs(toT.x) <= 1e-6;
+	//bool withinEpsilonY = abs(toT.y) <= 1e-6;
+
+	//if (withinEpsilonX && withinEpsilonY)
+	//{
+	//	cout << "------------------REEEE--------------" << endl;	// debug
+	//	return;
+	//}
+
 	obj.position += moveByVec;					// update position
-	obj.facing += moveByVec;	// ?
-	obj.transformationMatrix[3] += vec4(moveByVec, 0.f);	// update transformation
+	//obj.facing += moveByVec;	// ?
+
+	//obj.transformationMatrix[3] += vec4(moveByVec, 0.f);	// update transformation
+	obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
 }
 
 void moveBackward(GameObject& obj, float moveBy)
@@ -645,8 +659,9 @@ void moveBackward(GameObject& obj, float moveBy)
 	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
 
 	obj.position -= moveByVec;					// update position
-	obj.facing -= moveByVec;	// ?
-	obj.transformationMatrix[3] -= vec4(moveByVec, 0.f);	// update transformation
+	//obj.facing -= moveByVec;	// ?
+	//obj.transformationMatrix[3] -= vec4(moveByVec, 0.f);	// update transformation
+	obj.transformationMatrix = translate(mat4(1.f), -moveByVec) * obj.transformationMatrix;
 }
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
