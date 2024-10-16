@@ -211,7 +211,7 @@ public:
 
 private:
 	ShaderProgram& shader;
-	GameData gameData;
+	GameData& gameData;
 	GameObject& ship = gameData.ship;
 	int counter = 1;
 
