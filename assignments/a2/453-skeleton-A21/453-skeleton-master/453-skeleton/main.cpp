@@ -20,6 +20,7 @@ using namespace std;
 using namespace glm;
 
 const static double piApprox = atan(1) * 4;	// pi approximation
+const static float MOVEMENT_VALUE = 0.03f;
 
 struct GameObject
 {
@@ -74,7 +75,7 @@ void setGpuGeom(GameObject& obj);
 double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3);
 float convertToDegree(float radians);
 float convertToRad(float degree);
-
+float calcVec3Length(vec3 vec);
 
 // Transformation function prototypes
 void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
@@ -111,7 +112,7 @@ public:
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
-		std::cout << "key pressed " << std::endl;
+		std::cout << "\n---key pressed---" << std::endl;
 
 		GameObject& ship = gameData.ship;
 
@@ -119,35 +120,37 @@ public:
 		{
 			shader.recompile();
 		}
-		// TEST : only used to see if rotationAboutObjCenter() works, otherwise do not use.
-		else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
-		{
-			glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
-			float angle = glm::radians(22.5f);		// angle of rotation (converts degree to radians)
-			glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
-			glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
-			gameData.ship.transformationMatrix = rotateMatrix * gameData.ship.transformationMatrix;
-			//drawGameObject(shader, gameData.ship);
-		}
-		else if (key == GLFW_KEY_E ) //&& action == GLFW_PRESS)
-		{
-			// for now rotate SHIP as a test. ( this is the opposite code of the above test of rotating 22.5 CCW), this rotates Clock wise 22.5 degrees
-			rotateAboutObjCenter(gameData.ship, -2*ship.theta);
-			//drawGameObject(shader, gameData.ship);
-		}
+		//// TEST : only used to see if rotationAboutObjCenter() works, otherwise do not use.
+		//else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
+		//{
+		//	glm::mat4 identity = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
+		//	float angle = glm::radians(22.5f);		// angle of rotation (converts degree to radians)
+		//	glm::vec3 axisOfRotation = glm::vec3(0.0f, 0.0f, 1.0f);	// axis of rotation is z-axis, notice how there is a 1.0f at the 'z' pos
+		//	glm::mat4 rotateMatrix = glm::rotate(identity, angle, axisOfRotation);	// transformation matrix with the 12-degrees of freedom filled out.
+		//	gameData.ship.transformationMatrix = rotateMatrix * gameData.ship.transformationMatrix;
+		//	//drawGameObject(shader, gameData.ship);
+		//}
+		//else if (key == GLFW_KEY_E ) //&& action == GLFW_PRESS)
+		//{
+		//	// for now rotate SHIP as a test. ( this is the opposite code of the above test of rotating 22.5 CCW), this rotates Clock wise 22.5 degrees
+		//	rotateAboutObjCenter(gameData.ship, -2*ship.theta);
+		//	//drawGameObject(shader, gameData.ship);
+		//}
 		//-- end of test
 		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
 		{
 			//translateObj(ship, 0.f, 0.1f);
 			//drawGameObject(shader, gameData.ship);
-			moveForward(ship, 0.01f, gameData.currMouseLoc);
+			helper(); //?
+			moveForward(ship, MOVEMENT_VALUE, gameData.currMouseLoc);
 			helper(); //?
 		}
 		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
 		{
 			//translateObj(ship, 0.f, -0.1f);
 			//drawGameObject(shader, gameData.ship);
-			moveBackward(ship, 0.01f);
+			helper(); //?
+			moveBackward(ship, MOVEMENT_VALUE);
 			helper(); //?
 		}
 
@@ -156,14 +159,18 @@ public:
 			counter++;
 			std::cout << "counter = " << counter << std::endl;
 		}
-		 
+
+		std::cout << "\n(clip space)\nShip facing: (" << ship.facing.x << ", " << ship.facing.y << ")";
+		std::cout << "\nMouse pos curr: (" << gameData.currMouseLoc.x << ", " << gameData.currMouseLoc.y << ")" << endl;
+
 	}
 
 	virtual void cursorPosCallback(double xpos, double ypos)
 	{
 		// debug
 		//std::cout << "\n(Pixel space)\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
-		std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
+		//std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
+		std::cout << "\n(clip space)\nShip facing: (" << ship.facing.x << ", " << ship.facing.y << ")";
 		std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
 
 		// convert pixel space values to clip space values.
@@ -204,7 +211,7 @@ public:
 
 private:
 	ShaderProgram& shader;
-	GameData& gameData;
+	GameData gameData;
 	GameObject& ship = gameData.ship;
 	int counter = 1;
 
@@ -221,6 +228,9 @@ private:
 		ship.theta += angle;								// update the ship's total rotation (about its center)
 		ship.facing = gameData.currMouseLoc;				// update where the ship is facing
 		rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
+
+		// debug
+		cout << "\nship facing (updated): (" << ship.facing.x << ", " << ship.facing.y << ")" << endl;
 	}
 };
 
@@ -536,18 +546,20 @@ double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3)
 	//float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
 	double dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
 
-	float squareInitialX = initialV3.x * initialV3.x;
-	float squareInitialY = initialV3.y * initialV3.y;
-	//float squareInitialZ = initialV3.z * initialV3.z;
+	float initialV3Length = calcVec3Length(initialV3);
+	float finalV3Length = calcVec3Length(finalV3);
+	//float squareInitialX = initialV3.x * initialV3.x;
+	//float squareInitialY = initialV3.y * initialV3.y;
+	////float squareInitialZ = initialV3.z * initialV3.z;
 
-	float squareFinalX = finalV3.x * finalV3.x;
-	float squareFinalY = finalV3.y * finalV3.y;
-	//float squareFinalZ = finalV3.z * finalV3.z;
+	//float squareFinalX = finalV3.x * finalV3.x;
+	//float squareFinalY = finalV3.y * finalV3.y;
+	////float squareFinalZ = finalV3.z * finalV3.z;
 
-	//float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
-	float initialV3Length = sqrt(squareInitialX + squareInitialY);
-	//float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
-	float finalV3Length = sqrt(squareFinalX + squareFinalY);
+	////float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
+	//float initialV3Length = sqrt(squareInitialX + squareInitialY);
+	////float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
+	//float finalV3Length = sqrt(squareFinalX + squareFinalY);
 
 	// if the length of one of the vectors is 0, return angle = 0. -> error when we divide by 0.
 	if (initialV3Length * finalV3Length == 0)
@@ -633,17 +645,16 @@ void moveForward(GameObject& obj, float moveBy, vec3 mouseLoc)
 
 	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
 
-	// ????????
-	//vec3 test = (moveByVec + obj.position);
-	//vec3 toT = mouseLoc - test;
-	//bool withinEpsilonX = abs(toT.x) <= 1e-6;
-	//bool withinEpsilonY = abs(toT.y) <= 1e-6;
+	// Check if the ship moving forward will cross the mouse location
+	vec3 futurePos = obj.position + moveByVec;
+	float vecLen = calcVec3Length(futurePos - mouseLoc);
+	bool withinEpsilon = vecLen <= MOVEMENT_VALUE;
 
-	//if (withinEpsilonX && withinEpsilonY)
-	//{
-	//	cout << "------------------REEEE--------------" << endl;	// debug
-	//	return;
-	//}
+	if (withinEpsilon)	// If within epsilon, don't move the ship
+	{
+		cout << "\n within epsilon, did not move up" << endl;	// debug
+		return;
+	}
 
 	obj.position += moveByVec;					// update position
 	//obj.facing += moveByVec;	// ?
@@ -724,6 +735,13 @@ void scaleObj(GameObject& obj, float scaleX, float scaleY)
 
 	// Update the transformation matrix
 	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
+}
+
+float calcVec3Length(vec3 vec)
+{
+	float squareX = vec.x * vec.x;
+	float squareY = vec.y * vec.y;
+	return sqrt(squareX + squareY);
 }
 
 float convertToDegree(float radians)
