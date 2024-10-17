@@ -72,6 +72,7 @@ struct GameData
 	GameObject& d3;
 	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous mouse location is not existant (debug)
 	glm::vec3 currMouseLoc = vec3();						// current mouse location
+	float score = 0;
 };
 
 // Utility function prototypes
@@ -114,7 +115,8 @@ public:
 	MyCallbacks(ShaderProgram& shader, GameData& data) :
 		shader(shader),
 		gameData(data)
-	{}
+	{
+	}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
@@ -271,13 +273,25 @@ private:
 
 		// rotate the Box such that it 'surrounds' the ship
 		for (int i = 0; i < shipCollectionBox.size(); i++)
-			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, -ship.theta);
+			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, -ship.theta); // idk what i should rotate by... abs(ship.theta)?
+
+		vec3 diamondPos = diamond.position;
+		float dHalfWidth = DIAMOND_WIDTH_SCALE / 2.f;
+		float dHalfLen = DIAMOND_LENGTH_SCALE / 2.f;
 
 		// Box that 'surrounds' the Diamond // note: the Box that 'surrounds' the diamond does not need to be rotated like the ship's Box
-		std::vector<vec3> diamondBox
+		std::vector<vec3> diamondBox =
+		{
+			diamondPos + vec3(-dHalfWidth, -dHalfLen, 0.f),		// bottom left
+			diamondPos + vec3(dHalfWidth, -dHalfLen, 0.f),		// bottom right
+			diamondPos + vec3(dHalfWidth, dHalfLen, 0.f),		// top right
+			diamondPos + vec3(-dHalfWidth, dHalfLen, 0.f)		// top left
+		};
 
 		// Checking if the Diamond's Box points are inside the Ship's Collection Box
 		// if there is such a point inside the Ship's Collection Box, the diamond is collected.
+
+
 
 
 
@@ -300,7 +314,11 @@ private:
 		////glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//glDrawArrays(GL_TRIANGLE_FAN, 0, testCPU.verts.size());
 	}
-		
+
+	//void checkWithinShipCollectionBox(GameObject& diamond)
+	//{
+
+	//}
 };
 
 
@@ -523,7 +541,7 @@ int main() {
 
 		// Scale up text a little, and set its value
 		ImGui::SetWindowFontScale(1.5f);
-		ImGui::Text("Score: %d", 0); // Second parameter gets passed into "%d"
+		ImGui::Text("Score: %d", newData.score); // Second parameter gets passed into "%d"
 
 		// End the window.
 		ImGui::End();
