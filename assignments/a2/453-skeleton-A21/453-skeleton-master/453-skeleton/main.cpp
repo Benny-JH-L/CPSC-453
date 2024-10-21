@@ -275,7 +275,7 @@ private:
 
 		// rotate the Box such that it 'surrounds' the ship
 		for (int i = 0; i < shipCollectionBox.size(); i++)
-			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, -ship.theta); // idk what i should rotate by... abs(ship.theta)?
+			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, ship.theta); // idk what i should rotate by... abs(ship.theta)?
 
 		vec3 diamondPos = diamond.position;
 		float dHalfWidth = DIAMOND_WIDTH_SCALE / 2.f;
@@ -322,6 +322,11 @@ private:
 
 	//}
 
+	/// <summary>
+	/// Rotates a vec3 CCW by 'degree's, (Use negative degree for clockwise).
+	/// </summary>
+	/// <param name="vecToRotate"></param>
+	/// <param name="degree"></param>
 	void rotateVec3(vec3& vecToRotate, float degree)
 	{
 		float x = vecToRotate.x;
