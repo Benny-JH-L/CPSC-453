@@ -90,8 +90,8 @@ void scaleObj(GameObject& obj, float scale);
 void scaleObj(GameObject& obj, float scaleX, float scaleY);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 
-void moveForward(GameObject& obj, float moveBy, vec3& mouseLoc);
-void moveBackward(GameObject& obj, float moveBy);
+//void moveForward(Window& win, GameObject& obj, float moveBy, vec3& mouseLoc);
+//void moveBackward(Window& win, GameObject& obj, float moveBy);
 
 void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation); // dunno if i need yet
 
@@ -112,9 +112,10 @@ class MyCallbacks : public CallbackInterface
 {
 
 public:
-	MyCallbacks(ShaderProgram& shader, GameData& data) :
+	MyCallbacks(ShaderProgram& shader, GameData& data, Window& window) :
 		shader(shader),
-		gameData(data)
+		gameData(data),
+		window(window)
 	{
 	}
 
@@ -221,6 +222,7 @@ public:
 private:
 	ShaderProgram& shader;
 	GameData& gameData;
+	Window& window;
 	GameObject& ship = gameData.ship;
 	GameObject& d0 = gameData.d0;
 	GameObject& d1 = gameData.d1;
@@ -319,6 +321,95 @@ private:
 	//{
 
 	//}
+
+	void rotateVec3(vec3& vecToRotate, float degree)
+	{
+		float x = vecToRotate.x;
+		float y = vecToRotate.y;
+		float rad = convertToRad(degree);
+
+		float xfinal = x * cos(rad) - y * sin(rad);
+		if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
+			xfinal = 0.f;			// make xfinal 0
+		float yfinal = x * sin(rad) + y * cos(rad);
+		if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
+			yfinal = 0.f;			// make yfinal 0
+
+		// Set the rotated values
+		vecToRotate.x = xfinal;
+		vecToRotate.y = yfinal;
+	}
+
+	/// <summary>
+	/// Checks if the GameObject is within the game window after moving.
+	/// Return True if the GameOvject is within the game window after move, false otherwise.
+	/// </summary>
+	/// <param name="win"></param>
+	/// <param name="obj"></param>
+	/// <param name="move"></param>
+	/// <returns></returns>
+	bool isObjectWithinWindowAfterMove(GameObject& obj, vec3 move)
+	{
+		float windowX = convertFromPixelSpace(window.getWidth());
+		float windowY = convertFromPixelSpace(window.getHeight());
+
+		float objFuturePosX = obj.position.x + move.x;
+		float objFuturePosY = obj.position.y + move.y;
+
+		// Object will go out the screen if moved by 'move' -> return false
+		if (objFuturePosY > windowY || objFuturePosY < -windowY)
+			return false;
+		else if (objFuturePosX > windowX || objFuturePosX < -windowX)
+			return false;
+
+		return true;	// otherwise return true
+	}
+
+	void moveForward(GameObject& obj, float moveBy, vec3& mouseLoc)
+	{
+		vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+		// Check if the ship moving forward will cross the mouse location
+		vec3 futurePos = obj.position + moveByVec;
+		float vecLen = calcVec3Length(futurePos - mouseLoc);
+		bool withinEpsilon = vecLen <= MOVEMENT_VALUE;
+
+		if (withinEpsilon)	// If within epsilon, don't move the ship
+		{
+			cout << "\nwithin epsilon, did not move up" << endl;	// debug
+			return;
+		}
+
+		bool withinWindow = isObjectWithinWindowAfterMove(obj, moveByVec);
+
+		// If the object moves by 'moveByVec' and it goes outside the window, don't move
+		if (!withinWindow)
+			return;
+
+		obj.position += moveByVec;					// update position
+		//obj.facing += moveByVec;	// ?
+
+		//obj.transformationMatrix[3] += vec4(moveByVec, 0.f);	// update transformation
+		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
+	}
+
+	void moveBackward(GameObject& obj, float moveBy)
+	{
+		vec3 moveByVec = vec3(-moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+		bool withinWindow = isObjectWithinWindowAfterMove(obj, moveByVec);
+
+		// If the object moves by 'moveByVec' and it goes outside the window, don't move
+		if (!withinWindow)
+			return;
+
+		obj.position += moveByVec;					// update position
+		//obj.facing -= moveByVec;	// ?
+		//obj.transformationMatrix[3] -= vec4(moveByVec, 0.f);	// update transformation
+		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
+	}
 };
 
 
@@ -425,7 +516,7 @@ int main() {
 
 	// CALLBACKS
 	GameData newData = { ship, d0, d1, d2, d3 };
-	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData)); // can also update callbacks to new ones
+	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData, window)); // can also update callbacks to new ones
 
 	// Create ship cpuGeom
 	//ship.cgeom = shipGeom(0.18f, 0.12f);
@@ -574,6 +665,11 @@ void drawGameObject(ShaderProgram& shader, GameObject& obj)
 	obj.texture.unbind();
 }
 
+/// <summary>
+/// Converts values from pixel space to clip space
+/// </summary>
+/// <param name="pos"></param>
+/// <returns></returns>
 float convertFromPixelSpace(float pos)
 {
 	float clipPos = pos / (800 / 2.f);
@@ -708,60 +804,6 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 	//	//obj.cgeom.verts.at(i) = model * glm::vec4(obj.cgeom.verts.at(i), 0.f);	// idk if i want to have '0' or '1' for 4-th cord
 	//	//obj.cgeom.texCoords.at(i) = model * glm::vec4(obj.cgeom.texCoords.at(i), 0.f, 0.f);
 	//}
-}
-
-void rotateVec3(vec3& vecToRotate, float degree)
-{
-	float x = vecToRotate.x;
-	float y = vecToRotate.y;
-	float rad = convertToRad(degree);
-
-	float xfinal = x * cos(rad) - y * sin(rad);
-	if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
-		xfinal = 0.f;			// make xfinal 0
-	float yfinal = x * sin(rad) + y * cos(rad);
-	if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
-		yfinal = 0.f;			// make yfinal 0
-
-	// Set the rotated values
-	vecToRotate.x = xfinal;
-	vecToRotate.y = yfinal;
-}
-
-void moveForward(GameObject& obj, float moveBy, vec3& mouseLoc)
-{
-	vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
-
-	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
-
-	// Check if the ship moving forward will cross the mouse location
-	vec3 futurePos = obj.position + moveByVec;
-	float vecLen = calcVec3Length(futurePos - mouseLoc);
-	bool withinEpsilon = vecLen <= MOVEMENT_VALUE;
-
-	if (withinEpsilon)	// If within epsilon, don't move the ship
-	{
-		cout << "\nwithin epsilon, did not move up" << endl;	// debug
-		return;
-	}
-
-	obj.position += moveByVec;					// update position
-	//obj.facing += moveByVec;	// ?
-
-	//obj.transformationMatrix[3] += vec4(moveByVec, 0.f);	// update transformation
-	obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
-}
-
-void moveBackward(GameObject& obj, float moveBy)
-{
-	vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
-
-	rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
-
-	obj.position -= moveByVec;					// update position
-	//obj.facing -= moveByVec;	// ?
-	//obj.transformationMatrix[3] -= vec4(moveByVec, 0.f);	// update transformation
-	obj.transformationMatrix = translate(mat4(1.f), -moveByVec) * obj.transformationMatrix;
 }
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
