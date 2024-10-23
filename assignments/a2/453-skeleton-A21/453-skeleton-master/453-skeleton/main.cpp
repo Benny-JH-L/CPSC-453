@@ -28,6 +28,45 @@ const static float DIAMOND_WIDTH_SCALE = 0.18f;
 static float SHIP_WIDTH_SCALE = 0.18f;
 static float SHIP_LENGTH_SCALE = 0.12f;
 
+struct ObjectGeometry
+{
+	//ObjectGeometry(CPU_Geometry c, GPU_Geometry g, Texture t) :
+	//	cgeom(c),
+	//	ggeom(g),
+	//	texture(t)
+	//{}
+	//CPU_Geometry cgeom;
+	//GPU_Geometry& ggeom;
+	//Texture& texture;
+	CPU_Geometry cgeom;
+	GPU_Geometry ggeom;
+	Texture texture;
+};
+
+struct GameObject2
+{
+	// Struct's constructor deals with the texture.
+	// Also sets default position, theta, scale, and transformationMatrix
+	GameObject2(shared_ptr<ObjectGeometry> geom) :
+		objGeom(geom),
+		position(0.0f, 0.0f, 0.0f),
+		theta(0),
+		scale(1, 1),
+		transformationMatrix(1.0f) // This constructor sets it as the identity matrix
+	{}
+
+	shared_ptr<ObjectGeometry> objGeom;
+
+	glm::vec3 position = glm::vec3(0.f, 0.f, 1.f);		// initial position
+	glm::vec3 facing = glm::vec3(0.f, 1.f, 0.f);		// initial position object is facing (used by ship atm)
+	float theta;										// Object's total rotation (in degrees)
+	// Alternatively, you could represent rotation via a normalized heading vec:
+	// glm::vec3 heading;
+	glm::vec2 scale;										// Or, alternatively, a float scale;
+	glm::mat4 transformationMatrix = mat4(1.0f);
+	glm::mat4 transformationTexMatrix;	// not needed (DELETE)
+};
+
 struct GameObject
 {
 	// Struct's constructor deals with the texture.
@@ -827,6 +866,24 @@ int main() {
 	//d2.transformationTexMatrix = noTransform;
 	//d3.transformationMatrix = noTransform;
 	//d3.transformationTexMatrix = noTransform;
+	shared_ptr<ObjectGeometry> shipG;	// look at tut vid... 
+	GameObject2 ship1(shipG);
+	shipG->cgeom = shipGeom(1.f, 1.f);
+	shipG->ggeom.setTexCoords(shipG->cgeom.texCoords);
+	shipG->ggeom.setVerts(shipG->cgeom.verts);
+
+	vector<shared_ptr<GameObject2>> diamonds;
+
+	for (int i = 0; i < 4; i++)
+	{
+		shared_ptr<ObjectGeometry> dGeom;
+		GameObject2 obj(dGeom);
+		dGeom->cgeom = shipGeom(1.f, 1.f);
+		dGeom->ggeom.setTexCoords(dGeom->cgeom.texCoords);
+		dGeom->ggeom.setVerts(dGeom->cgeom.verts);
+		shared_ptr<GameObject2> d = make_shared<GameObject2>(obj);
+		//diamonds.push_back(d);
+	}
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
