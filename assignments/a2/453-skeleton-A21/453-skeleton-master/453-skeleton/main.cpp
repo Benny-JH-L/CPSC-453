@@ -36,7 +36,7 @@ struct GameObject
 		texture(texturePath, textureInterpolation),
 		position(0.0f, 0.0f, 0.0f),
 		theta(0),
-		scale(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE),
+		scale(1, 1),
 		transformationMatrix(1.0f) // This constructor sets it as the identity matrix
 	{}
 
@@ -62,6 +62,7 @@ struct GameData
 		d1(d1),
 		d2(d2),
 		d3(d3)
+		//score(sc)
 	{}
 
 	GameObject& ship;	// Ship object
@@ -72,7 +73,7 @@ struct GameData
 	GameObject& d3;
 	glm::vec3 previousMouseLoc = glm::vec3(0.f, 0.f, -1.f);	// initially previous mouse location is not existant (debug)
 	glm::vec3 currMouseLoc = vec3();						// current mouse location
-	float score = 0;
+	int score = 0;
 };
 
 // Utility function prototypes
@@ -86,14 +87,13 @@ float calcVec3Length(vec3 vec);
 
 // Transformation function prototypes
 void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
-void scaleObj(GameObject& obj, float scale);
-void scaleObj(GameObject& obj, float scaleX, float scaleY);
+void scaleObj(GameObject& obj, vec2 scale);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 
 //void moveForward(Window& win, GameObject& obj, float moveBy, vec3& mouseLoc);
 //void moveBackward(Window& win, GameObject& obj, float moveBy);
 
-void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation); // dunno if i need yet
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
 
 
 // Debug function prototypes
@@ -129,9 +129,6 @@ public:
 		if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		{
 			shader.recompile();
-			// debug
-			ship.scale += vec2(0.5, 0.5);
-			scaleObj(ship, ship.scale.x, ship.scale.y);
 		}
 		//// TEST : only used to see if rotationAboutObjCenter() works, otherwise do not use.
 		//else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
@@ -534,12 +531,14 @@ private:
 
 		if (collectDiamond)
 		{
+			gameData.score++;	// increment the score
+			// Affectively "removing" the diamond
 			diamond.position = vec3(-10.f, -10.f, -10.f);
 			diamond.cgeom = CPU_Geometry();
 			setGpuGeom(diamond);
-			ship.scale += vec2(0.05, 0.05);
-			scaleObj(ship, ship.scale.x, ship.scale.y);
-			ship.position *= vec3(ship.scale, 1.f);	// fix: rotates about it's centre (position) instead of old pos.
+
+			ship.scale += vec2(0.1, 0.1);	// Update the ship's scale
+			scaleObj(ship, ship.scale);		// scale the ship
 		}
 		// Draw the box DEBUG -- prolly need to bring the old CPU, GPU, and shader classes from assignment 1 to do this
 		//CPU_Geometry testCPU;
@@ -759,7 +758,8 @@ int main() {
 	GameObject d3("textures/diamond.png", GL_NEAREST);
 
 	// CALLBACKS
-	GameData newData = { ship, d0, d1, d2, d3 };
+	float score = 0;
+	GameData newData = { ship, d0, d1, d2, d3, };
 	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData, window)); // can also update callbacks to new ones
 
 	// Create ship cpuGeom
@@ -774,16 +774,21 @@ int main() {
 	// Put the GameObjects in their starting locations
 	// if i have translate above the scale, the scale will be applied to the transformation values
 	//scaleObj(ship, 0.09f, 0.06f);
-	scaleObj(ship, ship.scale.x / 2.f, ship.scale.y / 2.f);
-	ship.scale += vec2(1.f, 1.f);
+	vec2 shipScale(0.09f, 0.06f);
+	scaleObj(ship, shipScale);
 	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen -- debug
 	translateObj(ship, 0.f, 0.f);	// Center of the screen
 	// debugging rotatation
 	//rotateAboutObjCenter(ship, 90.f);
-	scaleObj(d0, 0.07f);
-	scaleObj(d1, 0.07f);
-	scaleObj(d2, 0.07f);
-	scaleObj(d3, 0.07f);
+	//scaleObj(d0, 0.07f);
+	//scaleObj(d1, 0.07f);
+	//scaleObj(d2, 0.07f);
+	//scaleObj(d3, 0.07f);
+	vec2 diamondScale(0.07, 0.07);
+	scaleObj(d0, diamondScale);
+	scaleObj(d1, diamondScale);
+	scaleObj(d2, diamondScale);
+	scaleObj(d3, diamondScale);
 	translateObj(d0, -0.5f, -0.5f);	// bottom left
 	translateObj(d1, 0.5f, 0.5f);		// top right
 	translateObj(d2, -0.5f, 0.5f);	// top left
@@ -1084,38 +1089,22 @@ void translateObj(GameObject& obj, double deltaX, double deltaY)
 	//obj.transformationTexMatrix = translationMatrix * obj.transformationTexMatrix; // Apply translation to texture transformation
 }
 
-//void uniformScaleObj(GameObject& obj, float scaleVal)
-//{
-//	// Create scale matrix
-//	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleVal, scaleVal, 0.f));
-//
-//	// Update the transformation matrix
-//	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
-//}
-
 /// <summary>
-/// Uniform scaling.
+/// Scale's the 'obj' by 'scale'
 /// </summary>
-/// <param name="obj"> the GameObject to be scaled.</param>
-/// <param name="scale"> the scale factor, a float.</param>
-void scaleObj(GameObject& obj, float scale)
+/// <param name="obj"></param>
+/// <param name="scale"></param>
+void scaleObj(GameObject& obj, vec2 scale)
 {
-	scaleObj(obj, scale, scale);
-}
+	vec3 scaleCenter = obj.position;
+	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scale, 1.f));
+	mat4 translateToOrigin = glm::translate(glm::mat4(1.0f), -obj.position);
+	mat4 translateBack = glm::translate(glm::mat4(1.0f), obj.position);
 
-/// <summary>
-/// Scaling.
-/// </summary>
-/// <param name="obj"> the GameObject to be scaled.</param>
-/// <param name="scaleX"> x-scale factor, a float.</param>
-/// <param name="scaleY"> y-scale factor, a float.</param>
-void scaleObj(GameObject& obj, float scaleX, float scaleY)
-{
-	// Create scale matrix
-	mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 1.f));
-
-	// Update the transformation matrix
-	obj.transformationMatrix = scaleMatrix * obj.transformationMatrix; // update the transformation matrix
+	// Translate object to 'scaleCenter', obj's position
+	// then do scaling,
+	// after, translate back
+	obj.transformationMatrix = translateBack * scaleMatrix * translateToOrigin * obj.transformationMatrix;
 }
 
 float calcVec3Length(vec3 vec)
