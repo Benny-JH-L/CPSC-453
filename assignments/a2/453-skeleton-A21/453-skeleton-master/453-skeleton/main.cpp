@@ -36,7 +36,7 @@ struct GameObject
 		texture(texturePath, textureInterpolation),
 		position(0.0f, 0.0f, 0.0f),
 		theta(0),
-		scale(1),
+		scale(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE),
 		transformationMatrix(1.0f) // This constructor sets it as the identity matrix
 	{}
 
@@ -49,7 +49,7 @@ struct GameObject
 	float theta;										// Object's total rotation (in degrees)
 	// Alternatively, you could represent rotation via a normalized heading vec:
 	// glm::vec3 heading;
-	float scale;										// Or, alternatively, a glm::vec2 scale;
+	glm::vec2 scale;										// Or, alternatively, a float scale;
 	glm::mat4 transformationMatrix = mat4(1.0f);
 	glm::mat4 transformationTexMatrix;	// not needed (DELETE)
 };
@@ -122,12 +122,16 @@ public:
 	virtual void keyCallback(int key, int scancode, int action, int mods)
 	{
 		std::cout << "\n---key pressed---" << std::endl;
+		cout << "\nShip position (before): " << ship.position << endl; // debug
 
 		GameObject& ship = gameData.ship;
 
 		if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		{
 			shader.recompile();
+			// debug
+			ship.scale += vec2(0.5, 0.5);
+			scaleObj(ship, ship.scale.x, ship.scale.y);
 		}
 		//// TEST : only used to see if rotationAboutObjCenter() works, otherwise do not use.
 		//else if (key == GLFW_KEY_Q )// && action == GLFW_PRESS)
@@ -153,6 +157,7 @@ public:
 			rotateShipToCursor(); //?
 			moveForward(ship, MOVEMENT_VALUE, gameData.currMouseLoc);
 			rotateShipToCursor(); //?
+			checkCollectDiamond();
 		}
 		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
 		{
@@ -161,6 +166,7 @@ public:
 			rotateShipToCursor(); //?
 			moveBackward(ship, MOVEMENT_VALUE);
 			rotateShipToCursor(); //?
+			checkCollectDiamond();
 		}
 
 		if (action == GLFW_PRESS)
@@ -171,6 +177,7 @@ public:
 
 		std::cout << "\n(clip space)\nShip facing: (" << ship.facing.x << ", " << ship.facing.y << ")";
 		std::cout << "\nMouse pos curr: (" << gameData.currMouseLoc.x << ", " << gameData.currMouseLoc.y << ")" << endl;
+		cout << "\nShip position (after): " << ship.position << endl; // debug
 
 	}
 
@@ -181,6 +188,7 @@ public:
 		//std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
 		std::cout << "\n(clip space)\nShip facing: (" << ship.facing.x << ", " << ship.facing.y << ")";
 		std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
+		cout << "\nShip position (before): " << ship.position << endl; // debug
 
 		// convert pixel space values to clip space values.
 		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
@@ -203,7 +211,8 @@ public:
 		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location (debug)
 
 		// debug
-		cout << "\nTotal ship angle (radians) = " << convertToRad(ship.theta) << " (degree) = " << ship.theta << endl;
+		cout << "\nTotal ship angle (radians) = " << convertToRad(ship.theta) << " (degree) = " << ship.theta;
+		cout << "\nShip position (after): " << ship.position << endl; // debug
 
 
 		// NEW-- this tut example puts the ship to the cursor pos.
@@ -216,7 +225,7 @@ public:
 		//GameObject& ship = gameData.ship;
 		//ship.transformationMatrix = translate(mat4(1.f), mousePos - ship.position) * ship.transformationMatrix;
 		//ship.position = mousePos;
-		checkCollectDiamond(); // here for testing only
+		checkCollectDiamond();
 	}
 
 private:
@@ -256,8 +265,52 @@ private:
 	{
 		// Check first diamond.
 		checkCollectDiamondHelper(d0);
+		checkCollectDiamondHelper(d1);
+		checkCollectDiamondHelper(d2);
+		checkCollectDiamondHelper(d3);
 	}
 
+	/// <summary>
+	/// Tests if a vec3, 'vec3ToTest' is below or above (or on) a line defined by two vec3's, 'initialLineVec' and 'finalLineVec'.
+	/// INPUT 0 to test above the line, or 1 to test below the line, for parameter 'testAboveOrBelow'.
+	/// </summary>
+	/// <param name="initialLineVec"></param>
+	/// <param name="finalLineVec"></param>
+	/// <param name="vec3ToTest"></param>
+	/// <param name="testAboveOrBelow"></param>
+	/// <returns></returns>
+	bool isVec3WithinLine(vec3 initialLineVec, vec3 finalLineVec, vec3 vec3ToTest, int testAboveOrBelow)
+	{
+		float slope = (finalLineVec.y - initialLineVec.y) / (finalLineVec.x - initialLineVec.x);
+		float yToTest = vec3ToTest.y;
+
+		switch (testAboveOrBelow)
+		{
+			float y;
+			case 0:
+				y = slope * (vec3ToTest.x - initialLineVec.x) + initialLineVec.y; // y value associated with x = vec3ToTest.x on the line created by 'initialLineVec' and 'finalLineVec'
+
+				if (yToTest >= y)	// Test if 'yToTest' was above (or on) the line, has to be above 'y'
+					return true;	// above the line, return true.
+				break;
+			case 1:
+				y = slope * (vec3ToTest.x - initialLineVec.x) + initialLineVec.y; // y value associated with x = vec3ToTest.x on the line created by 'initialLineVec' and 'finalLineVec'
+
+				if (yToTest <= y)	// Test if 'yToTest' was below (or on) the line, has to be below 'y'
+					return true;	// below the line, return true.
+				break;
+			default:
+				cout << "\nInvalid test (choose above (0) or below line (1)." << endl;
+		}
+
+		return false;				// return false otherwise.
+	}
+
+
+	/// <summary>
+	/// Checks if the diamond GameObject should be collected by the Ship
+	/// </summary>
+	/// <param name="diamond"></param>
 	void checkCollectDiamondHelper(GameObject& diamond)
 	{
 		vec3 shipPos = ship.position;
@@ -275,7 +328,7 @@ private:
 
 		// rotate the Box such that it 'surrounds' the ship
 		for (int i = 0; i < shipCollectionBox.size(); i++)
-			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, ship.theta); // idk what i should rotate by... abs(ship.theta)?
+			rotateCCWAboutVec3(shipCollectionBox[i], shipPos, -(90.f - ship.theta)); // The box is already rotated 90 degrees w/ respect to the x-axis -> actual rotation is 90 - ship.theta
 
 		vec3 diamondPos = diamond.position;
 		float dHalfWidth = DIAMOND_WIDTH_SCALE / 2.f;
@@ -289,14 +342,205 @@ private:
 			diamondPos + vec3(dHalfWidth, dHalfLen, 0.f),		// top right
 			diamondPos + vec3(-dHalfWidth, dHalfLen, 0.f)		// top left
 		};
+		// more accurate shape?
+		//std::vector<vec3> diamondBox =
+		//{
+		//	diamondPos + vec3(0.f, -dHalfLen, 0.f),		// bottom tip of diamond
+		//	diamondPos + vec3(dHalfWidth, 0.f, 0.f),		// immediate right of centre
+		//	diamondPos + vec3(dHalfWidth, dHalfLen * sin(convertToRad(30.f)), 0.f),	// above immidiate right of centre vec3
+		//	diamondPos + vec3(dHalfWidth * cos(convertToRad(60.f)), dHalfLen * sin(convertToRad(60.f)), 0.f),	// top right
+		//	diamondPos + vec3(-dHalfWidth * cos(convertToRad(60.f)), dHalfLen * sin(convertToRad(60.f)), 0.f),	// top left
+		//	diamondPos + vec3(-dHalfWidth, -dHalfLen * sin(convertToRad(30.f)), 0.f),	// above immidiate left of centre vec3
+		//	diamondPos + vec3(-dHalfWidth, 0.f, 0.f),		// immediate left of centre
+		//};
 
 		// Checking if the Diamond's Box points are inside the Ship's Collection Box
 		// if there is such a point inside the Ship's Collection Box, the diamond is collected.
+		
+		float shipRads = convertToRad(ship.theta);
+		bool collectDiamond = false;
 
+		// Case 1) Ship's theta is 180 degrees || Ship's theta is 0 degrees
+		if (cos(shipRads) == -1.f || cos(shipRads) == 1.f)
+		{
+			cout << "--CASE 1" << endl; // debug
 
+			// Case 1.1) Ship's theta is 0 degrees
+			if (cos(shipRads) == 1.f)
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool aboveBottomLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool belowTopLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[3] and shipCollectionBox[0]
+					bool withinYAsymptotes = shipCollectionBox[0].x <= diamondBox[i].x && diamondBox[i].x <= shipCollectionBox[1].x;
 
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomLine && belowTopLine && withinYAsymptotes)
+					{
+						cout << "(Case1.1) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+			// Case 1.2) Ship's theta is 180 degrees
+			else
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool aboveBottomLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[0] and shipCollectionBox[3]
+					bool belowTopLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool withinYAsymptotes = shipCollectionBox[0].x <= diamondBox[i].x && diamondBox[i].x <= shipCollectionBox[1].x;
 
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomLine && belowTopLine && withinYAsymptotes)
+					{
+						cout << "(Case1.2) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+		}
+		// Case 2)  Ship's theta is 90 degrees || Ship's theta is 270 degrees
+		else if (sin(shipRads) == -1.f || sin(shipRads) == 1.f)
+		{
+			cout << "--CASE 2" << endl; // debug
 
+			// Case 2.1) Ship's theta is 90 degrees
+			if (sin(shipRads) == 1.f)
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool aboveBottomLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool belowTopLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool withinXAsymptotes = shipCollectionBox[0].x <= diamondBox[i].x && diamondBox[i].x <= shipCollectionBox[1].x;
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomLine && belowTopLine && withinXAsymptotes)
+					{
+						cout << "(Case2.1) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+			// Case 2.2) Ship's theta is 270 degrees 
+			else
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool belowTopLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool aboveBottomLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool withinXAsymptotes = shipCollectionBox[0].x <= diamondBox[i].x && diamondBox[i].x <= shipCollectionBox[1].x;
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomLine && belowTopLine && withinXAsymptotes)
+					{
+						cout << "(Case2.2) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+		}
+		// Case 3) Ship's theta is between 0 and 180 degrees (not inclusive)
+		else if ((-1.f < cos(shipRads) && cos(shipRads) < 1.f) && (0.f < sin(shipRads) && sin(shipRads) < 1.f))
+		{
+			cout << "--CASE 3" << endl; // debug
+
+			// Case 3.1) Ship's theta is between 0 and 90 degrees (not inclusive)
+			if (0 < cos(shipRads))
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool aboveBottomLeftLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool aboveBottomRightLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool belowTopRightLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool belowTopLeftLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[3] and shipCollectionBox[0]
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomLeftLine && aboveBottomRightLine && belowTopRightLine && belowTopLeftLine)
+					{
+						cout << "(Case3.1) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+			// Case 3.2) Ship's theta is betwwen 90 and 180 degrees (not inclusive)
+			else
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool aboveBottomRightLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool belowTopRightLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool belowTopLeftLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool aboveBottomLeftLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[3] and shipCollectionBox[0]
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (aboveBottomRightLine && belowTopRightLine && belowTopLeftLine && aboveBottomLeftLine)
+					{
+						cout << "(Case3.2) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+		}
+		// Case 4) Ship's theta is between 180 and 360 degrees (not inclusive)
+		else
+		{
+			cout << "--CASE 4" << endl; // debug
+			// Case 4.1) Ship's theta is between 180 and 270 degrees (not inclusive)
+			if (cos(shipRads) < 0)
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool belowTopRightLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool belowTopLeftLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool aboveBottomLeftLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool aboveBottomRightLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[3] and shipCollectionBox[0]
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (belowTopRightLine && belowTopLeftLine && aboveBottomLeftLine && aboveBottomRightLine)
+					{
+						cout << "(Case4.1) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+			// Case 4.2) Ship's theta is betwwen 270 and 360 degrees (not inclusive)
+			else
+			{
+				for (int i = 0; i < diamondBox.size(); i++)
+				{
+					bool belowTopLeftLine = isVec3WithinLine(shipCollectionBox[0], shipCollectionBox[1], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[0] and shipCollectionBox[1]
+					bool aboveBottomLeftLine = isVec3WithinLine(shipCollectionBox[1], shipCollectionBox[2], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[1] and shipCollectionBox[2]
+					bool aboveBottomRightLine = isVec3WithinLine(shipCollectionBox[2], shipCollectionBox[3], diamondBox[i], 0);	// test's if any vec3 of 'diamondBox' is above the line made by shipCollectionBox[2] and shipCollectionBox[3]
+					bool belowTopRightLine = isVec3WithinLine(shipCollectionBox[3], shipCollectionBox[0], diamondBox[i], 1);	// test's if any vec3 of 'diamondBox' is below the line made by shipCollectionBox[3] and shipCollectionBox[0]
+
+					// Check if the vec3 of 'diamondBox' is inside the Ship's collection box
+					if (belowTopLeftLine && aboveBottomLeftLine && aboveBottomRightLine && belowTopRightLine)
+					{
+						cout << "(Case4.2) VEC3 IN DIAMOND BOX IS INSIDE SHIP COLLECTION AREA..." << endl; // debug
+						collectDiamond = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (collectDiamond)
+		{
+			diamond.position = vec3(-10.f, -10.f, -10.f);
+			diamond.cgeom = CPU_Geometry();
+			setGpuGeom(diamond);
+			ship.scale += vec2(0.05, 0.05);
+			scaleObj(ship, ship.scale.x, ship.scale.y);
+			ship.position *= vec3(ship.scale, 1.f);	// fix: rotates about it's centre (position) instead of old pos.
+		}
 		// Draw the box DEBUG -- prolly need to bring the old CPU, GPU, and shader classes from assignment 1 to do this
 		//CPU_Geometry testCPU;
 		//GPU_Geometry testGPU;
@@ -316,11 +560,6 @@ private:
 		////glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//glDrawArrays(GL_TRIANGLE_FAN, 0, testCPU.verts.size());
 	}
-
-	//void checkWithinShipCollectionBox(GameObject& diamond)
-	//{
-
-	//}
 
 	/// <summary>
 	/// Rotates a vec3 CCW by 'degree's, (Use negative degree for clockwise).
@@ -534,16 +773,21 @@ int main() {
 	d3.cgeom = diamondGeom(0.14f, 0.14f);
 	// Put the GameObjects in their starting locations
 	// if i have translate above the scale, the scale will be applied to the transformation values
-	scaleObj(ship, 0.09f, 0.06f);
-	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen
+	//scaleObj(ship, 0.09f, 0.06f);
+	scaleObj(ship, ship.scale.x / 2.f, ship.scale.y / 2.f);
+	ship.scale += vec2(1.f, 1.f);
+	//translateObj(ship, 0.5f, 0.5f);	// Center of the screen -- debug
 	translateObj(ship, 0.f, 0.f);	// Center of the screen
 	// debugging rotatation
 	//rotateAboutObjCenter(ship, 90.f);
 	scaleObj(d0, 0.07f);
+	scaleObj(d1, 0.07f);
+	scaleObj(d2, 0.07f);
+	scaleObj(d3, 0.07f);
 	translateObj(d0, -0.5f, -0.5f);	// bottom left
-	translateObj(d1, 1.f, 1.f);	// top right
-	translateObj(d2, -1.f, 1.f);	// top left
-	translateObj(d3, 1.f, -1.f);	// bottom right
+	translateObj(d1, 0.5f, 0.5f);		// top right
+	translateObj(d2, -0.5f, 0.5f);	// top left
+	translateObj(d3, 0.5f, -0.5f);	// bottom right
 	// Set positions (already set in the struct
 	//ship.position = glm::vec3(0.f, 0.f, 0.f);
 	//d0.position = glm::vec3(-0.5f, -0.5f, 0.f);
@@ -559,9 +803,9 @@ int main() {
 	//d0.ggeom.setVerts(d0.cgeom.verts);
 	//d0.ggeom.setTexCoords(d0.cgeom.texCoords);
 	setGpuGeom(d0);
-	//setGpuGeom(d1);
-	//setGpuGeom(d2);
-	//setGpuGeom(d3);
+	setGpuGeom(d1);
+	setGpuGeom(d2);
+	setGpuGeom(d3);
 
 	// Set initial matrices (DO NOT DO THIS - DELETE)
 	//glm::mat4 identity1 = glm::mat4(1.0f);	// identity matrix for transformations (4x4)
@@ -608,9 +852,9 @@ int main() {
 		//glDrawArrays(GL_TRIANGLES, 0, 6);
 		//d0.texture.unbind();
 		drawGameObject(shader, d0);
-		//drawGameObject(shader, d1);
-		//drawGameObject(shader, d2);
-		//drawGameObject(shader, d3);
+		drawGameObject(shader, d1);
+		drawGameObject(shader, d2);
+		drawGameObject(shader, d3);
 
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 
@@ -666,7 +910,8 @@ void drawGameObject(ShaderProgram& shader, GameObject& obj)
 
 	obj.ggeom.bind();
 	obj.texture.bind();
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	//glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDrawArrays(GL_TRIANGLES, 0, obj.cgeom.verts.size());
 	obj.texture.unbind();
 }
 
