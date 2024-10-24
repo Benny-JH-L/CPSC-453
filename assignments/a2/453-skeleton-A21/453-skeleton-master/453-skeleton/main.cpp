@@ -137,6 +137,7 @@ float calcVec3Length(vec3 vec);
 void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation);
 void scaleObj(GameObject& obj, vec2 scale);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
+void translateObj(GameObject& obj, vec2 translate);
 
 //void moveForward(Window& win, GameObject& obj, float moveBy, vec3& mouseLoc);
 //void moveBackward(Window& win, GameObject& obj, float moveBy);
@@ -564,21 +565,21 @@ public:
 		//	//drawGameObject(shader, gameData.ship);
 		//}
 		//-- end of test
-		else if (key == GLFW_KEY_W)// && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_W) //&& action == GLFW_PRESS)
 		{
 
 			//rotateShipToCursor(); //?
 			moveForward(shipGameObj, MOVEMENT_VALUE, gameData.currMouseLoc);
 			ship.moved = true;
-			//rotateShipToCursor(); //?
+			rotateShipToCursor(); //?
 			checkCollectDiamond(gameData);
 		}
-		else if (key == GLFW_KEY_S)// && action == GLFW_PRESS)
+		else if (key == GLFW_KEY_S) // && action == GLFW_PRESS)
 		{
 			//rotateShipToCursor(); //?
 			moveBackward(shipGameObj, MOVEMENT_VALUE);
 			ship.moved = true;
-			//rotateShipToCursor(); //?
+			rotateShipToCursor(); //?
 			checkCollectDiamond(gameData);
 		}
 
@@ -685,6 +686,8 @@ private:
 		translateObj(diamonds[1].gameObj, 0.5f, 0.5f);		// top right
 		translateObj(diamonds[2].gameObj, -0.5f, 0.5f);		// top left
 		translateObj(diamonds[3].gameObj, 0.5f, -0.5f);		// bottom right
+
+		// Direction vectors are kept, so no need to set them again
 
 		gameData.score = 0;
 	}
@@ -895,17 +898,22 @@ int main() {
 		scaleObj(diamonds[i].gameObj, vec2(0.07, 0.07));
 		setGpuGeom(diamonds[i].gameObj);
 	}
-
+	// moving diamonds into position
 	translateObj(diamonds[0].gameObj, -0.5f, -0.5f);	// bottom left
-	translateObj(diamonds[1].gameObj, 0.5f, 0.5f);		// top right
-	translateObj(diamonds[2].gameObj, -0.5f, 0.5f);		// top left
-	translateObj(diamonds[3].gameObj, 0.5f, -0.5f);		// bottom right
+	translateObj(diamonds[1].gameObj, 0.5f, -0.5f);		// bottom right
+	translateObj(diamonds[2].gameObj, 0.5f, 0.5f);		// top right
+	translateObj(diamonds[3].gameObj, -0.5f, 0.5f);		// top left
 
-	// CALLBACKS
-	float score = 0;
-	//GameData newData = { ship, d0, d1, d2, d3, };
+	// giving them their direction vec2's
+	diamonds[0].moveDirection = vec2(-0.001, -0.002);
+	diamonds[1].moveDirection = vec2(0.0052, 0.0007);
+	diamonds[2].moveDirection = vec2(0.001, 0.0002);
+	diamonds[3].moveDirection = vec2(-0.002, 0.002);
+
+	//float score = 0;
 	GameData newData = {ship, diamonds};
 
+	// CALLBACKS
 	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData, window)); // can also update callbacks to new ones
 	
 
@@ -972,7 +980,14 @@ int main() {
 		//glDrawArrays(GL_TRIANGLES, 0, 6);
 		//d0.texture.unbind();
 
-		// move the diamonds
+		// Move the diamonds along their direction
+		for (int i = 0; i < diamonds.size(); i++)
+		{
+			bool within = isObjectWithinWindowAfterMove(window, diamonds[i].gameObj, vec3(diamonds[i].moveDirection, 0.f));
+			if (!within)	// turn the object around if it moves outside of window
+				diamonds[i].moveDirection = -diamonds[i].moveDirection;
+			translateObj(diamonds[i].gameObj, diamonds[i].moveDirection);
+		}
 
 		// Draw the diamonds
 		for (int i = 0; i < diamonds.size(); i++)
@@ -1013,7 +1028,7 @@ int main() {
 		if (newData.score < diamonds.size())
 			ImGui::Text("Score: %d", newData.score); // Second parameter gets passed into "%d"
 		else
-			ImGui::Text("You Win! Press [P] to play again!");
+			ImGui::Text("Score: %d | You Win! Press [P] to play again!", newData.score);
 
 		// End the window.
 		ImGui::End();
@@ -1188,6 +1203,10 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 	//}
 }
 
+void translateObj(GameObject& obj, vec2 translate)
+{
+	translateObj(obj, translate.x, translate.y);
+}
 
 void translateObj(GameObject& obj, double deltaX, double deltaY)
 {
