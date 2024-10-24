@@ -26,8 +26,8 @@ const static float DIAMOND_WIDTH_SCALE = 0.18f;
 const static int NUMBER_OF_DIAMONDS = 4;
 
 // Used to scale the ship
-static float SHIP_WIDTH_SCALE = 0.18f;
-static float SHIP_LENGTH_SCALE = 0.12f;
+const static float SHIP_WIDTH_SCALE = 0.18f;
+const static float SHIP_LENGTH_SCALE = 0.12f;
 
 struct GameObject
 {
