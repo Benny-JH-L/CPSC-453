@@ -509,19 +509,24 @@ public:
 		}
 		else if (key == GLFW_KEY_W) //&& action == GLFW_PRESS)
 		{
-
-			rotateShipToCursor(); //?
+			rotateShipToCursor2();
+			//rotateShipToCursor(); //?
 			moveForward(shipGameObj, MOVEMENT_VALUE, gameData.currMouseLoc);
 			ship.moved = true;
-			rotateShipToCursor(); //?
+			//rotateShipToCursor(); //?
+			rotateShipToCursor2();
+
 			checkCollectDiamond(gameData);	// check if the ship collects a diamond
 		}
 		else if (key == GLFW_KEY_S) // && action == GLFW_PRESS)
 		{
-			rotateShipToCursor(); //?
+			rotateShipToCursor2();
+			//rotateShipToCursor(); //?
 			moveBackward(shipGameObj, MOVEMENT_VALUE);
 			ship.moved = true;
-			rotateShipToCursor(); //?
+			//rotateShipToCursor(); //?
+			rotateShipToCursor2();
+
 			checkCollectDiamond(gameData);	// check if the ship collects a diamond
 		}
 
@@ -545,7 +550,8 @@ public:
 		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
 
 		//GameObject& ship = gameData.ship.gameObj;
-		rotateShipToCursor();
+		//rotateShipToCursor();
+		rotateShipToCursor2();
 
 		//// Find the angle from where the ship is facing and current mouse location (radians)
 		//double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
@@ -643,6 +649,15 @@ private:
 
 		// debug
 		cout << "\nship facing (updated): (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")" << endl;
+	}
+
+	void rotateShipToCursor2()
+	{
+		float angleToRotate = calcAngle(shipGameObj.position, vec3(1.f, 0.f, 0.f) , gameData.currMouseLoc);
+		angleToRotate = convertToDegree(angleToRotate) - ship.gameObj.theta;
+
+		ship.gameObj.theta += angleToRotate;
+		rotateAboutObjCenter(shipGameObj, angleToRotate);
 	}
 
 	/// <summary>
