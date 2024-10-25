@@ -52,6 +52,7 @@ struct GameObject
 	// glm::vec3 heading;
 	glm::vec2 scale;										// Or, alternatively, a float scale;
 	glm::mat4 transformationMatrix = mat4(1.0f);
+	glm::mat4 transformationTexMatrix;	// not needed (DELETE)
 };
 
 /// <summary>
@@ -64,6 +65,7 @@ struct ShipObject
 	{}
 
 	GameObject gameObj;
+	vec3 facing = glm::vec3(0.f, 1.f, 0.f);		// initial position ship is facing 
 	bool moved = false;
 };
 
@@ -111,233 +113,19 @@ void scaleObj(GameObject& obj, vec2 scale);
 void translateObj(GameObject& obj, double deltaX, double deltaY);
 void translateObj(GameObject& obj, vec2 translate);
 
+//void moveForward(Window& win, GameObject& obj, float moveBy, vec3& mouseLoc);
+//void moveBackward(Window& win, GameObject& obj, float moveBy);
+
+void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
+
 // CPU_Geometry function protoypes
 CPU_Geometry shipGeom(float width, float height);
 CPU_Geometry diamondGeom(float width, float height);
-
-// Other Helpful function prototypes
-void rotateCCWAboutVec3(glm::vec3& vec3ToRotate, const glm::vec3 rotateAboutVec, const float angleOfRotation);
-bool isVec3WithinLine(vec3 initialLineVec, vec3 finalLineVec, vec3 vec3ToTest, int testAboveOrBelow);
-void checkCollectDiamondHelper(GameData& data, GameObject& diamond);
-void checkCollectDiamond(GameData& data);
-void rotateVec3(vec3& vecToRotate, float degree);
-bool isObjectWithinWindowAfterMove(Window& window, GameObject& obj, vec3 move);
 
 // Debug function prototypes
 void printVec4Pos(glm::vec4 vec, int vecNum);
 void printVec4Pos(glm::vec4 vec);
 
-class MyCallbacks : public CallbackInterface
-{
-
-public:
-	MyCallbacks(ShaderProgram& shader, GameData& data, Window& window) :
-		shader(shader),
-		gameData(data),
-		window(window)
-	{
-	}
-
-	virtual void keyCallback(int key, int scancode, int action, int mods)
-	{
-		// Debug
-		//std::cout << "\n---key pressed---" << std::endl;
-		//cout << "\nShip position (before): " << shipGameObj.position << endl;
-
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-		{
-			shader.recompile();
-		}
-		else if (key == GLFW_KEY_P && action == GLFW_PRESS)		// restart the game
-		{
-			startNewGame();
-		}
-		else if (key == GLFW_KEY_W) //&& action == GLFW_PRESS)
-		{
-			rotateShipToCursor();	// ensure the ship is looking at the cursor before moving
-			moveForward(shipGameObj, MOVEMENT_VALUE, gameData.currMouseLoc);
-			ship.moved = true;
-			rotateShipToCursor();	// ensure the ship is looking at the cursor after moving
-
-
-			checkCollectDiamond(gameData);	// check if the ship collects a diamond
-		}
-		else if (key == GLFW_KEY_S) // && action == GLFW_PRESS)
-		{
-			rotateShipToCursor();	// ensure the ship is looking at the cursor before moving
-			moveBackward(shipGameObj, MOVEMENT_VALUE);
-			ship.moved = true;
-			rotateShipToCursor();	// ensure the ship is looking at the cursor after moving
-
-			checkCollectDiamond(gameData);	// check if the ship collects a diamond
-		}
-
-		// debug
-		//std::cout << "\n(clip space)\nShip facing: (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")";
-		//std::cout << "\nMouse pos curr: (" << gameData.currMouseLoc.x << ", " << gameData.currMouseLoc.y << ")" << endl;
-		//cout << "\nShip position (after): " << shipGameObj.position << endl;
-
-	}
-
-	virtual void cursorPosCallback(double xpos, double ypos)
-	{
-		// debug
-		//std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
-		//cout << "\nShip position (before): " << shipGameObj.position << endl; // debug
-
-		// convert pixel space values to clip space values.
-		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
-
-		rotateShipToCursor();
-
-		// debug
-		//cout << "\nTotal ship angle (radians) = " << convertToRad(ship.theta) << " (degree) = " << ship.theta;
-		//cout << "\nShip position (after): " << shipGameObj.position << endl; // debug
-
-		checkCollectDiamond(gameData);	// check if the ship collects a diamond
-	}
-
-private:
-	ShaderProgram& shader;
-	GameData& gameData;
-	Window& window;
-	ShipObject& ship = gameData.ship;
-	GameObject& shipGameObj = gameData.ship.gameObj;
-
-	void startNewGame()
-	{
-		// Reset Ship's data
-		//ShipObject& ship = gameData.ship;
-		ship.moved = false;
-		ship.gameObj.cgeom = shipGeom(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE);	// Create new ship cpuGeom
-		ship.gameObj.position = vec3(0.f, 0.f, 1.f);
-		ship.gameObj.theta = 90.f;						// looking 'up' -> 90 degrees
-		ship.gameObj.transformationMatrix = mat4(1.0f);
-		ship.gameObj.scale = vec2(1.f, 1.f);
-		vec2 shipScale(0.09f, 0.06f);
-		scaleObj(ship.gameObj, shipScale);
-		setGpuGeom(ship.gameObj);
-
-		// Reset Diamonds data
-		vector<DiamondObject>& diamonds = gameData.diamonds;
-		for (int i = 0; i < NUMBER_OF_DIAMONDS; i++)
-		{
-			diamonds[i].gameObj.theta = 90.f;
-			diamonds[i].gameObj.cgeom = diamondGeom(0.14f, 0.14f);		// Create new diamond cpuGeom
-			diamonds[i].gameObj.position = vec3(0.f, 0.f, 1.f);			// reset position
-			diamonds[i].gameObj.transformationMatrix = mat4(1.0f);
-			scaleObj(diamonds[i].gameObj, vec2(0.07, 0.07));			// scale 
-			setGpuGeom(diamonds[i].gameObj);							
-		}
-
-		translateObj(diamonds[0].gameObj, -0.5f, -0.5f);	// bottom left
-		translateObj(diamonds[1].gameObj, 0.5f, 0.5f);		// top right
-		translateObj(diamonds[2].gameObj, -0.5f, 0.5f);		// top left
-		translateObj(diamonds[3].gameObj, 0.5f, -0.5f);		// bottom right
-
-		// Direction vectors are kept, so no need to set them again
-
-		gameData.score = 0;
-	}
-
-	/// <summary>
-	/// Rotates a glm::vec3 about another glm::vec3 by "degreeOfRot"
-	/// </summary>
-	/// <param name="vecToRotate"></param>
-	/// <param name="rotateAbout"></param>
-	/// <param name="degreeOfRot"></param>
-	void rotateV3AboutV3(vec3& vecToRotate, vec3 rotateAbout, float degreeOfRot)
-	{
-		vecToRotate = vecToRotate - rotateAbout;
-		degreeOfRot = convertToRad(degreeOfRot);
-
-		float newX = vecToRotate.x * cos(degreeOfRot) - vecToRotate.y * sin(degreeOfRot);
-		float newY = vecToRotate.x * sin(degreeOfRot) + vecToRotate.y * cos(degreeOfRot);
-
-		vecToRotate.x = newX;
-		vecToRotate.y = newY;
-		vecToRotate = vecToRotate + rotateAbout;
-	}
-
-	/// <summary>
-	/// Rotates the ship to the cursor.
-	/// </summary>
-	void rotateShipToCursor()
-	{
-		vec3 facing = shipGameObj.position + vec3(1.f, 0.f, 0.f);
-		rotateV3AboutV3(facing, shipGameObj.position, shipGameObj.theta);
-
-		// Find the angle from where the ship is facing and current mouse location (radians)
-		float angle = calcAngle(shipGameObj.position, facing, gameData.currMouseLoc);
-
-		// debug
-		//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
-
-		angle = convertToDegree(angle);
-
-		shipGameObj.theta += angle;							// update the ship's total rotation (about its center)
-		rotateAboutObjCenter(shipGameObj, angle);			// do rotation of the ship
-
-		// debug
-		//cout << "\nship facing (updated): (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")";
-		//cout << "\nship total rotation (updated): " << shipGameObj.theta;
-	}
-
-	/// <summary>
-	/// (Moves Ship object)
-	/// Move's the object by 'moveBy' forwards.
-	/// If the object is within 'epsilon' of the mouse cursor, the ship does not move.
-	/// </summary>
-	/// <param name="obj"></param>
-	/// <param name="moveBy"></param>
-	/// <param name="mouseLoc"></param>
-	void moveForward(GameObject& obj, float moveBy, vec3& mouseLoc)
-	{
-		vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
-		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
-
-		// Check if the ship moving forward will cross the mouse location
-		vec3 futurePos = obj.position + moveByVec;
-		float vecLen = calcVec3Length(futurePos - mouseLoc);
-		bool withinEpsilon = vecLen <= MOVEMENT_VALUE;
-
-		if (withinEpsilon)	// If within epsilon, don't move the ship
-		{
-			cout << "\nwithin epsilon, did not move up" << endl;	// debug
-			return;
-		}
-
-		bool withinWindow = isObjectWithinWindowAfterMove(window, obj, moveByVec);
-
-		// If the object moves by 'moveByVec' and it goes outside the window, don't move
-		if (!withinWindow)
-			return;
-
-		obj.position += moveByVec;					// update position
-		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
-	}
-
-	/// <summary>
-	/// (Moves Ship object)
-	/// Move's the object by 'moveBy' amount backwards.
-	/// </summary>
-	/// <param name="obj"></param>
-	/// <param name="moveBy"></param>
-	void moveBackward(GameObject& obj, float moveBy)
-	{
-		vec3 moveByVec = vec3(-moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
-		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
-
-		bool withinWindow = isObjectWithinWindowAfterMove(window, obj, moveByVec);
-
-		// If the object moves by 'moveByVec' and it goes outside the window, don't move
-		if (!withinWindow)
-			return;
-
-		obj.position += moveByVec;					// update position
-		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
-	}
-};
 
 /// <summary>
 /// Tests if a vec3, 'vec3ToTest' is below or above (or on) a line defined by two vec3's, 'initialLineVec' and 'finalLineVec'.
@@ -612,6 +400,24 @@ void checkCollectDiamondHelper(GameData& data, GameObject& diamond)
 		ship.scale += vec2(0.1, 0.1);	// Update the ship's scale
 		scaleObj(ship, ship.scale);		// scale the ship
 	}
+	// Draw the box DEBUG -- prolly need to bring the old CPU, GPU, and shader classes from assignment 1 to do this
+	//CPU_Geometry testCPU;
+	//GPU_Geometry testGPU;
+
+	//for (int i = 0; i < collectionBox.size(); i++)
+	//{
+	//	testCPU.verts.push_back(collectionBox[i]);
+	//	testCPU.texCoords.push_back(collectionBox[i]);
+	//}
+
+	//testGPU.setVerts(testCPU.verts);
+	//testGPU.setTexCoords(testCPU.texCoords);
+
+	//shader.use();
+	//testGPU.bind();
+	////glEnable(GL_FRAMEBUFFER_SRGB);
+	////glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glDrawArrays(GL_TRIANGLE_FAN, 0, testCPU.verts.size());
 }
 
 /// <summary>
@@ -677,12 +483,278 @@ bool isObjectWithinWindowAfterMove(Window& window, GameObject& obj, vec3 move)
 	return true;	// otherwise return true
 }
 
+class MyCallbacks : public CallbackInterface
+{
+
+public:
+	MyCallbacks(ShaderProgram& shader, GameData& data, Window& window) :
+		shader(shader),
+		gameData(data),
+		window(window)
+	{
+	}
+
+	virtual void keyCallback(int key, int scancode, int action, int mods)
+	{
+		std::cout << "\n---key pressed---" << std::endl;
+		cout << "\nShip position (before): " << shipGameObj.position << endl; // debug
+
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		{
+			shader.recompile();
+		}
+		else if (key == GLFW_KEY_P && action == GLFW_PRESS)		// restart the game
+		{
+			startNewGame();
+		}
+		else if (key == GLFW_KEY_W) //&& action == GLFW_PRESS)
+		{
+			rotateShipToCursor3();
+			//rotateShipToCursor2();
+			//rotateShipToCursor(); //?
+			moveForward(shipGameObj, MOVEMENT_VALUE, gameData.currMouseLoc);
+			//vec3 moveByVec = vec3(MOVEMENT_VALUE, 0.f, 0.f);
+			//rotateVec3(moveByVec, shipGameObj.theta);
+			ship.moved = true;
+			//rotateShipToCursor(); //?
+			//rotateShipToCursor2();
+			rotateShipToCursor3();
+
+
+			checkCollectDiamond(gameData);	// check if the ship collects a diamond
+		}
+		else if (key == GLFW_KEY_S) // && action == GLFW_PRESS)
+		{
+			rotateShipToCursor3();
+			//rotateShipToCursor2();
+			//rotateShipToCursor(); //?
+			moveBackward(shipGameObj, MOVEMENT_VALUE);
+			//vec3 moveByVec = vec3(MOVEMENT_VALUE, 0.f, 0.f);
+			//rotateVec3(moveByVec, shipGameObj.theta);
+			ship.moved = true;
+			//rotateShipToCursor(); //?
+			//rotateShipToCursor2();
+			rotateShipToCursor3();
+
+			checkCollectDiamond(gameData);	// check if the ship collects a diamond
+		}
+
+		// debug
+		std::cout << "\n(clip space)\nShip facing: (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")";
+		std::cout << "\nMouse pos curr: (" << gameData.currMouseLoc.x << ", " << gameData.currMouseLoc.y << ")" << endl;
+		cout << "\nShip position (after): " << shipGameObj.position << endl;
+
+	}
+
+	//void normalize(vec3& vec)
+	//{
+	//	float length = calcVec3Length(vec);
+	//	vec.x = vec.x / length;
+	//	vec.y = vec.y / length;
+	//	vec.z = vec.z / length;
+	//}
+
+	//void rotateShipToCursor(vec3 mousePos)
+	//{
+	//	vec3 mouseDirection = (mousePos - ship.gameObj.position);
+	//}
+
+	virtual void cursorPosCallback(double xpos, double ypos)
+	{
+		// debug
+		//std::cout << "\n(Pixel space)\nMouse pos curr: (" << xpos << ", " << ypos << ")" << std::endl;
+		//std::cout << "\n(clip space)\nMouse pos prev: (" << gameData.previousMouseLoc.x << ", " << gameData.previousMouseLoc.y << ")";
+		std::cout << "\n(clip space)\nShip facing: (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")";
+		std::cout << "\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
+		cout << "\nShip position (before): " << shipGameObj.position << endl; // debug
+
+		// convert pixel space values to clip space values.
+		gameData.currMouseLoc = vec3(convertFromPixelSpace(xpos), -convertFromPixelSpace(ypos), 0.f);
+
+		//GameObject& ship = gameData.ship.gameObj;
+		rotateShipToCursor3();
+		//rotateShipToCursor2();
+
+		//// Find the angle from where the ship is facing and current mouse location (radians)
+		//double angle = calcAngle(ship.position, ship.facing, gameData.currMouseLoc);
+
+		//// debug
+		//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
+		//angle = convertToDegree(angle);
+
+		//ship.theta += angle;								// update the ship's total rotation (about its center)
+		//ship.facing = gameData.currMouseLoc;				// update where the ship is facing
+		//rotateAboutObjCenter(gameData.ship, angle);	// do rotation of the ship
+
+		gameData.previousMouseLoc = gameData.currMouseLoc;	// set the previous mouse location (debug)
+
+		// debug
+		//cout << "\nTotal ship angle (radians) = " << convertToRad(ship.theta) << " (degree) = " << ship.theta;
+		cout << "\nShip position (after): " << shipGameObj.position << endl; // debug
+
+
+		// NEW-- this tut example puts the ship to the cursor pos.
+		// convert to clip space
+		//std::cout << "\n(clip space)\nMouse pos curr: (" << convertFromPixelSpace(xpos) << ", " << -convertFromPixelSpace(ypos) << ")" << endl;
+
+		//mousePos.x = convertFromPixelSpace(xpos);
+		//mousePos.y = -convertFromPixelSpace(ypos);
+
+		//GameObject& ship = gameData.ship;
+		//ship.transformationMatrix = translate(mat4(1.f), mousePos - ship.position) * ship.transformationMatrix;
+		//ship.position = mousePos;
+		checkCollectDiamond(gameData);	// check if the ship collects a diamond
+	}
+
+private:
+	ShaderProgram& shader;
+	GameData& gameData;
+	Window& window;
+	ShipObject& ship = gameData.ship;
+	GameObject& shipGameObj = gameData.ship.gameObj;
+
+	void startNewGame()
+	{
+		// Reset Ship's data
+		//ShipObject& ship = gameData.ship;
+		ship.moved = false;
+		ship.facing = vec3(0.f, 1.f, 0.f);				// looking 'up'
+		ship.gameObj.cgeom = shipGeom(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE);	// Create new ship cpuGeom
+		ship.gameObj.position = vec3(0.f, 0.f, 1.f);
+		ship.gameObj.theta = 90.f;						// looking 'up' -> 90 degrees
+		ship.gameObj.transformationMatrix = mat4(1.0f);
+		ship.gameObj.scale = vec2(1.f, 1.f);
+		vec2 shipScale(0.09f, 0.06f);
+		scaleObj(ship.gameObj, shipScale);
+		setGpuGeom(ship.gameObj);
+
+		// Reset Diamonds data
+		vector<DiamondObject>& diamonds = gameData.diamonds;
+		for (int i = 0; i < NUMBER_OF_DIAMONDS; i++)
+		{
+			diamonds[i].gameObj.theta = 90.f;
+			diamonds[i].gameObj.cgeom = diamondGeom(0.14f, 0.14f);		// Create new diamond cpuGeom
+			diamonds[i].gameObj.position = vec3(0.f, 0.f, 1.f);			// reset position
+			diamonds[i].gameObj.transformationMatrix = mat4(1.0f);
+			scaleObj(diamonds[i].gameObj, vec2(0.07, 0.07));			// scale 
+			setGpuGeom(diamonds[i].gameObj);							
+		}
+
+		translateObj(diamonds[0].gameObj, -0.5f, -0.5f);	// bottom left
+		translateObj(diamonds[1].gameObj, 0.5f, 0.5f);		// top right
+		translateObj(diamonds[2].gameObj, -0.5f, 0.5f);		// top left
+		translateObj(diamonds[3].gameObj, 0.5f, -0.5f);		// bottom right
+
+		// Direction vectors are kept, so no need to set them again
+
+		gameData.score = 0;
+	}
+
+	/// <summary>
+	/// Rotates a glm::vec3 about another glm::vec3 by "degreeOfRot"
+	/// </summary>
+	/// <param name="vecToRotate"></param>
+	/// <param name="rotateAbout"></param>
+	/// <param name="degreeOfRot"></param>
+	void rotateV3AboutV3(vec3& vecToRotate, vec3 rotateAbout, float degreeOfRot)
+	{
+		vecToRotate = vecToRotate - rotateAbout;
+		degreeOfRot = convertToRad(degreeOfRot);
+
+		float newX = vecToRotate.x * cos(degreeOfRot) - vecToRotate.y * sin(degreeOfRot);
+		float newY = vecToRotate.x * sin(degreeOfRot) + vecToRotate.y * cos(degreeOfRot);
+
+		vecToRotate.x = newX;
+		vecToRotate.y = newY;
+		vecToRotate = vecToRotate + rotateAbout;
+	}
+
+	void rotateShipToCursor3()
+	{
+		vec3 facing = shipGameObj.position + vec3(1.f, 0.f, 0.f);
+		rotateV3AboutV3(facing, shipGameObj.position, shipGameObj.theta);
+
+		// Find the angle from where the ship is facing and current mouse location (radians)
+		float angle = calcAngle(shipGameObj.position, facing, gameData.currMouseLoc);
+
+		// debug
+		cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
+		angle = convertToDegree(angle);
+
+		shipGameObj.theta += angle;							// update the ship's total rotation (about its center)
+		rotateAboutObjCenter(shipGameObj, angle);			// do rotation of the ship
+
+		// debug
+		cout << "\nship facing (updated): (" << gameData.ship.facing.x << ", " << gameData.ship.facing.y << ")";
+		cout << "\nship total rotation (updated): " << shipGameObj.theta;
+
+	}
+
+	/// <summary>
+	/// (Moves Ship object)
+	/// Move's the object by 'moveBy' forwards.
+	/// If the object is within 'epsilon' of the mouse cursor, the ship does not move.
+	/// </summary>
+	/// <param name="obj"></param>
+	/// <param name="moveBy"></param>
+	/// <param name="mouseLoc"></param>
+	void moveForward(GameObject& obj, float moveBy, vec3& mouseLoc)
+	{
+		vec3 moveByVec = vec3(moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+		// Check if the ship moving forward will cross the mouse location
+		vec3 futurePos = obj.position + moveByVec;
+		float vecLen = calcVec3Length(futurePos - mouseLoc);
+		bool withinEpsilon = vecLen <= MOVEMENT_VALUE;
+
+		if (withinEpsilon)	// If within epsilon, don't move the ship
+		{
+			cout << "\nwithin epsilon, did not move up" << endl;	// debug
+			return;
+		}
+
+		bool withinWindow = isObjectWithinWindowAfterMove(window, obj, moveByVec);
+
+		// If the object moves by 'moveByVec' and it goes outside the window, don't move
+		if (!withinWindow)
+			return;
+
+		obj.position += moveByVec;					// update position
+		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
+	}
+
+	/// <summary>
+	/// (Moves Ship object)
+	/// Move's the object by 'moveBy' amount backwards.
+	/// </summary>
+	/// <param name="obj"></param>
+	/// <param name="moveBy"></param>
+	void moveBackward(GameObject& obj, float moveBy)
+	{
+		vec3 moveByVec = vec3(-moveBy, 0.f, 0.f);	// set the moveBy value along the x-axis
+		rotateVec3(moveByVec, obj.theta);			// rotate moveByVec by the objects 'theta'
+
+		bool withinWindow = isObjectWithinWindowAfterMove(window, obj, moveByVec);
+
+		// If the object moves by 'moveByVec' and it goes outside the window, don't move
+		if (!withinWindow)
+			return;
+
+		obj.position += moveByVec;					// update position
+		//obj.facing -= moveByVec;	// ?
+		obj.transformationMatrix = translate(mat4(1.f), moveByVec) * obj.transformationMatrix;
+	}
+};
+
+
 CPU_Geometry shipGeom(float width, float height)
 {
 	float halfWidth = width / 2.0f;
 	float halfHeight = height / 2.0f;
 	CPU_Geometry retGeom;
-
 	// vertices for the spaceship quad
 	//retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
 	//retGeom.verts.push_back(glm::vec3(-halfWidth, -halfHeight, 0.f));
@@ -718,7 +790,6 @@ CPU_Geometry diamondGeom(float width, float height)
 	float halfHeight = height / 2.0f;
 	CPU_Geometry retGeom;
 
-	// vertices for the diamond quad
 	//retGeom.verts.push_back(glm::vec3(-halfWidth, halfHeight, 0.f));
 	//retGeom.verts.push_back(glm::vec3(-halfWidth, -halfHeight, 0.f));
 	//retGeom.verts.push_back(glm::vec3(halfWidth, -halfHeight, 0.f));
@@ -752,6 +823,18 @@ CPU_Geometry diamondGeom(float width, float height)
 int main() {
 	Log::debug("Starting main");
 
+	// debug
+	double angle = calcAngle(vec3(0.f), glm::vec3(9.f, 2.f, 1.f), glm::vec3(2.f, 6.f, 1.f)); // expected value is 59.0362 degrees (returns in rads)
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
+	angle = calcAngle(vec3(0.f), glm::vec3(convertFromPixelSpace(800.f), 0.f, 1.f), glm::vec3(0.f, convertFromPixelSpace(800.f), 1.f));	// 90 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+	angle = calcAngle(vec3(0.f), glm::vec3(0.f, convertFromPixelSpace(800.f), 1.f), glm::vec3(convertFromPixelSpace(800.f), 0.f, 1.f));	// -90 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+	angle = calcAngle(vec3(0.f), vec3(0.7775f, -0.04f, 0.f), vec3(0.78, -0.04, 0.f));								// 0 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+	angle = calcAngle(vec3(0.f), vec3(-0.0025f, -0.f, 0.f), vec3(0.f, -0.f, 0.f));									// 0 degrees
+	cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f / piApprox) << endl;
+
 	// WINDOW
 	glfwInit();
 	Window window(800, 800, "CPSC 453"); // can set callbacks at construction if desired
@@ -759,6 +842,12 @@ int main() {
 
 	// SHADERS
 	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
+	
+	// GL_NEAREST looks a bit better for low-res pixel art than GL_LINEAR.
+	// But for most other cases, you'd want GL_LINEAR interpolation.
+	//GameObject ship("textures/ship.png", GL_NEAREST);
+	//ship.cgeom = shipGeom(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE);	// Create ship cpuGeom
+	//ship.theta = 90.f;	// facing 'up', top of the screen
 
 	ShipObject ship("textures/ship.png", GL_NEAREST);
 	ship.gameObj.cgeom = shipGeom(SHIP_WIDTH_SCALE, SHIP_LENGTH_SCALE);	// Create ship cpuGeom
@@ -782,16 +871,52 @@ int main() {
 	translateObj(diamonds[1].gameObj, 0.5f, -0.5f);		// bottom right
 	translateObj(diamonds[2].gameObj, 0.5f, 0.5f);		// top right
 	translateObj(diamonds[3].gameObj, -0.5f, 0.5f);		// top left
+
 	// giving them their direction vec2's
 	diamonds[0].moveDirection = vec2(-0.001, -0.002);
 	diamonds[1].moveDirection = vec2(0.0052, 0.0007);
 	diamonds[2].moveDirection = vec2(0.001, 0.0002);
 	diamonds[3].moveDirection = vec2(-0.002, 0.002);
 
+	//float score = 0;
 	GameData newData = {ship, diamonds};
 
 	// CALLBACKS
 	window.setCallbacks(std::make_shared<MyCallbacks>(shader, newData, window)); // can also update callbacks to new ones
+	
+
+	//d0.cgeom = diamondGeom(0.14f, 0.14f);
+	//d1.cgeom = diamondGeom(0.14f, 0.14f);
+	//d2.cgeom = diamondGeom(0.14f, 0.14f);
+	//d3.cgeom = diamondGeom(0.14f, 0.14f);
+	// Put the GameObjects in their starting locations
+	// if i have translate above the scale, the scale will be applied to the transformation values
+	//scaleObj(ship, 0.09f, 0.06f);
+	//vec2 shipScale(0.09f, 0.06f);
+	//scaleObj(ship, shipScale);
+	//translateObj(ship, 0.f, 0.f);	// Center of the screen
+
+	//vec2 diamondScale(0.07, 0.07);
+	//scaleObj(d0, diamondScale);
+	//scaleObj(d1, diamondScale);
+	//scaleObj(d2, diamondScale);
+	//scaleObj(d3, diamondScale);
+
+	// Translate diamonds
+	//translateObj(d0, -0.5f, -0.5f);	// bottom left
+	//translateObj(d1, 0.5f, 0.5f);		// top right
+	//translateObj(d2, -0.5f, 0.5f);	// top left
+	//translateObj(d3, 0.5f, -0.5f);	// bottom right
+
+
+	// Set gpu geoms
+	//setGpuGeom(d0);
+	//setGpuGeom(d1);
+	//setGpuGeom(d2);
+	//setGpuGeom(d3);
+
+	//obj.ggeom.setVerts(obj.cgeom.verts);
+	//obj.ggeom.setTexCoords(obj.cgeom.texCoords);
 
 	// RENDER LOOP
 	while (!window.shouldClose()) {
@@ -801,10 +926,27 @@ int main() {
 
 		shader.use();
 
+		// from  tutorial
+		//GLint shaderLoc = glGetUniformLocation(shader.getID(), "transformationMatrix"); // need to define 'getID()' in shaderprogram file
+		//glUniformMatrix4fv(shaderLoc, 1, GL_FALSE, &rotation0[0][0]);
+		//--
+
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// note to self: if i have this in between drawing objects, it will remove all previous ones.
 
-		drawGameObject(shader, ship.gameObj);	// Draw ship
+		// Draw ship
+		//ship.ggeom.bind();
+		//ship.texture.bind();
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		//ship.texture.unbind();
+		drawGameObject(shader, ship.gameObj);
+
+		// Draw Diamonds
+		//shader.use();
+		//d0.ggeom.bind();
+		//d0.texture.bind();
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		//d0.texture.unbind();
 
 		// Move the diamonds along their direction
 		for (int i = 0; i < diamonds.size(); i++)
@@ -818,6 +960,10 @@ int main() {
 		// Draw the diamonds
 		for (int i = 0; i < diamonds.size(); i++)
 			drawGameObject(shader, diamonds[i].gameObj);
+		//drawGameObject(shader, d0);
+		//drawGameObject(shader, d1);
+		//drawGameObject(shader, d2);
+		//drawGameObject(shader, d3);
 
 		checkCollectDiamond(newData);	// after the diamonds move and the player moves/rotates, check if the ship is able to collect any diamonds
 
@@ -870,16 +1016,13 @@ int main() {
 	return 0;
 }
 
-/// <summary>
-/// Draw's the game object.
-/// </summary>
-/// <param name="shader"></param>
-/// <param name="obj"></param>
 void drawGameObject(ShaderProgram& shader, GameObject& obj)
 {
+	//setGpuGeom(obj); // not needed, prolly
 	shader.use();
 
 	shader.setMat4Transform("transformationMatrix", obj.transformationMatrix);
+	shader.setMat4TextureTransform("transformationMatrixTexture", obj.transformationTexMatrix);
 
 	obj.ggeom.bind();
 	obj.texture.bind();
@@ -889,7 +1032,7 @@ void drawGameObject(ShaderProgram& shader, GameObject& obj)
 }
 
 /// <summary>
-/// Converts values from pixel space to clip space.
+/// Converts values from pixel space to clip space
 /// </summary>
 /// <param name="pos"></param>
 /// <returns></returns>
@@ -900,10 +1043,6 @@ float convertFromPixelSpace(float pos)
 	return clipPos;
 }
 
-/// <summary>
-/// Sets the GPU_Geometry of the object.
-/// </summary>
-/// <param name="obj"></param>
 void setGpuGeom(GameObject& obj)
 {
 	obj.ggeom.setVerts(obj.cgeom.verts);
@@ -954,14 +1093,28 @@ double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3)
 	initialV3 = initialV3 + translateToOrigin;
 	finalV3 = finalV3 + translateToOrigin;
 
+	//float dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y) + (initialV3.z * finalV3.z);
+	double dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
+
 	float initialV3Length = calcVec3Length(initialV3);
 	float finalV3Length = calcVec3Length(finalV3);
+	//float squareInitialX = initialV3.x * initialV3.x;
+	//float squareInitialY = initialV3.y * initialV3.y;
+	////float squareInitialZ = initialV3.z * initialV3.z;
+
+	//float squareFinalX = finalV3.x * finalV3.x;
+	//float squareFinalY = finalV3.y * finalV3.y;
+	////float squareFinalZ = finalV3.z * finalV3.z;
+
+	////float initialV3Length = sqrt(squareInitialX + squareInitialY + squareInitialZ);
+	//float initialV3Length = sqrt(squareInitialX + squareInitialY);
+	////float finalV3Length = sqrt(squareFinalX + squareFinalY + squareFinalZ);
+	//float finalV3Length = sqrt(squareFinalX + squareFinalY);
 
 	// if the length of one of the vectors is 0, return angle = 0. -> error when we divide by 0.
 	if (initialV3Length * finalV3Length == 0)
 		return 0.0;
 
-	double dotProuct = (initialV3.x * finalV3.x) + (initialV3.y * finalV3.y);
 	double calc = dotProuct / (initialV3Length * finalV3Length);
 
 	// 'calc' is out of arccos range of [-1, 1], so return with angle = 0. acos(calc) = -nan(ind) if 'calc' is not within [-1, 1].
@@ -980,12 +1133,13 @@ double calcAngle(vec3 shipPos, glm::vec3 initialV3, glm::vec3 finalV3)
 		angle = -angle;
 
 	// debug
-	//cout << "\nAngle calculated (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
+	//cout << "\nAngle calculted (radians) = " << angle << " (degree) = " << angle * (180.f/piApprox)  << endl;
 	return angle;
 }
 
 /// <summary>
-/// Rotates the object by its center. Updates its transformation matrix as a result.
+/// Works fine atm
+/// -> oct. 16 update, it may not be working right, just play around with moving while also moving the mouse you'll see the bug
 /// </summary>
 /// <param name="obj"></param>
 /// <param name="degreeOfRotation"> in degrees, a float.</param>
@@ -1003,25 +1157,14 @@ void rotateAboutObjCenter(GameObject& obj, float degreeOfRotation)
 	// 1. translate by -Position (Position should be (0,0,0) after)
 	// 2. do rotation
 	// 3. translate by Position (back to original position)
-	obj.transformationMatrix = translateBack * rotateMatrix * translateToOrigin * obj.transformationMatrix;
+	obj.transformationMatrix = translateBack * rotateMatrix * translateToOrigin * obj.transformationMatrix;	// resulting matrix of all those transformations
 }
 
-/// <summary>
-/// Translates the object by the desired glm::vec2 value
-/// </summary>
-/// <param name="obj"></param>
-/// <param name="translate"></param>
 void translateObj(GameObject& obj, vec2 translate)
 {
 	translateObj(obj, translate.x, translate.y);
 }
 
-/// <summary>
-/// Translates the object by the desired x and y values
-/// </summary>
-/// <param name="obj"></param>
-/// <param name="deltaX"></param>
-/// <param name="deltaY"></param>
 void translateObj(GameObject& obj, double deltaX, double deltaY)
 {
 	// currently works when moving striahgt up/down
@@ -1033,10 +1176,12 @@ void translateObj(GameObject& obj, double deltaX, double deltaY)
 	// need to rotate the translationVec about the obj.theta (find code in a1, or recode it)
 
 	obj.position = obj.position + translationVec;	// Update the object's position
+	//obj.facing = obj.facing + translationVec; 		// Update where the object is facing
 
 	// Create translation matrix
 	//mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(deltaX, deltaY, 0.f));
 	mat4 translationMatrix = glm::translate(mat4(1.f), translationVec);
+	//translationMatrix[3] = vec4(obj.position, 1.f);	// edit the translation
 
 	// Update the transformation matrix
 	obj.transformationMatrix = translationMatrix * obj.transformationMatrix; // update the transformation matrix
