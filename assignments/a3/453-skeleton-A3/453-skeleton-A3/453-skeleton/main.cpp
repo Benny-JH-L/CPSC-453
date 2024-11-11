@@ -25,6 +25,8 @@
 using namespace std;
 using namespace glm;
 
+const static float POINT_SIZE = 15.f;	// pixel space
+
 void testDeCasteljauAlgo();
 
 class CurveGenerator
@@ -116,9 +118,14 @@ private:
 	}
 };
 
-class CurveEditorCallBack : public CallbackInterface {
+class CurveEditorCallBack : public CallbackInterface
+{
 public:
-	CurveEditorCallBack() {}
+	CurveEditorCallBack(Window& w, Panel& p, vector<vec3>& cps) :
+		win(w),
+		panel(p),
+		controlPoints(cps)
+	{}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods) override
 	{
@@ -127,12 +134,29 @@ public:
 
 	virtual void mouseButtonCallback(int button, int action, int mods) override
 	{
-		Log::info("MouseButtonCallback: button={}, action={}", button, action);
+		Log::info("[MOUSE-BUTTON-CALL-BACK]: button={}, action={}", button, action);
+		mouseButton = button;
+		mouseAction = action;
+
+		if (button == 0 && action == 0)		// place a control point
+		{
+			controlPoints.push_back(vec3(mousePos, 0.f));
+		}
+		// note
+		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
+		// when holding the right-mouse button the 'action' stays at 1 and 'button is 1 -> release action = 0
 	}
 
 	virtual void cursorPosCallback(double xpos, double ypos) override
 	{
-		Log::info("POS CursorPosCallback: xpos={}, ypos={}", xpos, ypos);
+		Log::info("[CURSOR-POS-CALLBACK PIXEL]: xpos={}, ypos={}", xpos, ypos);
+		vec2 pos = vec2(xpos, ypos);
+		toClipSpace(pos);
+		mousePos = pos;
+		Log::info("[CURSOR-POS-CALLBACK CLIP]: xpos={}, ypos={}", pos.x, pos.y);
+
+		//vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// this is the length and width of the red 'box' that surrounds the control points, use these as bounds when trying to draw/select them
+		//cout << to_string(ptSize) << endl;
 	}
 
 	virtual void scrollCallback(double xoffset, double yoffset) override
@@ -145,7 +169,45 @@ public:
 		Log::info("WindowSizeCallback: width={}, height={}", width, height);
 		CallbackInterface::windowSizeCallback(width, height); // Important, calls glViewport(0, 0, width, height);
 	}
+private:
+	Window& win;
+	Panel& panel;
+	vector<vec3>& controlPoints;
+	int mouseButton; // 0: left mouse button | 1: right mouse button
+	int mouseAction; // 0: NOT held | 1: held (pressed down)
+	vec2 mousePos;	// mouse position in CLIP SPACE
+
+	/// <summary>
+	/// Converts pixel space position to clip space position.
+	/// </summary>
+	/// <param name="pos"></param>
+	void toClipSpace(vec2& pos)
+	{
+		double clipPosX = pos.x / (win.getWidth() / 2.f);
+		clipPosX -= 1;
+		double clipPosY = pos.y / (win.getHeight() / 2.f);
+		clipPosY -= 1;
+
+		pos.x = clipPosX;
+		pos.y = -clipPosY;
+	}
 };
+// delete
+/// <summary>
+/// Converts pixel space position to clip space position.
+/// </summary>
+/// <param name="pos"></param>
+void toClipSpace(vec2& pos, Window& win)
+{
+	double clipPosX = pos.x / (win.getWidth() / 2.f);
+	clipPosX -= 1;
+	double clipPosY = pos.y / (win.getHeight() / 2.f);
+	clipPosY -= 1;
+
+	pos.x = clipPosX;
+	pos.y = -clipPosY;
+} // delete
+
 
 // Can swap the callback instead of maintaining a state machine
 /*
@@ -256,16 +318,24 @@ private:
 
 int main() {
 	Log::debug("Starting main");
-
+	
 	// WINDOW
 	glfwInit();
 	Window window(800, 800, "CPSC 453: Assignment 3");
-	Panel panel(window.getGLFWwindow());
+	Panel panel(window.getGLFWwindow());				// note to self: renders the debug panel it seems
 
 	//GLDebug::enable();
 
+	std::vector<glm::vec3> cp_positions_vector =
+	{
+		{-.5f, -.5f, 0.f},
+		{ .5f, -.5f, 0.f},
+		{ .5f,  .5f, 0.f},
+		{-.5f,  .5f, 0.f}
+	};
+
 	// CALLBACKS
-	auto curve_editor_callback = std::make_shared<CurveEditorCallBack>();
+	auto curve_editor_callback = std::make_shared<CurveEditorCallBack>(window, panel, cp_positions_vector);
 	//auto turn_table_3D_viewer_callback = std::make_shared<TurnTable3DViewerCallBack>();
 
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>();
@@ -283,13 +353,13 @@ int main() {
 		"shaders/test.frag"
 	);
 
-	std::vector<glm::vec3> cp_positions_vector =
-	{
-		{-.5f, -.5f, 0.f},
-		{ .5f, -.5f, 0.f},
-		{ .5f,  .5f, 0.f},
-		{-.5f,  .5f, 0.f}
-	};
+	//std::vector<glm::vec3> cp_positions_vector =
+	//{
+	//	{-.5f, -.5f, 0.f},
+	//	{ .5f, -.5f, 0.f},
+	//	{ .5f,  .5f, 0.f},
+	//	{-.5f,  .5f, 0.f}
+	//};
 	glm::vec3 cp_point_colour	= { 1.f,0.f,0.f };
 	glm::vec3 cp_line_colour	= { 0.f,1.f,0.f };
 
@@ -297,24 +367,39 @@ int main() {
 	cp_point_cpu.verts	= cp_positions_vector;
 	cp_point_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
 	GPU_Geometry cp_point_gpu;
-	cp_point_gpu.setVerts(cp_point_cpu.verts);
-	cp_point_gpu.setCols(cp_point_cpu.cols);
+	//cp_point_gpu.setVerts(cp_point_cpu.verts);
+	//cp_point_gpu.setCols(cp_point_cpu.cols);
 
 	CPU_Geometry cp_line_cpu;
 	cp_line_cpu.verts	= cp_positions_vector; // We are using GL_LINE_STRIP (change this if you want to use GL_LINES)
 	cp_line_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_line_colour);
 	GPU_Geometry cp_line_gpu;
-	cp_line_gpu.setVerts(cp_line_cpu.verts);
-	cp_line_gpu.setCols(cp_line_cpu.cols);
+	//cp_line_gpu.setVerts(cp_line_cpu.verts);
+	//cp_line_gpu.setCols(cp_line_cpu.cols);
 
 
 	// Testing things
 	testDeCasteljauAlgo();
-
-
+	vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	cout << to_string(ptSize) << endl;
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
+
+		// update the control points for cpu
+		cp_point_cpu.verts = cp_positions_vector;
+		cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
+
+		cp_line_cpu.verts = cp_positions_vector; // We are using GL_LINE_STRIP (change this if you want to use GL_LINES)
+		cp_line_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_line_colour);
+
+		// set the new control points for gpu
+		cp_point_gpu.setVerts(cp_point_cpu.verts);
+		cp_point_gpu.setCols(cp_point_cpu.cols);
+
+		cp_line_gpu.setVerts(cp_line_cpu.verts);
+		cp_line_gpu.setCols(cp_line_cpu.cols);
+
 		glm::vec3 background_colour = curve_editor_panel_renderer->getColor();
 
 		//------------------------------------------
@@ -351,6 +436,11 @@ int main() {
 	return 0;
 }
 
+/// <summary>
+/// Takes in a "std::vector(glm::vec3)" and returns a string representation of it.
+/// </summary>
+/// <param name="arr"></param>
+/// <returns></returns>
 string toString(vector<vec3> arr)
 {
 	string ret = "\n[";
@@ -406,9 +496,10 @@ void testDeCasteljauAlgo()
 
 	//result = CurveGenerator::bezierCurve(controlPts, 3, 0.5f);
 	result = CurveGenerator::bezier(controlPts, 3, 0.5f);
-	cout << "\n[TEST] deCasteljau algo result: " <<  toString(result) << endl;
+	cout << "\n[TEST] control Points: " << toString(controlPts) << endl;
+	cout << "\n[TEST] bezier pt result: " <<  toString(result) << endl;
 
 	//result = CurveGenerator::bezierCurve(controlPts, 1000, 0.5f);
 	result = CurveGenerator::bezier(controlPts, 300, 0.5f);
-	cout << "\n[TEST] deCasteljau algo result: " << toString(result) << endl;
+	cout << "\n[TEST] bezier pt result: " << toString(result) << endl;
 }
