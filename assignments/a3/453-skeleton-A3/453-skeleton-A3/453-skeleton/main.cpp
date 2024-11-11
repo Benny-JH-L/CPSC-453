@@ -16,6 +16,9 @@
 #include "Window.h"
 #include "Panel.h"
 
+// my headers
+//#include "curve/CurveGenerator.h"
+
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
@@ -23,9 +26,95 @@ using namespace std;
 using namespace glm;
 
 void testDeCasteljauAlgo();
-//vector<vec3> deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u);
-vec3 deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u);
-vector<vec3> genBezierCurve(const vector<vec3> controlPts, int degree);
+
+class CurveGenerator
+{
+public:
+
+	/// <summary>
+	/// Ensure that the size of 'controlPts' is 1 more than 'degree'.
+	/// </summary>
+	/// <param name="controlPts"></param>
+	/// <param name="degree"></param>
+	/// <param name="u"></param>
+	/// <returns>A "std::vector(glm::vec3)" of size 1 that contains the point: Q(degree) (u)</returns>
+	static vector<vec3> bezier(const vector<vec3> controlPts, int degree, float u)
+	{
+		// Starts generation with the original control points and after each 'genBezierCurve' call
+		// this 'vector' gets smaller as the 'columns get smaller (contains the points at a column).
+		vector<vec3> curveSoFar = vector<vec3>(controlPts.size() - 1);
+
+		/* delete-----
+		//if (controlPts.size() - 1 != degree)	// checking if the number of control points is 1 more than the degree
+		//{
+		//	std::cout << "\nError occured in deCasteljauAlgo: (invalid number of control points)" << std::endl;
+		//	std::cout << "num controlPoints: " << controlPts.size() << " degree: " << degree << std::endl;
+
+		//	return curveSoFar;
+		//}
+		//curveSoFar = vector<vec3>(controlPts.size() - 1);
+		-----*/
+
+		for (int i = 1; i < controlPts.size(); i++)			// calculate entire "column"
+		{
+			vector<vec3> controlPtsToUse(2);
+			controlPtsToUse[0] = controlPts[i - 1];
+			controlPtsToUse[1] = controlPts[i];
+
+			curveSoFar[i - 1] = deCasteljauAlgo(controlPtsToUse, degree, u);
+		}
+
+		if (controlPts.size() > 2)	// If the size of 'controlPts' is less than 2 then we have reached the final column (calculated "Q<degree>(u)")
+			curveSoFar = bezier(curveSoFar, degree, u);	// Call itself again to generate next column
+
+		return curveSoFar;
+	}
+
+	static vector<vec3> chaikin(const vector<vec3> coursePts)
+	{
+		int numCoursePts = coursePts.size();
+		vector<vec3> finePoints;
+
+		// Special mask for the beginning
+		finePoints.push_back(coursePts[0]);
+		finePoints.push_back((0.5f * coursePts[0]) + (0.5f * coursePts[1]));
+
+		// Interior points
+		for (int i = 1; i < numCoursePts - 2; i++)
+		{
+			finePoints.push_back((0.75f * coursePts[i]) + (0.25f * coursePts[i + 1]));
+			finePoints.push_back((0.25f * coursePts[i]) + (0.75f * coursePts[i + 1]));
+		}
+
+		// Special mask for the end
+		finePoints.push_back((0.5f * coursePts[numCoursePts - 2]) + (0.5f * coursePts[numCoursePts - 1]));
+		finePoints.push_back(coursePts[numCoursePts - 1]);
+	}
+
+private:
+
+	static vec3 deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u)
+	{
+		vec3 pt = vec3();			// the point at a column
+
+
+		for (int i = 1; i < degree; i++)
+		{
+			for (int j = 0; j < degree - i; i++)
+			{
+				try
+				{
+					pt = vec3((1 - u) * controlPts[j] + u * controlPts[j + 1]);
+				}
+				catch (const std::exception&)
+				{
+					std::cout << "Error occured in deCasteljauAlgo" << std::endl;
+				}
+			}
+		}
+		return pt;
+	}
+};
 
 class CurveEditorCallBack : public CallbackInterface {
 public:
@@ -309,60 +398,17 @@ void testDeCasteljauAlgo()
 		vec3(0.f ,2.f, 0.f),
 		vec3(0.f ,0.f, 0.f)
 	};
-	vector<vec3> result(3);
+	vector<vec3> result(controlPts.size());
 
 	//result[0] = deCasteljauAlgo(controlPts1, 3, 0.5);
 	//result[1] = deCasteljauAlgo(controlPts2, 3, 0.5);
 	//result[2] = deCasteljauAlgo(controlPts3, 3, 0.5);
 
-	result = genBezierCurve(controlPts, 3);
-	
+	//result = CurveGenerator::bezierCurve(controlPts, 3, 0.5f);
+	result = CurveGenerator::bezier(controlPts, 3, 0.5f);
 	cout << "\n[TEST] deCasteljau algo result: " <<  toString(result) << endl;
-}
 
-vector<vec3> genBezierCurve(const vector<vec3> controlPts, int degree)
-{
-	// Starts generation with the original control points and after each 'genBezierCurve' call
-	// this 'vector' gets smaller as the 'columns get smaller (contains the points at a column).
-	vector<vec3> curveSoFar(controlPts.size() - 1);
-
-
-	for (int i = 1; i < controlPts.size(); i++)			// calculate entire "column"
-	{
-		vector<vec3> controlPtsToUse(2);
-		controlPtsToUse[0] = controlPts[i - 1];
-		controlPtsToUse[1] = controlPts[i];
-
-		curveSoFar[i-1] = deCasteljauAlgo(controlPtsToUse, degree, 0.5);
-	}
-
-	if (controlPts.size() > 2)	// If the size of 'controlPts' is less than 2 then we have reached the final column (calculated "Q<degree>(u)")
-		curveSoFar = genBezierCurve(curveSoFar, degree);	// Call itself again to generate next column
-
-	return curveSoFar;
-}
-
-//vector<vec3> deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u)
-vec3 deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u)
-{
-	//vector<vec3> pt = vector<vec3>(controlPts.size());
-	vec3 pt = vec3();
-
-
-	for (int i = 1; i < degree; i++)
-	{
-		for (int j = 0; j < degree - i; i++)
-		{
-			try
-			{
-				pt = vec3((1 - u) * controlPts[j] + u * controlPts[j + 1]);
-			}
-			catch (const std::exception&)
-			{
-				std::cout << "Error occured in deCasteljauAlgo" << std::endl;
-			}
-		}
-	}
-
-	return pt;
+	//result = CurveGenerator::bezierCurve(controlPts, 1000, 0.5f);
+	result = CurveGenerator::bezier(controlPts, 300, 0.5f);
+	cout << "\n[TEST] deCasteljau algo result: " << toString(result) << endl;
 }
