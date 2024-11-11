@@ -19,27 +19,40 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
+using namespace std;
+using namespace glm;
+
+void testDeCasteljauAlgo();
+//vector<vec3> deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u);
+vec3 deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u);
+vector<vec3> genBezierCurve(const vector<vec3> controlPts, int degree);
+
 class CurveEditorCallBack : public CallbackInterface {
 public:
 	CurveEditorCallBack() {}
 
-	virtual void keyCallback(int key, int scancode, int action, int mods) override {
-		Log::info("KeyCallback: key={}, action={}", key, action);
+	virtual void keyCallback(int key, int scancode, int action, int mods) override
+	{
+		Log::info("KEEEEEYYYYY KeyCallback: key={}, action={}", key, action);
 	}
 
-	virtual void mouseButtonCallback(int button, int action, int mods) override {
+	virtual void mouseButtonCallback(int button, int action, int mods) override
+	{
 		Log::info("MouseButtonCallback: button={}, action={}", button, action);
 	}
 
-	virtual void cursorPosCallback(double xpos, double ypos) override {
-		Log::info("CursorPosCallback: xpos={}, ypos={}", xpos, ypos);
+	virtual void cursorPosCallback(double xpos, double ypos) override
+	{
+		Log::info("POS CursorPosCallback: xpos={}, ypos={}", xpos, ypos);
 	}
 
-	virtual void scrollCallback(double xoffset, double yoffset) override {
+	virtual void scrollCallback(double xoffset, double yoffset) override
+	{
 		Log::info("ScrollCallback: xoffset={}, yoffset={}", xoffset, yoffset);
 	}
 
-	virtual void windowSizeCallback(int width, int height) override {
+	virtual void windowSizeCallback(int width, int height) override
+	{
 		Log::info("WindowSizeCallback: width={}, height={}", width, height);
 		CallbackInterface::windowSizeCallback(width, height); // Important, calls glViewport(0, 0, width, height);
 	}
@@ -68,9 +81,13 @@ private:
 
 class CurveEditorPanelRenderer : public PanelRendererInterface {
 public:
-	CurveEditorPanelRenderer()
-		: inputText(""), buttonClickCount(0), sliderValue(0.0f),
-		dragValue(0.0f), inputValue(0.0f), checkboxValue(false),
+	CurveEditorPanelRenderer():
+		inputText(""),
+		buttonClickCount(0),
+		sliderValue(0.0f),
+		dragValue(0.0f),
+		inputValue(0.0f),
+		checkboxValue(false),
 		comboSelection(0)
 	{
 		// Initialize options for the combo box
@@ -177,7 +194,8 @@ int main() {
 		"shaders/test.frag"
 	);
 
-	std::vector<glm::vec3> cp_positions_vector = {
+	std::vector<glm::vec3> cp_positions_vector =
+	{
 		{-.5f, -.5f, 0.f},
 		{ .5f, -.5f, 0.f},
 		{ .5f,  .5f, 0.f},
@@ -199,6 +217,12 @@ int main() {
 	GPU_Geometry cp_line_gpu;
 	cp_line_gpu.setVerts(cp_line_cpu.verts);
 	cp_line_gpu.setCols(cp_line_cpu.cols);
+
+
+	// Testing things
+	testDeCasteljauAlgo();
+
+
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
@@ -236,4 +260,109 @@ int main() {
 
 	glfwTerminate();
 	return 0;
+}
+
+string toString(vector<vec3> arr)
+{
+	string ret = "\n[";
+
+	for (int i = 0; i < arr.size(); i++)
+	{
+		ret += to_string(arr[i]);
+		if (i + 1 != arr.size())
+			ret += ",\n";
+	}
+	ret += ']';
+
+	return ret;
+}
+
+void testDeCasteljauAlgo()
+{
+	vector<vec3> controlPts =
+	{
+		vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f),
+		vec3(0.f ,0.f, 0.f)
+	};
+
+	vector<vec3> controlPts1 =
+	{
+		vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f)
+		//vec3(0.f ,2.f, 0.f),
+		//vec3(0.f ,0.f, 0.f)
+	};
+	vector<vec3> controlPts2 =
+	{
+		//vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f)
+		//vec3(0.f ,0.f, 0.f)
+	};
+
+	vector<vec3> controlPts3 =
+	{
+		//vec3(4.f ,0.f, 0.f),
+		//vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f),
+		vec3(0.f ,0.f, 0.f)
+	};
+	vector<vec3> result(3);
+
+	//result[0] = deCasteljauAlgo(controlPts1, 3, 0.5);
+	//result[1] = deCasteljauAlgo(controlPts2, 3, 0.5);
+	//result[2] = deCasteljauAlgo(controlPts3, 3, 0.5);
+
+	result = genBezierCurve(controlPts, 3);
+	
+	cout << "\n[TEST] deCasteljau algo result: " <<  toString(result) << endl;
+}
+
+vector<vec3> genBezierCurve(const vector<vec3> controlPts, int degree)
+{
+	// Starts generation with the original control points and after each 'genBezierCurve' call
+	// this 'vector' gets smaller as the 'columns get smaller (contains the points at a column).
+	vector<vec3> curveSoFar(controlPts.size() - 1);
+
+
+	for (int i = 1; i < controlPts.size(); i++)			// calculate entire "column"
+	{
+		vector<vec3> controlPtsToUse(2);
+		controlPtsToUse[0] = controlPts[i - 1];
+		controlPtsToUse[1] = controlPts[i];
+
+		curveSoFar[i-1] = deCasteljauAlgo(controlPtsToUse, degree, 0.5);
+	}
+
+	if (controlPts.size() > 2)	// If the size of 'controlPts' is less than 2 then we have reached the final column (calculated "Q<degree>(u)")
+		curveSoFar = genBezierCurve(curveSoFar, degree);	// Call itself again to generate next column
+
+	return curveSoFar;
+}
+
+//vector<vec3> deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u)
+vec3 deCasteljauAlgo(const vector<vec3> controlPts, int degree, float u)
+{
+	//vector<vec3> pt = vector<vec3>(controlPts.size());
+	vec3 pt = vec3();
+
+
+	for (int i = 1; i < degree; i++)
+	{
+		for (int j = 0; j < degree - i; i++)
+		{
+			try
+			{
+				pt = vec3((1 - u) * controlPts[j] + u * controlPts[j + 1]);
+			}
+			catch (const std::exception&)
+			{
+				std::cout << "Error occured in deCasteljauAlgo" << std::endl;
+			}
+		}
+	}
+
+	return pt;
 }
