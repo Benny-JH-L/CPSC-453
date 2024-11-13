@@ -233,15 +233,15 @@
 				15,
 				17,
 				19,
-				22,
+				21,
+				23,
 				24,
 				25,
 				26,
 				27,
 				28,
 				29,
-				30,
-				31
+				30
 			]
 		}
 	],
@@ -323,15 +323,15 @@
 				15,
 				17,
 				19,
-				22,
+				21,
+				23,
 				24,
 				25,
 				26,
 				27,
 				28,
 				29,
-				30,
-				31
+				30
 			]
 		},
 		{
@@ -355,8 +355,7 @@
 			"name" : "",
 			"sourceIndexes" : 
 			[
-				21,
-				23
+				22
 			]
 		}
 	],
@@ -476,11 +475,6 @@
 			"backtrace" : 1,
 			"path" : "453-skeleton/Window.h",
 			"sourceGroupIndex" : 1
-		},
-		{
-			"backtrace" : 1,
-			"path" : "453-skeleton/curve",
-			"sourceGroupIndex" : 2
 		},
 		{
 			"backtrace" : 1,
