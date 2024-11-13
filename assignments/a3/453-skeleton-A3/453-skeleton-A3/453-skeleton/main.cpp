@@ -26,7 +26,7 @@ using namespace std;
 using namespace glm;
 
 const static float POINT_SIZE = 15.f;	// in pixel space? -> but divide by 1000.f to get clip space value 
-const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 15;
+const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 0;
 
 void testDeCasteljauAlgo();
@@ -374,6 +374,9 @@ void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, wi
 {
 	//cout << "\n[CHECKING OPTION]" << endl;	// debug
 
+	if (windowData.controlPts.size() <= 0)
+		return;
+
 	vector<vec3> userControlPoints = windowData.controlPts;
 	vector<vec3> cp_positions_vector;	// positions to update
 
@@ -411,6 +414,15 @@ void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, wi
 	case 0:	// Bezier curve
 		//cout << "CHOSEN Bezier " << endl;	// debug
 
+		// Cases
+		if (userControlPoints.size() <= 0)		// No control points
+			break;
+		else if (userControlPoints.size() <= 1)	// 1 control point
+		{
+			cp_positions_vector.push_back(userControlPoints[0]);
+			break;
+		}
+
 		// debug
 		//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
 		//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
@@ -443,6 +455,15 @@ void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, wi
 		break;
 	case 1: // Quadratic B-spline (Chaikin) curve
 		//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
+
+		// Cases
+		if (userControlPoints.size() <= 0)			// No control points
+			break;
+		else if (userControlPoints.size() <= 1)		// 1 control point
+		{
+			cp_positions_vector.push_back(userControlPoints[0]);
+			break;
+		}
 
 		for (int i = 0; i < windowData.numIterations; i++)
 		{
@@ -491,12 +512,12 @@ int main() {
 
 	std::vector<glm::vec3> cp_positions_vector =
 	{
-		{-.5f, -.5f, 0.f},
-		{ .5f, -.5f, 0.f},
+		//{-.5f, -.5f, 0.f},
 		//{ .5f, -.5f, 0.f},
-		{ .5f,  .5f, 0.f},
+		////{ .5f, -.5f, 0.f},
 		//{ .5f,  .5f, 0.f},
-		{-.5f,  .5f, 0.f}
+		////{ .5f,  .5f, 0.f},
+		//{-.5f,  .5f, 0.f}
 	};
 
 	int numberOfIOteration = 1;
