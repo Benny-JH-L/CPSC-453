@@ -27,7 +27,7 @@ using namespace glm;
 
 const static float POINT_SIZE = 15.f;	// in pixel space? -> but divide by 1000.f to get clip space value 
 const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
-const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 0;
+const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 
 void testDeCasteljauAlgo();
 string toString(vector<vec3> arr);
@@ -35,8 +35,10 @@ string toString(vector<vec3> arr);
 struct windowControlPtData
 {
 	Window& window;
-	vector<vec3>& controlPts;
+	vector<vec3>& controlPts;	// The control points the user entered
+	vector<vec3>& curve;		// points that represent the generated curve
 	int& numIterations;
+	bool showCurvePoints = false;	// to show curve points
 };
 
 struct optionData
@@ -45,10 +47,14 @@ struct optionData
 	const char* options[]; // Options for the combo box
 };
 
-//struct geometry
-//{
-//
-//};
+struct cpuGeometriesData
+{
+	CPU_Geometry& cp_point_cpu;
+	CPU_Geometry& cp_line_cpu;
+
+	CPU_Geometry& curve_point_cpu;	// Contains the control points for the generated curve (to display points if needed)
+	CPU_Geometry& curve_line_cpu;	// Contains the control points for the generated curve (lines of the curve)
+};
 
 class CurveGenerator
 {
@@ -258,7 +264,7 @@ private:
 class CurveEditorPanelRenderer : public PanelRendererInterface
 {
 public:
-	CurveEditorPanelRenderer(windowControlPtData d) :
+	CurveEditorPanelRenderer(windowControlPtData& d) :
 		inputText(""),
 		buttonClickCount(0),
 		sliderValue(0.0f),
@@ -273,10 +279,16 @@ public:
 		options[1] = "Quadratic B-spline (Chaikin)";
 		options[2] = "Option 3 (NULL)";
 
+		/*
 		// Initialize color (white by default)
 		colorValue[0] = 1.0f; // R
 		colorValue[1] = 1.0f; // G
 		colorValue[2] = 1.0f; // B
+		*/
+		// Initialize color (grey by default)
+		colorValue[0] = 0.5f; // R
+		colorValue[1] = 0.5f; // G
+		colorValue[2] = 0.5f; // B
 	}
 
 	virtual void render() override
@@ -285,17 +297,21 @@ public:
 		ImGui::ColorEdit3("Select Background Color", colorValue); // RGB color selector
 		ImGui::Text("Selected Color: R: %.3f, G: %.3f, B: %.3f", colorValue[0], colorValue[1], colorValue[2]);
 
+		/*
 		// Text input
 		ImGui::InputText("Input Text", inputText, IM_ARRAYSIZE(inputText));
 
 		// Display the input text
 		ImGui::Text("You entered: %s", inputText);
+		*/
 
+		/*
 		// Button
 		if (ImGui::Button("Click Me")) {
 			buttonClickCount++;
 		}
 		ImGui::Text("Button clicked %d times", buttonClickCount);
+		*/
 
 		// Scrollable block
 		ImGui::TextWrapped("Active Control Points (Scrollable Block):");
@@ -306,6 +322,7 @@ public:
 		}
 		ImGui::EndChild();
 
+		/*
 		// Float slider
 		ImGui::SliderFloat("Float Slider", &sliderValue, 0.0f, 100.0f, "Slider Value: %.3f");
 
@@ -314,9 +331,11 @@ public:
 
 		// Float input
 		ImGui::InputFloat("Float Input", &inputValue, 0.1f, 1.0f, "Input Value: %.3f");
+		*/
 
 		// Number of iterations input
-		ImGui::InputInt("Num Iterations", &numberOfIterations, 1, 1);
+		//ImGui::InputInt("Iterations", &numberOfIterations, 1, 1);
+		ImGui::SliderInt("Iterations", &numberOfIterations, MIN_NUMBER_OF_ITERATIONS_FOR_CURVES, MAX_NUMBER_OF_ITERATIONS_FOR_CURVES, "Drag Value: %d");
 		ImGui::Text("Min number of iterations: %d", MIN_NUMBER_OF_ITERATIONS_FOR_CURVES);
 		ImGui::Text("Max number of iterations: %d", MAX_NUMBER_OF_ITERATIONS_FOR_CURVES);
 
@@ -325,19 +344,27 @@ public:
 		else if (numberOfIterations > MAX_NUMBER_OF_ITERATIONS_FOR_CURVES)	// Setting the max of iterations to "MAX_NUMBER_OF_ITERATIONS_FOR_CURVES"
 			numberOfIterations = MAX_NUMBER_OF_ITERATIONS_FOR_CURVES;
 
-		// Checkbox
-		ImGui::Checkbox("Enable Feature", &checkboxValue);
-		ImGui::Text("Feature Enabled: %s", checkboxValue ? "Yes" : "No");
-
 		// Combo box
 		ImGui::Combo("Select an Option", &comboSelection, options, IM_ARRAYSIZE(options));
 		ImGui::Text("Selected: %s", options[comboSelection]);
 
+		/*
+		// Checkbox (original)
+		ImGui::Checkbox("Enable Feature", &checkboxValue);
+		ImGui::Text("Feature Enabled: %s", checkboxValue ? "Yes" : "No");
+		*/
+
+		// Checkbox
+		ImGui::Checkbox("Show curve points", &showCurvePoints);
+		ImGui::Text("Feature Enabled: %s", &showCurvePoints ? "Yes" : "No");
+		data.showCurvePoints = showCurvePoints;
+		/*
 		// Displaying current values
 		ImGui::Text("Slider Value: %.3f", sliderValue);
 		ImGui::Text("Drag Value: %.3f", dragValue);
 		ImGui::Text("[FLOAT] Input Value: %.3f", inputValue);
 		ImGui::Text("[INT] Number of iterations: %d", numberOfIterations);
+		*/
 
 	}
 
@@ -365,140 +392,210 @@ private:
 	bool checkboxValue;   // Value for checkbox
 	int comboSelection;   // Index of selected option in combo box
 	const char* options[3]; // Options for the combo box
-	windowControlPtData data;
+	windowControlPtData& data;
 	vector<vec3>& controlPts = data.controlPts;
 	int& numberOfIterations = data.numIterations;
+	bool& showCurvePoints = data.showCurvePoints;
 };
 
-void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, windowControlPtData& windowData, optionData& optionData)
+void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData, optionData& optionData)
 {
-	//cout << "\n[CHECKING OPTION]" << endl;	// debug
+	vector<vec3> cp_positions_vector = windowData.controlPts;	// User entered control points
+	vector<vec3> curveGenerated;								// Curve generated
 
-	if (windowData.controlPts.size() <= 0)
-		return;
-
-	vector<vec3> userControlPoints = windowData.controlPts;
-	vector<vec3> cp_positions_vector;	// positions to update
-
-	vector<vec3> cp_line_colours;
-	// Pair up control points such that it forms the green lines properly
-	for (int i = 1; i < userControlPoints.size(); i++)
+	if (cp_positions_vector.size() >= 2)
 	{
-		cp_positions_vector.push_back(userControlPoints[i - 1]);
-		cp_positions_vector.push_back(userControlPoints[i]);
-
-		// Colors for the original control points entered
-		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
-		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
-	}
-	int sizeOfColorsForOriginalControlPts = cp_line_colours.size();
-
-	// Colors for the original control points entered
-	//for (int i = 0; i < cp_positions_vector.size(); i++)
-	//{
-	//	cp_line_colours.push_back(vec3(0.f,1.f,0.f));
-	//}
-
-	//vector<vec3> testPoints =
-	//{
-	//	vec3(4.f / 4.f ,0.f, 0.f),
-	//	vec3(8.f / 4.f,2.f / 4.f, 0.f),
-	//	vec3(0.f ,2.f / 4.f, 0.f),
-	//	vec3(0.f ,0.f, 0.f)
-	//};
-
-	vector<vec3> generatedCurveSoFar;
-	// Update control points for the cpu
-	switch (optionData.comboSelection)
-	{
-	case 0:	// Bezier curve
-		//cout << "CHOSEN Bezier " << endl;	// debug
-
-		// Cases
-		if (userControlPoints.size() <= 0)		// No control points
-			break;
-		else if (userControlPoints.size() <= 1)	// 1 control point
+		switch (optionData.comboSelection)
 		{
-			cp_positions_vector.push_back(userControlPoints[0]);
-			break;
-		}
+		case 0:	// Bezier curve
+			//cout << "CHOSEN Bezier " << endl;	// debug
 
-		// debug
-		//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
-		//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
+			// debug
+			//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
+			//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
 
-		vec3 previousBezierPt = userControlPoints[0];
-		//for (int i = 0; i < 1; i++)
-		//{
-			//vec3 previousBezierPt = controlPoints[0];
 			// Generate the curve
 			for (float u = 0; u <= 1; u += (0.5f / windowData.numIterations))
 			{
-				cp_positions_vector.push_back(previousBezierPt);
-				vec3 currBezierPt = CurveGenerator::bezier(userControlPoints, 2, u)[0];
-				cp_positions_vector.push_back(currBezierPt);
-				previousBezierPt = currBezierPt;				// update the previously calculated point to this point
-
-				//if (u != 0 && u != 1)
-				//	generatedCurveSoFar.push_back(currBezierPt);
+				vec3 currBezierPt = CurveGenerator::bezier(cp_positions_vector, 2, u)[0];
+				curveGenerated.push_back(currBezierPt);
 			}
-			//// Set new control points
-			//for (int i = 0; i < generatedCurveSoFar.size(); i++)
-			//{
-			//	controlPoints.push_back(generatedCurveSoFar[i]);
-			//}
-			//generatedCurveSoFar.clear();
-			
-		//}
-		cp_positions_vector.push_back(userControlPoints[userControlPoints.size() - 1]);		// Adding the last control point so that the 'lines' are drawn properly
 
-		break;
-	case 1: // Quadratic B-spline (Chaikin) curve
-		//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
+			// ensure that the last point in the curve is the last control point entered
+			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 
-		// Cases
-		if (userControlPoints.size() <= 0)			// No control points
 			break;
-		else if (userControlPoints.size() <= 1)		// 1 control point
-		{
-			cp_positions_vector.push_back(userControlPoints[0]);
+
+		case 1: // Quadratic B-spline (Chaikin) curve
+			//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
+
+			curveGenerated = cp_positions_vector;							// Initial curve
+			for (int i = 0; i < windowData.numIterations; i++)
+			{
+				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
+			}
+
+			break;
+
+		default:
+			cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
 			break;
 		}
-
-		for (int i = 0; i < windowData.numIterations; i++)
-		{
-			generatedCurveSoFar = CurveGenerator::chaikin(userControlPoints);
-			userControlPoints = generatedCurveSoFar;	// set it
-		}
-
-		// add the points generated into the cp_positions
-		for (int j = 1; j < generatedCurveSoFar.size(); j++)
-		{
-			cp_positions_vector.push_back(generatedCurveSoFar[j - 1]);
-			cp_positions_vector.push_back(generatedCurveSoFar[j]);
-		}
-
-		break;
-	default:
-		cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
-		break;
 	}
 
-	glm::vec3 cp_point_colour = { 1.f, 0.f, 0.f };
-	glm::vec3 cp_line_colour = { 0.f, 0.5f, 1.f };
 
-	// update the control points for cpu
-	cp_point_cpu.verts = cp_positions_vector;
-	cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
+	CPU_Geometry& cp_point_cpu = geoms.cp_point_cpu;
+	CPU_Geometry& cp_line_cpu = geoms.cp_line_cpu;
+	CPU_Geometry& curve_point_cpu = geoms.curve_point_cpu;
+	CPU_Geometry& curve_line_cpu = geoms.curve_line_cpu;
 
-	cp_line_cpu.verts = cp_positions_vector; // I changed it to use GL_LINES
-	// Set the colors of the generated curve's points
-	for (int i = sizeOfColorsForOriginalControlPts; i < cp_positions_vector.size(); i++)
-	{
-		cp_line_colours.push_back(cp_line_colour);
-	}
-	cp_line_cpu.cols = cp_line_colours;
-};
+	// Do colouring
+	vec3 cp_point_colour = { 1.f, 0.f, 0.f };
+	vec3 curveColour = { 0.f, 0.5f, 1.f };	// Cyan
+
+	// update the values for CPU_Geometries //
+	
+	// update user entered control points
+	cp_point_cpu.verts = cp_positions_vector;	// contains only the points the user entered
+	cp_point_cpu.cols = vector<vec3>(cp_point_cpu.verts.size(), cp_point_colour);	// set those points to red
+	// set the color of those lines
+	cp_line_cpu.verts = cp_positions_vector;
+	cp_line_cpu.cols = vector<vec3>(cp_line_cpu.verts.size(), vec3(0.f, 1.f, 0.f));
+
+	// update the curve
+	curve_point_cpu.verts = curveGenerated;
+	curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
+	// update curve line
+	curve_line_cpu.verts = curveGenerated;
+	curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size() + 1, curveColour);
+}
+
+//void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, windowControlPtData& windowData, optionData& optionData)
+//{
+//	//cout << "\n[CHECKING OPTION]" << endl;	// debug
+//
+//	vector<vec3> userControlPoints = windowData.controlPts;
+//	vector<vec3> cp_positions_vector;	// positions to update
+//
+//	vector<vec3> cp_line_colours;
+//	// Pair up control points such that it forms the green lines properly
+//	for (int i = 1; i < userControlPoints.size(); i++)
+//	{
+//		cp_positions_vector.push_back(userControlPoints[i - 1]);
+//		cp_positions_vector.push_back(userControlPoints[i]);
+//
+//		// Colors for the original control points entered
+//		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
+//		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
+//	}
+//	int sizeOfColorsForOriginalControlPts = cp_line_colours.size();
+//
+//	// Colors for the original control points entered
+//	//for (int i = 0; i < cp_positions_vector.size(); i++)
+//	//{
+//	//	cp_line_colours.push_back(vec3(0.f,1.f,0.f));
+//	//}
+//
+//	//vector<vec3> testPoints =
+//	//{
+//	//	vec3(4.f / 4.f ,0.f, 0.f),
+//	//	vec3(8.f / 4.f,2.f / 4.f, 0.f),
+//	//	vec3(0.f ,2.f / 4.f, 0.f),
+//	//	vec3(0.f ,0.f, 0.f)
+//	//};
+//
+//	vector<vec3> generatedCurveSoFar;
+//	// Update control points for the cpu
+	//switch (optionData.comboSelection)
+	//{
+	//case 0:	// Bezier curve
+	//	//cout << "CHOSEN Bezier " << endl;	// debug
+
+	//	// Cases
+	//	if (userControlPoints.size() <= 0)		// No control points
+	//		break;
+	//	else if (userControlPoints.size() <= 1)	// 1 control point
+	//	{
+	//		cp_positions_vector.push_back(userControlPoints[0]);
+	//		break;
+	//	}
+
+	//	// debug
+	//	//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
+	//	//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
+
+	//	vec3 previousBezierPt = userControlPoints[0];
+	//	//for (int i = 0; i < 1; i++)
+	//	//{
+	//		//vec3 previousBezierPt = controlPoints[0];
+	//		// Generate the curve
+	//		for (float u = 0; u <= 1; u += (0.5f / windowData.numIterations))
+	//		{
+	//			cp_positions_vector.push_back(previousBezierPt);
+	//			vec3 currBezierPt = CurveGenerator::bezier(userControlPoints, 2, u)[0];
+	//			cp_positions_vector.push_back(currBezierPt);
+	//			previousBezierPt = currBezierPt;				// update the previously calculated point to this point
+
+	//			//if (u != 0 && u != 1)
+	//			//	generatedCurveSoFar.push_back(currBezierPt);
+	//		}
+	//		//// Set new control points
+	//		//for (int i = 0; i < generatedCurveSoFar.size(); i++)
+	//		//{
+	//		//	controlPoints.push_back(generatedCurveSoFar[i]);
+	//		//}
+	//		//generatedCurveSoFar.clear();
+	//		
+	//	//}
+	//	cp_positions_vector.push_back(userControlPoints[userControlPoints.size() - 1]);		// Adding the last control point so that the 'lines' are drawn properly
+
+	//	break;
+	//case 1: // Quadratic B-spline (Chaikin) curve
+	//	//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
+
+	//	// Cases
+	//	if (userControlPoints.size() <= 0)			// No control points
+	//		break;
+	//	else if (userControlPoints.size() <= 1)		// 1 control point
+	//	{
+	//		cp_positions_vector.push_back(userControlPoints[0]);
+	//		break;
+	//	}
+
+	//	for (int i = 0; i < windowData.numIterations; i++)
+	//	{
+	//		generatedCurveSoFar = CurveGenerator::chaikin(userControlPoints);
+	//		userControlPoints = generatedCurveSoFar;	// set it
+	//	}
+
+	//	// add the points generated into the cp_positions
+	//	for (int j = 1; j < generatedCurveSoFar.size(); j++)
+	//	{
+	//		cp_positions_vector.push_back(generatedCurveSoFar[j - 1]);
+	//		cp_positions_vector.push_back(generatedCurveSoFar[j]);
+	//	}
+
+	//	break;
+	//default:
+	//	cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
+	//	break;
+	//}
+//
+//	glm::vec3 cp_point_colour = { 1.f, 0.f, 0.f };
+//	glm::vec3 cp_line_colour = { 0.f, 0.5f, 1.f };
+//
+//	// update the control points for cpu
+//	cp_point_cpu.verts = cp_positions_vector;
+//	cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
+//
+//	cp_line_cpu.verts = cp_positions_vector; // I changed it to use GL_LINES
+//	// Set the colors of the generated curve's points
+//	for (int i = sizeOfColorsForOriginalControlPts; i < cp_positions_vector.size(); i++)
+//	{
+//		cp_line_colours.push_back(cp_line_colour);
+//	}
+//	cp_line_cpu.cols = cp_line_colours;
+//};
 
 int main() {
 	Log::debug("Starting main");
@@ -519,9 +616,10 @@ int main() {
 		////{ .5f,  .5f, 0.f},
 		//{-.5f,  .5f, 0.f}
 	};
+	vector<vec3> curve;
 
 	int numberOfIOteration = 1;
-	windowControlPtData windowData = { window, cp_positions_vector, numberOfIOteration };
+	windowControlPtData windowData = { window, cp_positions_vector, curve, numberOfIOteration };
 
 	// CALLBACKS
 
@@ -568,17 +666,23 @@ int main() {
 	//cp_line_gpu.setVerts(cp_line_cpu.verts);
 	//cp_line_gpu.setCols(cp_line_cpu.cols);
 
+	CPU_Geometry curve_point_cpu;
+	GPU_Geometry curve_point_gpu;
+	CPU_Geometry curve_line_cpu;
+	GPU_Geometry curve_line_gpu;
+
+	cpuGeometriesData geometries = {cp_point_cpu, cp_line_cpu, curve_point_cpu, curve_line_cpu };
 
 	// Testing things
-	testDeCasteljauAlgo();
-	vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
-	cout << to_string(ptSize) << endl;
+	//testDeCasteljauAlgo();
+	//vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	//cout << to_string(ptSize) << endl;
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
 
 		//---- do the settting of cpu stuff in here (checkOptionChosen)
-		checkOptionChosen(cp_point_cpu, cp_line_cpu, windowData, optionData);
+		checkOptionChosen(geometries, windowData, optionData);
 		
 		//// update the control points for cpu
 		//cp_point_cpu.verts = cp_positions_vector;
@@ -595,6 +699,12 @@ int main() {
 		cp_line_gpu.setVerts(cp_line_cpu.verts);
 		cp_line_gpu.setCols(cp_line_cpu.cols);
 
+		curve_point_gpu.setVerts(curve_point_cpu.verts);
+		curve_point_gpu.setCols(curve_point_cpu.cols);
+
+		curve_line_gpu.setVerts(curve_line_cpu.verts);
+		curve_line_gpu.setCols(curve_line_cpu.cols);
+
 		glm::vec3 background_colour = curve_editor_panel_renderer->getColor();
 
 		//------------------------------------------
@@ -609,6 +719,7 @@ int main() {
 		// Use the default shader (can use different ones for different objects)
 		shader_program_default.use();
 
+
 		//Render control points
 		cp_point_gpu.bind();
 		glPointSize(15.f);
@@ -617,9 +728,19 @@ int main() {
 		//Render curve connecting control points
 		cp_line_gpu.bind();
 		//glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
-		//glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
-		glDrawArrays(GL_LINES, 0, cp_line_cpu.verts.size());		// Changed to GL_LINES instead of GL_LINE_STRIP
-		
+		glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
+
+		if (windowData.showCurvePoints)
+		{
+			// Render points generated for the curve
+			curve_point_gpu.bind();
+			glPointSize(5.f);
+			glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
+		}
+		// Render curve generated
+		curve_line_gpu.bind();
+		glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
+
 		//------------------------------------------
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 		panel.render();
