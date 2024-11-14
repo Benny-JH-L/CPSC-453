@@ -25,7 +25,10 @@
 using namespace std;
 using namespace glm;
 
-const static float POINT_SIZE = 15.f;	// in pixel space? -> but divide by 1000.f to get clip space value 
+const static float CONTROL_POINT_SIZE = 15.f;										// Size of the control point's box
+const static float CONTROL_POINT_LENGTH = 2 * (CONTROL_POINT_SIZE / 1000.f);		// Length of the control point's box
+const static float CONTROL_POINT_WIDTH= CONTROL_POINT_LENGTH;						// Width of the control point's box
+
 const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 
@@ -38,9 +41,14 @@ struct windowControlPtData
 	vector<vec3>& controlPts;	// The control points the user entered
 	vector<vec3>& curve;		// points that represent the generated curve
 	int& numIterations;
-	bool showCurvePoints = false;	// to show curve points
+	bool& showCurvePoints;		// to show curve points
+	bool& deleteControlPts;		// to delete curve points
 };
 
+/// <summary>
+/// Options include: bezier and B-spline curves, perspective viewing (2D, 3D,),
+/// surface of revolution, and tensor product surfaces
+/// </summary>
 struct optionData
 {
 	int& comboSelection;   // Index of selected option in combo box
@@ -150,11 +158,11 @@ private:
 class CurveEditorCallBack : public CallbackInterface
 {
 public:
-	CurveEditorCallBack(windowControlPtData& data, Panel& p) :
-		data(data),
-		win(data.window),
-		panel(p),
-		controlPoints(data.controlPts)
+	CurveEditorCallBack(windowControlPtData& wData, optionData& oData) :
+		windowData(wData),
+		win(wData.window),
+		optionData(oData),
+		controlPoints(wData.controlPts)
 	{}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods) override
@@ -200,10 +208,10 @@ public:
 		CallbackInterface::windowSizeCallback(width, height); // Important, calls glViewport(0, 0, width, height);
 	}
 private:
-	windowControlPtData& data;
-	Window& win = data.window;
-	Panel& panel;
-	vector<vec3>& controlPoints = data.controlPts;
+	windowControlPtData& windowData;
+	optionData& optionData;
+	Window& win = windowData.window;
+	vector<vec3>& controlPoints = windowData.controlPts;
 	int mouseButton; // 0: left mouse button | 1: right mouse button
 	int mouseAction; // 0: NOT held | 1: held (pressed down)
 	vec2 mousePos;	// mouse position in CLIP SPACE
@@ -223,6 +231,7 @@ private:
 		pos.y = -clipPosY;
 	}
 };
+
 // delete
 /// <summary>
 /// Converts pixel space position to clip space position.
@@ -241,6 +250,7 @@ void toClipSpace(vec2& pos, Window& win)
 
 
 // Can swap the callback instead of maintaining a state machine
+
 /*
 class TurnTable3DViewerCallBack : public CallbackInterface {
 
@@ -272,7 +282,7 @@ public:
 		inputValue(0.0f),
 		checkboxValue(false),
 		comboSelection(0),
-		data(d)
+		windowData(d)
 	{
 		// Initialize options for the combo box
 		options[0] = "Bezier Curve";
@@ -313,15 +323,6 @@ public:
 		ImGui::Text("Button clicked %d times", buttonClickCount);
 		*/
 
-		// Scrollable block
-		ImGui::TextWrapped("Active Control Points (Scrollable Block):");
-		ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
-		for (int i = 0; i < controlPts.size(); i++) {
-			vec3 v = controlPts[i];
-			ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
-		}
-		ImGui::EndChild();
-
 		/*
 		// Float slider
 		ImGui::SliderFloat("Float Slider", &sliderValue, 0.0f, 100.0f, "Slider Value: %.3f");
@@ -355,9 +356,24 @@ public:
 		*/
 
 		// Checkbox
-		ImGui::Checkbox("Show curve points", &showCurvePoints);
-		ImGui::Text("Feature Enabled: %s", &showCurvePoints ? "Yes" : "No");
-		data.showCurvePoints = showCurvePoints;
+		ImGui::Checkbox("Show curve points (Bezier/Chaikin curves only)", &showCurvePoints);
+		ImGui::Checkbox("Delete curve points", &deleteControlPts);
+
+		// Scrollable block
+		ImGui::TextWrapped("Active Control Points (Scrollable Block):");
+		ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+		for (int i = 0; i < controlPts.size(); i++) {
+			vec3 v = controlPts[i];
+			ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+		}
+		ImGui::EndChild();
+
+		ImGui::Checkbox("Reset window", &resetWindowBool);
+		if (&resetWindowBool)
+		{
+			resetWindow();
+		}
+
 		/*
 		// Displaying current values
 		ImGui::Text("Slider Value: %.3f", sliderValue);
@@ -392,10 +408,17 @@ private:
 	bool checkboxValue;   // Value for checkbox
 	int comboSelection;   // Index of selected option in combo box
 	const char* options[3]; // Options for the combo box
-	windowControlPtData& data;
-	vector<vec3>& controlPts = data.controlPts;
-	int& numberOfIterations = data.numIterations;
-	bool& showCurvePoints = data.showCurvePoints;
+	windowControlPtData& windowData;
+	vector<vec3>& controlPts = windowData.controlPts;
+	int& numberOfIterations = windowData.numIterations;
+	bool& showCurvePoints = windowData.showCurvePoints;
+	bool& deleteControlPts = windowData.deleteControlPts;
+	bool resetWindowBool = false;
+
+	void resetWindow()
+	{
+
+	}
 };
 
 void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData, optionData& optionData)
@@ -470,6 +493,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData
 	curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size() + 1, curveColour);
 }
 
+/*
 //void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, windowControlPtData& windowData, optionData& optionData)
 //{
 //	//cout << "\n[CHECKING OPTION]" << endl;	// debug
@@ -596,6 +620,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData
 //	}
 //	cp_line_cpu.cols = cp_line_colours;
 //};
+*/
 
 int main() {
 	Log::debug("Starting main");
@@ -607,27 +632,28 @@ int main() {
 
 	//GLDebug::enable();
 
+	// make sure to comment out the vec3's inside
 	std::vector<glm::vec3> cp_positions_vector =
 	{
-		//{-.5f, -.5f, 0.f},
-		//{ .5f, -.5f, 0.f},
-		////{ .5f, -.5f, 0.f},
-		//{ .5f,  .5f, 0.f},
-		////{ .5f,  .5f, 0.f},
-		//{-.5f,  .5f, 0.f}
+		{-.5f, -.5f, 0.f},
+		{ .5f, -.5f, 0.f},
+		{ .5f,  .5f, 0.f},
+		{-.5f,  .5f, 0.f}
 	};
 	vector<vec3> curve;
 
 	int numberOfIOteration = 1;
-	windowControlPtData windowData = { window, cp_positions_vector, curve, numberOfIOteration };
+	bool showCurvePoints = false;
+	bool deleteControlPts = false;
+	windowControlPtData windowData = { window, cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts };
 
 	// CALLBACKS
-
-	auto curve_editor_callback = std::make_shared<CurveEditorCallBack>(windowData, panel);
-	//auto turn_table_3D_viewer_callback = std::make_shared<TurnTable3DViewerCallBack>();
-
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
+
 	optionData optionData = {curve_editor_panel_renderer->getSelectedOption(), curve_editor_panel_renderer->getOptions()};
+
+	auto curve_editor_callback = std::make_shared<CurveEditorCallBack>(windowData, optionData);
+	//auto turn_table_3D_viewer_callback = std::make_shared<TurnTable3DViewerCallBack>();
 
 	//Set callback to window
 	window.setCallbacks(curve_editor_callback);
@@ -642,13 +668,6 @@ int main() {
 		"shaders/test.frag"
 	);
 
-	//std::vector<glm::vec3> cp_positions_vector =
-	//{
-	//	{-.5f, -.5f, 0.f},
-	//	{ .5f, -.5f, 0.f},
-	//	{ .5f,  .5f, 0.f},
-	//	{-.5f,  .5f, 0.f}
-	//};
 	glm::vec3 cp_point_colour	= { 1.f,0.f,0.f };
 	glm::vec3 cp_line_colour	= { 0.f,1.f,0.f };
 
@@ -675,8 +694,10 @@ int main() {
 
 	// Testing things
 	//testDeCasteljauAlgo();
-	//vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
-	//cout << to_string(ptSize) << endl;
+	vec2 ptSize = vec2(CONTROL_POINT_SIZE / 1000.f, CONTROL_POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	cout << "half length/width: " << to_string(ptSize) << endl;	// te above ^ is half the length/width
+	cout << "cp_point length: " << CONTROL_POINT_LENGTH << endl;
+	cout << "cp_point width: " << CONTROL_POINT_WIDTH << endl;
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
@@ -722,7 +743,7 @@ int main() {
 
 		//Render control points
 		cp_point_gpu.bind();
-		glPointSize(15.f);
+		glPointSize(CONTROL_POINT_SIZE);
 		glDrawArrays(GL_POINTS, 0, cp_point_cpu.verts.size());
 
 		//Render curve connecting control points
