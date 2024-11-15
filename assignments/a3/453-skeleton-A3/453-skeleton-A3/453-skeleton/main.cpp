@@ -18,6 +18,7 @@
 
 // my headers
 //#include "curve/CurveGenerator.h"
+#include <tuple>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -28,7 +29,7 @@ using namespace glm;
 const static float CONTROL_POINT_SIZE = 15.f;										// Size of the control point's box
 const static float CONTROL_POINT_LENGTH = 2 * (CONTROL_POINT_SIZE / 1000.f);		// Length of the control point's box
 const static float CONTROL_POINT_WIDTH= CONTROL_POINT_LENGTH;						// Width of the control point's box
-
+const static int DEFAULT_NUM_CURVE_ITERATIONS = 6;									// the default number of iterations for curve generation
 const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 
@@ -164,7 +165,9 @@ public:
 		win(wData.window),
 		optionData(oData),
 		controlPoints(wData.controlPts)
-	{}
+	{
+		movingControlPoint = false;		// initialize to false
+	}
 
 	virtual void keyCallback(int key, int scancode, int action, int mods) override
 	{
@@ -177,92 +180,80 @@ public:
 		mouseButton = button;
 		mouseAction = action;
 
-		if (button == 0 && action == 0 && !windowData.deleteControlPts)		// place a control point
+		// If the user chose a curve generation option
+		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
 		{
-			controlPoints.push_back(vec3(mousePos, 0.f));
-		}
-		// ensure the moving of points is ONLY ALLOWED IN 
-		// Move/place control points
-		//else if (button == 0 && action == 1 && !windowData.deleteControlPts)
-		//{
-
-		//}
-		//// Delete control point
-		// Delete control point
-		else if (mouseButton == 0 && mouseAction == 1 && windowData.deleteControlPts)
-		{
-			// debug / test
-			//vec3 s = controlPoints[0] - vec3(mousePos, 0);
-			//cout << controlPoints[0] << " - " << vec3(mousePos, 0) << " = " << (s) << endl;
-			//cout << "length of result: " << calcVec2Length(s) << endl;
-			bool keepChecking = true;
-			for (int i = 0; i < controlPoints.size() && keepChecking; i++)
+			// Deselect the moving control point when left-mouse button is released
+			if (button == 0 && action == 0 && movingControlPoint)
 			{
-				float halfLen = CONTROL_POINT_LENGTH / 2.f;
-				float halfWidth = CONTROL_POINT_WIDTH / 2.f;
+				cout << "no longer moving cp" << endl;	// debug
+				movingControlPoint = false;
+			}
+			// place a control point
+			else if (button == 0 && action == 0 && !windowData.deleteControlPts)
+			{
+				controlPoints.push_back(vec3(mousePos, 0.f));
+			}
+			// Delete control point
+			else if (mouseButton == 0 && mouseAction == 1 && windowData.deleteControlPts)
+			{
+				tuple<bool, int> tup = doesControlPointExist(mousePos);	
+				auto [cpPointExist, index] = tup;						// unpack the tuple, (bool : cpPointExist), (int : index)
 
-				vector<vec2> cp_corners =
-				{
-					(controlPoints[i] + vec3(-halfWidth, -halfLen, 0.f)),	// bottom left corner
-					(controlPoints[i] + vec3(halfWidth, -halfLen, 0.f)),	// bottom right corner
-					(controlPoints[i] + vec3(halfWidth, halfLen, 0.f)),		// top right corner
-					(controlPoints[i] + vec3(-halfWidth, halfLen, 0.f)),	// top left corner
-				};
-
-				bool withinX = cp_corners[0].x <= mousePos.x && mousePos.x <= cp_corners[2].x;	// mouse-x-pos has to be between the bottom left and top right corner-x-pos's
-				bool withinY = cp_corners[0].y <= mousePos.y && mousePos.y <= cp_corners[2].y;	// mouse-y-pos has to be between the bottom left and top right corner-y-pos's
-
-				if (withinX && withinY)
+				if (cpPointExist)	// delete point
 				{
 					cout << "FOUND POINT TO REMOVE" << endl;	// debug
 
-					// create a new 'vector' that does not contain this specified point
+					// create a new 'std::vector<vec3>' that does not contain the specified point
 					vector<vec3> temp;
-					for (int k = 0; k < controlPoints.size(); k++)
+					for (int i = 0; i < controlPoints.size(); i++)
 					{
-						if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
+						if (controlPoints[i] == controlPoints[index])	// found the control point to be removed, skip it
 							continue;
-						temp.push_back(controlPoints[k]);
+						temp.push_back(controlPoints[i]);
 					}
-
-					keepChecking = false;	// stop checking
-					windowData.controlPts = temp;
+					controlPoints = temp;						// set new control points
 				}
 
-				//for (int j = 0; i < cp_corners.size() && keepChecking; i++)
+				/*
+				// moved most of this code into a function
+				//bool keepChecking = true;
+				//for (int i = 0; i < controlPoints.size() && keepChecking; i++)
 				//{
+				//	float halfLen = CONTROL_POINT_LENGTH / 2.f;
+				//	float halfWidth = CONTROL_POINT_WIDTH / 2.f;
 
+				//	vector<vec2> cp_corners =
+				//	{
+				//		(controlPoints[i] + vec3(-halfWidth, -halfLen, 0.f)),	// bottom left corner
+				//		(controlPoints[i] + vec3(halfWidth, -halfLen, 0.f)),	// bottom right corner
+				//		(controlPoints[i] + vec3(halfWidth, halfLen, 0.f)),		// top right corner
+				//		(controlPoints[i] + vec3(-halfWidth, halfLen, 0.f)),	// top left corner
+				//	};
 
-					//vec3 s = vec3(cp_corners[i], 0.f) - vec3(mousePos, 0.f);
-					//float len = calcVec2Length(cp_corners[i] - mousePos);
+				//	bool withinX = cp_corners[0].x <= mousePos.x && mousePos.x <= cp_corners[2].x;	// mouse-x-pos has to be between the bottom left and top right corner-x-pos's
+				//	bool withinY = cp_corners[0].y <= mousePos.y && mousePos.y <= cp_corners[2].y;	// mouse-y-pos has to be between the bottom left and top right corner-y-pos's
 
-					//// debug
-					////cout << controlPoints[0] << " - " << vec3(mousePos, 0) << " = " << (s) << endl;
-					////cout << "length of result: " << len << endl;
+				//	if (withinX && withinY)
+				//	{
+				//		cout << "FOUND POINT TO REMOVE" << endl;	// debug
 
-					//bool withinEpsilon1 = abs(cp_corners[i].x) - abs(mousePos.x) <= CONTROL_POINT_WIDTH / 2.f;
-					//bool withinEpsilon2 = abs(cp_corners[i].y) - abs(mousePos.y) <= CONTROL_POINT_LENGTH / 2.f;
+				//		// create a new 'vector' that does not contain this specified point
+				//		vector<vec3> temp;
+				//		for (int k = 0; k < controlPoints.size(); k++)
+				//		{
+				//			if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
+				//				continue;
+				//			temp.push_back(controlPoints[k]);
+				//		}
 
-					//if (withinEpsilon1 && withinEpsilon2)	// if within epsilon, remove the control point
-					//{
-					//	cout << "FOUND POINT TO REMOVE" << endl;	// debug
-
-					//	// create a new 'vector' that does not contain this specified point
-					//	vector<vec3> temp;
-					//	for (int k = 0; k < controlPoints.size(); k++)
-					//	{
-					//		if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
-					//			continue;
-					//		temp.push_back(controlPoints[k]);
-					//	}
-					//	keepChecking = false;	// stop checking
-					//	windowData.controlPts = temp;
-					//}
+				//		keepChecking = false;	// stop checking
+				//		windowData.controlPts = temp;
+				//	}
 				//}
+				*/
 			}
-			
 		}
-
 		// note
 		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
 		// when holding the right-mouse button the 'action' stays at 1 and 'button is 1 -> release action = 0
@@ -276,16 +267,37 @@ public:
 		mousePos = pos;
 		Log::info("[CURSOR-POS-CALLBACK CLIP]: xpos={}, ypos={}", pos.x, pos.y);
 
-		//vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// this is the length and width of the red 'box' that surrounds the control points, use these as bounds when trying to draw/select them
-		//cout << to_string(ptSize) << endl;
-
-		// ensure the moving of points is ONLY ALLOWED IN 
-		// Move/place control points
-		if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts)
+		// If the user chose a curve generation option
+		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
 		{
+			// Move control point (when not in delete control point feature and a control point has been selected)
+			if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts && movingControlPoint)
+			{
+				cout << "moving cp" << endl;	// debug
+				int index = get<int>(cpToMoveTupleData);					// gets the second element in the tuple (an int)
+				moveControlPointToPos(controlPoints[index], mousePos);		// keep moving the specified point
+			}
+			// Find the control point to move
+			else if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts)
+			{
+				cpToMoveTupleData = doesControlPointExist(mousePos);
+				auto [cpPointExist, index] = cpToMoveTupleData;		// unpack the tuple, (bool : cpPointExist), (int : index)
 
+				if (cpPointExist)
+				{
+					//debug
+					//cout << "moving point at loc: " << controlPoints[index] << endl;
+					cout << "moving cp" << endl;	// debug
+
+					movingControlPoint = true;
+					moveControlPointToPos(controlPoints[index], mousePos);
+				}
+			}
 		}
 
+		// note
+		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
+		// when holding the right-mouse button the 'action' stays at 1 and 'button is 1 -> release action = 0
 	}
 
 	virtual void scrollCallback(double xoffset, double yoffset) override
@@ -307,6 +319,8 @@ private:
 	int mouseButton; // 0: left mouse button | 1: right mouse button
 	int mouseAction; // 0: NOT held | 1: held (pressed down)
 	vec2 mousePos;	// mouse position in CLIP SPACE
+	bool movingControlPoint;
+	tuple<bool, int> cpToMoveTupleData;
 
 	/// <summary>
 	/// Converts pixel space position to clip space position.
@@ -323,6 +337,59 @@ private:
 		pos.y = -clipPosY;
 	}
 
+	void moveControlPointToPos(vec3& controlPointToMove, const vec2 mousePos)
+	{
+		//cout << "moving pt: " << controlPointToMove << endl;	// debug
+
+		vec3 translate = vec3(mousePos, 0.f) - controlPointToMove;
+		//cout << "translate by: " << translate << endl;	// debug
+
+		controlPointToMove.x += translate.x;
+		controlPointToMove.y += translate.y;
+
+		//cout << "moved to: " << controlPointToMove << endl;	// debug
+	}
+
+	/// <summary>
+	/// Goes through existing control points and checks if a control point at position 'pointToCheck' is among these points.
+	/// If it exists, returns a tuple: (true, [index location in 'controlPoints']).
+	/// Otherwise, returns a tuple: (false, -1)
+	/// </summary>
+	/// <param name="pointToCheck">the point to check, a glm::vec2</param>
+	/// <returns> a tuple of size 2, (bool, int)</returns>
+	tuple<bool, int> doesControlPointExist(vec2 pointToCheck)
+	{
+		for (int i = 0; i < controlPoints.size(); i++)
+		{
+			float halfLen = CONTROL_POINT_LENGTH / 2.f;
+			float halfWidth = CONTROL_POINT_WIDTH / 2.f;
+
+			vector<vec2> cp_corners =
+			{
+				(controlPoints[i] + vec3(-halfWidth, -halfLen, 0.f)),	// bottom left corner
+				(controlPoints[i] + vec3(halfWidth, -halfLen, 0.f)),	// bottom right corner
+				(controlPoints[i] + vec3(halfWidth, halfLen, 0.f)),		// top right corner
+				(controlPoints[i] + vec3(-halfWidth, halfLen, 0.f)),	// top left corner
+			};
+
+			bool withinX = cp_corners[0].x <= pointToCheck.x && pointToCheck.x <= cp_corners[2].x;	// pointToCheck-x-pos has to be between the bottom left and top right corner-x-pos's
+			bool withinY = cp_corners[0].y <= pointToCheck.y && pointToCheck.y <= cp_corners[2].y;	// pointToCheck-y-pos has to be between the bottom left and top right corner-y-pos's
+
+			if (withinX && withinY)
+			{
+
+				//exist = true;
+				//break;			// exit early
+
+				// 'i' is the index at which the specified control point to be moved is located in the std::vector<glm::vec3>
+				return make_tuple(true, i);	// return early
+			}
+		}
+		// Otherwise, the 'pointToCheck' location does not contain a control point
+		return make_tuple(false, -1);
+	}
+
+	// test
 	float calcVec2Length(vec2 v)
 	{
 		return sqrt((v.x * v.x) + (v.y * v.y));
@@ -573,7 +640,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 
 		default:
 			cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
-			break;
+			return;	// if i want to keep showing the curve previously generated curve, use 'break' if i don't
 		}
 	}
 
@@ -752,7 +819,7 @@ int main() {
 	};
 	vector<vec3> curve;
 
-	int numberOfIOteration = 1;
+	int numberOfIOteration = DEFAULT_NUM_CURVE_ITERATIONS;
 	bool showCurvePoints = false;
 	bool deleteControlPts = false;
 	bool clearWindow = false;
@@ -815,7 +882,7 @@ int main() {
 
 		//---- do the settting of cpu stuff in here (checkOptionChosen)
 		checkOptionChosen(geometries, windowData, optionData);
-		
+
 		//// update the control points for cpu
 		//cp_point_cpu.verts = cp_positions_vector;
 		//cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
