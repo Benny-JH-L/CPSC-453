@@ -36,14 +36,29 @@ const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 void testDeCasteljauAlgo();
 string toString(vector<vec3> arr);
 
-struct windowControlData
+struct curveRelatedData
 {
-	Window& window;
 	vector<vec3>& controlPts;	// The control points the user entered
 	vector<vec3>& curve;		// points that represent the generated curve
 	int& numIterations;
 	bool& showCurvePoints;		// to show curve points
 	bool& deleteControlPts;		// to delete curve points
+};
+
+struct orbitViewerData
+{
+
+};
+
+struct windowControlData
+{
+	Window& window;
+	curveRelatedData& curveRelatedData;
+	//vector<vec3>& controlPts;	// The control points the user entered
+	//vector<vec3>& curve;		// points that represent the generated curve
+	//int& numIterations;
+	//bool& showCurvePoints;		// to show curve points
+	//bool& deleteControlPts;		// to delete curve points
 	bool& resetWindow;			// to reset window
 };
 
@@ -162,9 +177,10 @@ class CurveEditorCallBack : public CallbackInterface
 public:
 	CurveEditorCallBack(windowControlData& wData, optionData& oData) :
 		windowData(wData),
+		curveData(wData.curveRelatedData),
 		win(wData.window),
 		optionData(oData),
-		controlPoints(wData.controlPts)
+		controlPoints(curveData.controlPts)
 	{
 		movingControlPoint = false;		// initialize to false
 	}
@@ -190,12 +206,12 @@ public:
 				movingControlPoint = false;
 			}
 			// place a control point
-			else if (button == 0 && action == 0 && !windowData.deleteControlPts)
+			else if (button == 0 && action == 0 && !curveData.deleteControlPts)
 			{
 				controlPoints.push_back(vec3(mousePos, 0.f));
 			}
 			// Delete control point
-			else if (mouseButton == 0 && mouseAction == 1 && windowData.deleteControlPts)
+			else if (mouseButton == 0 && mouseAction == 1 && curveData.deleteControlPts)
 			{
 				tuple<bool, int> tup = doesControlPointExist(mousePos);	
 				auto [cpPointExist, index] = tup;						// unpack the tuple, (bool : cpPointExist), (int : index)
@@ -271,14 +287,14 @@ public:
 		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
 		{
 			// Move control point (when not in delete control point feature and a control point has been selected)
-			if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts && movingControlPoint)
+			if (mouseButton == 0 && mouseAction == 1 && !curveData.deleteControlPts && movingControlPoint)
 			{
 				cout << "moving cp" << endl;	// debug
 				int index = get<int>(cpToMoveTupleData);					// gets the second element in the tuple (an int)
 				moveControlPointToPos(controlPoints[index], mousePos);		// keep moving the specified point
 			}
 			// Find the control point to move
-			else if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts)
+			else if (mouseButton == 0 && mouseAction == 1 && !curveData.deleteControlPts)
 			{
 				cpToMoveTupleData = doesControlPointExist(mousePos);
 				auto [cpPointExist, index] = cpToMoveTupleData;		// unpack the tuple, (bool : cpPointExist), (int : index)
@@ -312,10 +328,11 @@ public:
 	}
 
 private:
-	windowControlData& windowData;
-	optionData& optionData;
 	Window& win = windowData.window;
-	vector<vec3>& controlPoints = windowData.controlPts;
+	windowControlData& windowData;
+	curveRelatedData& curveData = windowData.curveRelatedData;
+	optionData& optionData;
+	vector<vec3>& controlPoints = curveData.controlPts;
 	int mouseButton; // 0: left mouse button | 1: right mouse button
 	int mouseAction; // 0: NOT held | 1: held (pressed down)
 	vec2 mousePos;	// mouse position in CLIP SPACE
@@ -446,12 +463,16 @@ public:
 		inputValue(0.0f),
 		checkboxValue(false),
 		comboSelection(0),
+		curveData(d.curveRelatedData),
 		windowData(d)
 	{
 		// Initialize options for the combo box
-		options[0] = "Bezier Curve";
-		options[1] = "Quadratic B-spline (Chaikin)";
-		options[2] = "Option 3 (NULL)";
+		options[0] = "Curve Editor - Bezier";
+		options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
+		options[2] = "Orbit Viewer - Curve";
+		options[3] = "Orbit Viewer - Surface of Revolution";
+		options[4] = "Orbit Viewer - Tensor Product 1";
+		options[5] = "Orbit Viewer - Tensor Product 2";
 
 		/*
 		// Initialize color (white by default)
@@ -580,12 +601,13 @@ private:
 	float inputValue;     // Value for float input
 	bool checkboxValue;   // Value for checkbox
 	int comboSelection;   // Index of selected option in combo box
-	const char* options[3]; // Options for the combo box
+	const char* options[6]; // Options for the combo box
 	windowControlData& windowData;
-	vector<vec3>& controlPts = windowData.controlPts;
-	int& numberOfIterations = windowData.numIterations;
-	bool& showCurvePoints = windowData.showCurvePoints;
-	bool& deleteControlPts = windowData.deleteControlPts;
+	curveRelatedData& curveData;
+	vector<vec3>& controlPts = curveData.controlPts;
+	int& numberOfIterations = curveData.numIterations;
+	bool& showCurvePoints = curveData.showCurvePoints;
+	bool& deleteControlPts = curveData.deleteControlPts;
 	bool& resetWindowBool = windowData.resetWindow;
 
 	/// <summary>
@@ -593,14 +615,15 @@ private:
 	/// </summary>
 	void resetWindow()
 	{
-		windowData.controlPts.clear();
-		windowData.curve.clear();
+		curveData.controlPts.clear();
+		curveData.curve.clear();
 	}
 };
 
 void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, optionData& optionData)
 {
-	vector<vec3> cp_positions_vector = windowData.controlPts;	// User entered control points
+	curveRelatedData curveData = windowData.curveRelatedData;
+	vector<vec3> cp_positions_vector = curveData.controlPts;	// User entered control points
 	vector<vec3> curveGenerated;								// Curve generated
 
 	if (cp_positions_vector.size() >= 2)
@@ -615,7 +638,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
 
 			// Generate the curve
-			for (float u = 0; u <= 1; u += (0.5f / windowData.numIterations))
+			for (float u = 0; u <= 1; u += (0.5f / curveData.numIterations))
 			{
 				vec3 currBezierPt = CurveGenerator::bezier(cp_positions_vector, 2, u)[0];
 				curveGenerated.push_back(currBezierPt);
@@ -630,7 +653,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
 
 			curveGenerated = cp_positions_vector;							// Initial curve
-			for (int i = 0; i < windowData.numIterations; i++)
+			for (int i = 0; i < curveData.numIterations; i++)
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
@@ -814,7 +837,7 @@ int main() {
 	{
 		//{-.5f, -.5f, 0.f},
 		//{ .5f, -.5f, 0.f},
-		{ .5f,  .5f, 0.f},
+		//{ .5f,  .5f, 0.f},
 		//{-.5f,  .5f, 0.f}
 	};
 	vector<vec3> curve;
@@ -823,7 +846,8 @@ int main() {
 	bool showCurvePoints = false;
 	bool deleteControlPts = false;
 	bool clearWindow = false;
-	windowControlData windowData = { window, cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts, clearWindow };
+	curveRelatedData curveData = { cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts };
+	windowControlData windowData = { window, curveData, clearWindow };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -928,7 +952,7 @@ int main() {
 		//glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
 		glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
 
-		if (windowData.showCurvePoints)
+		if (curveData.showCurvePoints)
 		{
 			// Render points generated for the curve
 			curve_point_gpu.bind();
