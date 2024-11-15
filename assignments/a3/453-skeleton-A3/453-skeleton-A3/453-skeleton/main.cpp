@@ -35,7 +35,7 @@ const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 void testDeCasteljauAlgo();
 string toString(vector<vec3> arr);
 
-struct windowControlPtData
+struct windowControlData
 {
 	Window& window;
 	vector<vec3>& controlPts;	// The control points the user entered
@@ -43,6 +43,7 @@ struct windowControlPtData
 	int& numIterations;
 	bool& showCurvePoints;		// to show curve points
 	bool& deleteControlPts;		// to delete curve points
+	bool& resetWindow;			// to reset window
 };
 
 /// <summary>
@@ -158,7 +159,7 @@ private:
 class CurveEditorCallBack : public CallbackInterface
 {
 public:
-	CurveEditorCallBack(windowControlPtData& wData, optionData& oData) :
+	CurveEditorCallBack(windowControlData& wData, optionData& oData) :
 		windowData(wData),
 		win(wData.window),
 		optionData(oData),
@@ -176,10 +177,92 @@ public:
 		mouseButton = button;
 		mouseAction = action;
 
-		if (button == 0 && action == 0)		// place a control point
+		if (button == 0 && action == 0 && !windowData.deleteControlPts)		// place a control point
 		{
 			controlPoints.push_back(vec3(mousePos, 0.f));
 		}
+		// ensure the moving of points is ONLY ALLOWED IN 
+		// Move/place control points
+		//else if (button == 0 && action == 1 && !windowData.deleteControlPts)
+		//{
+
+		//}
+		//// Delete control point
+		// Delete control point
+		else if (mouseButton == 0 && mouseAction == 1 && windowData.deleteControlPts)
+		{
+			// debug / test
+			//vec3 s = controlPoints[0] - vec3(mousePos, 0);
+			//cout << controlPoints[0] << " - " << vec3(mousePos, 0) << " = " << (s) << endl;
+			//cout << "length of result: " << calcVec2Length(s) << endl;
+			bool keepChecking = true;
+			for (int i = 0; i < controlPoints.size() && keepChecking; i++)
+			{
+				float halfLen = CONTROL_POINT_LENGTH / 2.f;
+				float halfWidth = CONTROL_POINT_WIDTH / 2.f;
+
+				vector<vec2> cp_corners =
+				{
+					(controlPoints[i] + vec3(-halfWidth, -halfLen, 0.f)),	// bottom left corner
+					(controlPoints[i] + vec3(halfWidth, -halfLen, 0.f)),	// bottom right corner
+					(controlPoints[i] + vec3(halfWidth, halfLen, 0.f)),		// top right corner
+					(controlPoints[i] + vec3(-halfWidth, halfLen, 0.f)),	// top left corner
+				};
+
+				bool withinX = cp_corners[0].x <= mousePos.x && mousePos.x <= cp_corners[2].x;	// mouse-x-pos has to be between the bottom left and top right corner-x-pos's
+				bool withinY = cp_corners[0].y <= mousePos.y && mousePos.y <= cp_corners[2].y;	// mouse-y-pos has to be between the bottom left and top right corner-y-pos's
+
+				if (withinX && withinY)
+				{
+					cout << "FOUND POINT TO REMOVE" << endl;	// debug
+
+					// create a new 'vector' that does not contain this specified point
+					vector<vec3> temp;
+					for (int k = 0; k < controlPoints.size(); k++)
+					{
+						if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
+							continue;
+						temp.push_back(controlPoints[k]);
+					}
+
+					keepChecking = false;	// stop checking
+					windowData.controlPts = temp;
+				}
+
+				//for (int j = 0; i < cp_corners.size() && keepChecking; i++)
+				//{
+
+
+					//vec3 s = vec3(cp_corners[i], 0.f) - vec3(mousePos, 0.f);
+					//float len = calcVec2Length(cp_corners[i] - mousePos);
+
+					//// debug
+					////cout << controlPoints[0] << " - " << vec3(mousePos, 0) << " = " << (s) << endl;
+					////cout << "length of result: " << len << endl;
+
+					//bool withinEpsilon1 = abs(cp_corners[i].x) - abs(mousePos.x) <= CONTROL_POINT_WIDTH / 2.f;
+					//bool withinEpsilon2 = abs(cp_corners[i].y) - abs(mousePos.y) <= CONTROL_POINT_LENGTH / 2.f;
+
+					//if (withinEpsilon1 && withinEpsilon2)	// if within epsilon, remove the control point
+					//{
+					//	cout << "FOUND POINT TO REMOVE" << endl;	// debug
+
+					//	// create a new 'vector' that does not contain this specified point
+					//	vector<vec3> temp;
+					//	for (int k = 0; k < controlPoints.size(); k++)
+					//	{
+					//		if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
+					//			continue;
+					//		temp.push_back(controlPoints[k]);
+					//	}
+					//	keepChecking = false;	// stop checking
+					//	windowData.controlPts = temp;
+					//}
+				//}
+			}
+			
+		}
+
 		// note
 		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
 		// when holding the right-mouse button the 'action' stays at 1 and 'button is 1 -> release action = 0
@@ -195,6 +278,14 @@ public:
 
 		//vec2 ptSize = vec2(POINT_SIZE / 1000.f, POINT_SIZE / 1000.f);	// this is the length and width of the red 'box' that surrounds the control points, use these as bounds when trying to draw/select them
 		//cout << to_string(ptSize) << endl;
+
+		// ensure the moving of points is ONLY ALLOWED IN 
+		// Move/place control points
+		if (mouseButton == 0 && mouseAction == 1 && !windowData.deleteControlPts)
+		{
+
+		}
+
 	}
 
 	virtual void scrollCallback(double xoffset, double yoffset) override
@@ -207,8 +298,9 @@ public:
 		Log::info("WindowSizeCallback: width={}, height={}", width, height);
 		CallbackInterface::windowSizeCallback(width, height); // Important, calls glViewport(0, 0, width, height);
 	}
+
 private:
-	windowControlPtData& windowData;
+	windowControlData& windowData;
 	optionData& optionData;
 	Window& win = windowData.window;
 	vector<vec3>& controlPoints = windowData.controlPts;
@@ -229,6 +321,11 @@ private:
 
 		pos.x = clipPosX;
 		pos.y = -clipPosY;
+	}
+
+	float calcVec2Length(vec2 v)
+	{
+		return sqrt((v.x * v.x) + (v.y * v.y));
 	}
 };
 
@@ -274,7 +371,7 @@ private:
 class CurveEditorPanelRenderer : public PanelRendererInterface
 {
 public:
-	CurveEditorPanelRenderer(windowControlPtData& d) :
+	CurveEditorPanelRenderer(windowControlData& d) :
 		inputText(""),
 		buttonClickCount(0),
 		sliderValue(0.0f),
@@ -334,44 +431,53 @@ public:
 		ImGui::InputFloat("Float Input", &inputValue, 0.1f, 1.0f, "Input Value: %.3f");
 		*/
 
-		// Number of iterations input
-		//ImGui::InputInt("Iterations", &numberOfIterations, 1, 1);
-		ImGui::SliderInt("Iterations", &numberOfIterations, MIN_NUMBER_OF_ITERATIONS_FOR_CURVES, MAX_NUMBER_OF_ITERATIONS_FOR_CURVES, "Drag Value: %d");
-		ImGui::Text("Min number of iterations: %d", MIN_NUMBER_OF_ITERATIONS_FOR_CURVES);
-		ImGui::Text("Max number of iterations: %d", MAX_NUMBER_OF_ITERATIONS_FOR_CURVES);
-
-		if (numberOfIterations <= MIN_NUMBER_OF_ITERATIONS_FOR_CURVES)		// if the number of iterations entered is <= 0, set it to 1.
-			numberOfIterations = 1;
-		else if (numberOfIterations > MAX_NUMBER_OF_ITERATIONS_FOR_CURVES)	// Setting the max of iterations to "MAX_NUMBER_OF_ITERATIONS_FOR_CURVES"
-			numberOfIterations = MAX_NUMBER_OF_ITERATIONS_FOR_CURVES;
-
 		// Combo box
 		ImGui::Combo("Select an Option", &comboSelection, options, IM_ARRAYSIZE(options));
-		ImGui::Text("Selected: %s", options[comboSelection]);
+		//ImGui::Text("Selected: %s", options[comboSelection]);
 
-		/*
-		// Checkbox (original)
-		ImGui::Checkbox("Enable Feature", &checkboxValue);
-		ImGui::Text("Feature Enabled: %s", checkboxValue ? "Yes" : "No");
-		*/
+		// For Bezier and Chaikin (polynomial b-spline) curve options
+		if (comboSelection == 0 || comboSelection == 1)
+		{
+			// Number of iterations input
+			//ImGui::InputInt("Iterations", &numberOfIterations, 1, 1);
+			ImGui::SliderInt("Iterations", &numberOfIterations, MIN_NUMBER_OF_ITERATIONS_FOR_CURVES, MAX_NUMBER_OF_ITERATIONS_FOR_CURVES, "Drag Value: %d");
+			ImGui::Text("Min number of iterations: %d", MIN_NUMBER_OF_ITERATIONS_FOR_CURVES);
+			ImGui::Text("Max number of iterations: %d", MAX_NUMBER_OF_ITERATIONS_FOR_CURVES);
 
-		// Checkbox
-		ImGui::Checkbox("Show curve points (Bezier/Chaikin curves only)", &showCurvePoints);
-		ImGui::Checkbox("Delete curve points", &deleteControlPts);
+			if (numberOfIterations <= MIN_NUMBER_OF_ITERATIONS_FOR_CURVES)		// if the number of iterations entered is <= 0, set it to 1.
+				numberOfIterations = 1;
+			else if (numberOfIterations > MAX_NUMBER_OF_ITERATIONS_FOR_CURVES)	// Setting the max of iterations to "MAX_NUMBER_OF_ITERATIONS_FOR_CURVES"
+				numberOfIterations = MAX_NUMBER_OF_ITERATIONS_FOR_CURVES;
 
-		// Scrollable block
-		ImGui::TextWrapped("Active Control Points (Scrollable Block):");
-		ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
-		for (int i = 0; i < controlPts.size(); i++) {
-			vec3 v = controlPts[i];
-			ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			/*
+			// Checkbox (original)
+			ImGui::Checkbox("Enable Feature", &checkboxValue);
+			ImGui::Text("Feature Enabled: %s", checkboxValue ? "Yes" : "No");
+			*/
+
+			// Checkbox
+			ImGui::Checkbox("Show curve points", &showCurvePoints);
+			ImGui::Checkbox("Delete curve points", &deleteControlPts);
+			if (deleteControlPts)
+				ImGui::Text("Feature Enabled: Delete Control Points");
+			else
+				ImGui::Text("Feature Enabled: Add/Move Control Points");
+
+			// Scrollable block
+			ImGui::TextWrapped("Active Control Points (Scrollable Block):");
+			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+			for (int i = 0; i < controlPts.size(); i++) {
+				vec3 v = controlPts[i];
+				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			}
+			ImGui::EndChild();
 		}
-		ImGui::EndChild();
 
 		ImGui::Checkbox("Reset window", &resetWindowBool);
-		if (&resetWindowBool)
+		if (resetWindowBool)
 		{
 			resetWindow();
+			resetWindowBool = false;
 		}
 
 		/*
@@ -408,20 +514,24 @@ private:
 	bool checkboxValue;   // Value for checkbox
 	int comboSelection;   // Index of selected option in combo box
 	const char* options[3]; // Options for the combo box
-	windowControlPtData& windowData;
+	windowControlData& windowData;
 	vector<vec3>& controlPts = windowData.controlPts;
 	int& numberOfIterations = windowData.numIterations;
 	bool& showCurvePoints = windowData.showCurvePoints;
 	bool& deleteControlPts = windowData.deleteControlPts;
-	bool resetWindowBool = false;
+	bool& resetWindowBool = windowData.resetWindow;
 
+	/// <summary>
+	/// Clears the window of active control points
+	/// </summary>
 	void resetWindow()
 	{
-
+		windowData.controlPts.clear();
+		windowData.curve.clear();
 	}
 };
 
-void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData, optionData& optionData)
+void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, optionData& optionData)
 {
 	vector<vec3> cp_positions_vector = windowData.controlPts;	// User entered control points
 	vector<vec3> curveGenerated;								// Curve generated
@@ -457,7 +567,8 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
-
+			// ensure that the last point in the curve is the last control point entered
+			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 			break;
 
 		default:
@@ -465,7 +576,6 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData
 			break;
 		}
 	}
-
 
 	CPU_Geometry& cp_point_cpu = geoms.cp_point_cpu;
 	CPU_Geometry& cp_line_cpu = geoms.cp_line_cpu;
@@ -490,7 +600,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlPtData& windowData
 	curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
 	// update curve line
 	curve_line_cpu.verts = curveGenerated;
-	curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size() + 1, curveColour);
+	curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
 }
 
 /*
@@ -635,17 +745,18 @@ int main() {
 	// make sure to comment out the vec3's inside
 	std::vector<glm::vec3> cp_positions_vector =
 	{
-		{-.5f, -.5f, 0.f},
-		{ .5f, -.5f, 0.f},
+		//{-.5f, -.5f, 0.f},
+		//{ .5f, -.5f, 0.f},
 		{ .5f,  .5f, 0.f},
-		{-.5f,  .5f, 0.f}
+		//{-.5f,  .5f, 0.f}
 	};
 	vector<vec3> curve;
 
 	int numberOfIOteration = 1;
 	bool showCurvePoints = false;
 	bool deleteControlPts = false;
-	windowControlPtData windowData = { window, cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts };
+	bool clearWindow = false;
+	windowControlData windowData = { window, cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts, clearWindow };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -739,7 +850,6 @@ int main() {
 		
 		// Use the default shader (can use different ones for different objects)
 		shader_program_default.use();
-
 
 		//Render control points
 		cp_point_gpu.bind();
