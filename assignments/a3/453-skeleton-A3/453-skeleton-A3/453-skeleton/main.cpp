@@ -43,6 +43,7 @@ struct curveRelatedData
 	int& numIterations;
 	bool& showCurvePoints;		// to show curve points
 	bool& deleteControlPts;		// to delete curve points
+	bool& resetWindow;			// to reset window
 	const mat4 defaultViewMat = mat4(1.0f);
 };
 
@@ -55,8 +56,15 @@ struct defaultOrbitViewData
 	const float aspectRatio = 1.f;
 	const float nearPlane = 0.1f;
 	const float farPlane = 100.f;
-	const vec3 cameraPos = vec3(vec2(0.f), 3.0f);
 	const vec3 lookAtPoint = vec3(0.f);
+	//const vec3 lookAtPoint = vec3(vec2(0.f), -1.0f);
+	const vec3 cameraPos = vec3(vec2(0.f), 3.0f);
+	const float mouseSensitivity = 100.0f;		// How fast the camera movement should be
+	const float scrollSensitivity = 10.0f;		// How fast the scroll in/out should be
+	const float distanceFromLookAtPoint = 3.f;	// Distance from the 'lookAtPoint' (origin) (world space)
+	const float theta = glm::radians(90.f);		// Ensure radians
+	const float phi = glm::radians(90.f);		// Ensure radians
+
 	const vec3 upVector = vec3(0.f, 1.0f, 0.f);
 
 	mat4 viewMat4;
@@ -72,63 +80,65 @@ struct defaultOrbitViewData
 struct orbitViewerData
 {
 	defaultOrbitViewData defaultData;
-	const vec3 lookAtPoint = vec3(0.f);		// looking at the origin
-	vec3 cameraPos = vec3(vec2(0.f), 3.0f);	// default at 3.0f
-	vec3 upVector = vec3(0.f, 1.0f, 0.f);	// default
+	bool& resetWindow;
 
-	//vec3 
-	mat4& matrix;	// idk if i'll keep this
+	float fieldOfView = glm::radians(45.0f);
+	float aspectRatio = 1.f;
+	float nearPlane = 0.1f;
+	float farPlane = 100.f;
+	const vec3 lookAtPoint = vec3(0.f);		// looking at the origin (0.0, 0.0, 0.0)
+	vec3 cameraPos = vec3(vec2(0.f), 3.0f);	// initial at 3.0f
 
-	orbitViewerData(mat4& mat) :
-		matrix(mat),
+	float mouseSensitivity = 100.0f;		// How fast the camera movement should be
+	float scrollSensitivity = 10.0f;		// How fast the scroll in/out should be
+	float distanceFromLookAtPoint = 3.f;	// Distance from the 'lookAtPoint' (origin) (world space)
+	float theta = glm::radians(90.f);		// Ensure radians
+	float phi = glm::radians(90.f);			// Ensure radians
+
+	orbitViewerData(bool& resetWindow) :
+		resetWindow(resetWindow),
 		defaultData(defaultOrbitViewData())
 	{
 	}
 
-	/// <summary>
-	/// Sets the 'theta' in degrees.
-	/// </summary>
-	/// <param name="degrees"></param>
-	void setTheta(float degrees)
-	{
-		theta = degrees;
-	}
-
-	/// <summary>
-	/// Returns the previously set 'theta' (degrees) as glm::radians
-	/// </summary>
-	/// <returns>glm::radians</returns>
-	float getTheta()
-	{
-		return glm::radians(theta);
-	}
-
-	/// <summary>
-	/// Sets the 'phi' in degrees.
-	/// </summary>
-	/// <param name="degrees"></param>
-	void setPhi(float degrees)
-	{
-		phi = degrees;
-	}
-
-	/// <summary>
-	/// Returns the previously set 'phi' (degrees) as glm::radians
-	/// </summary>
-	/// <returns>glm::radians</returns>
-	float getPhi()
-	{
-		return glm::radians(phi);
-	}
-
-	//void translateCameraPos(vec3 val)
+	/*
+	///// <summary>
+	///// Sets the 'theta' in degrees.
+	///// </summary>
+	///// <param name="degrees"></param>
+	//void setTheta(float degrees)
 	//{
-	//	cameraPos += val;
+	//	theta = degrees;
 	//}
 
-private:
-	float theta = 0.f;
-	float phi = 0.f;
+	///// <summary>
+	///// Returns the previously set 'theta' (degrees) as glm::radians
+	///// </summary>
+	///// <returns>glm::radians</returns>
+	//float getTheta()
+	//{
+	//	return glm::radians(theta);
+	//}
+
+	///// <summary>
+	///// Sets the 'phi' in degrees.
+	///// </summary>
+	///// <param name="degrees"></param>
+	//void setPhi(float degrees)
+	//{
+	//	phi = degrees;
+	//}
+
+	///// <summary>
+	///// Returns the previously set 'phi' (degrees) as glm::radians
+	///// </summary>
+	///// <returns>glm::radians</returns>
+	//float getPhi()
+	//{
+	//	return glm::radians(phi);
+	//}
+	*/
+
 };
 
 struct windowControlData
@@ -141,7 +151,7 @@ struct windowControlData
 	//int& numIterations;
 	//bool& showCurvePoints;		// to show curve points
 	//bool& deleteControlPts;		// to delete curve points
-	bool& resetWindow;			// to reset window
+	//bool& resetWindow;			// to reset window
 };
 
 /// <summary>
@@ -352,6 +362,7 @@ public:
 				*/
 			}
 		}
+
 		// note
 		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
 		// when holding the right-mouse button the 'action' stays at 1 and 'button is 1 -> release action = 0
@@ -392,6 +403,41 @@ public:
 				}
 			}
 		}
+		// Orbit viewing
+		else
+		{
+			// Move camera if right-click is being held
+			if (mouseButton == 1 && mouseAction == 1)
+			{
+				//static double lastX = xpos, lastY = ypos;
+				//double xOffset = xpos - lastX;
+				//double yOffset = ypos - lastY;
+
+				float lastX = prevMousePos.x;
+				float lastY = prevMousePos.y;
+
+				float xOffset = mousePos.x - lastX;
+				float yOffset = mousePos.y - lastY;
+
+				//lastX = xpos;
+				//lastY = ypos;
+
+				// Adjust the spherical coordinates based on mouse movement
+				float sensitivity = orbitViewData.mouseSensitivity;
+				theta += glm::radians(xOffset * sensitivity);
+				phi += glm::radians(yOffset * sensitivity);
+
+				// Constrain phi to avoid inversion
+				if (phi < glm::radians(1.0f))
+					phi = glm::radians(1.0f);
+				else if (phi > glm::radians(179.5f))
+					phi = glm::radians(179.5f);
+
+				updateCamera();
+			}
+		}
+
+		prevMousePos = mousePos;
 
 		// note
 		// when holding the left-mouse button the 'action' stays at 1 and 'button' is 0 -> release action = 0
@@ -401,6 +447,27 @@ public:
 	virtual void scrollCallback(double xoffset, double yoffset) override
 	{
 		Log::info("ScrollCallback: xoffset={}, yoffset={}", xoffset, yoffset);
+
+		// If not in in the curve editor option, move the camera in/out
+		if (optionData.comboSelection != 0 && optionData.comboSelection != 1)
+		{
+			//cout << "(before scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
+
+			orbitViewData.distanceFromLookAtPoint += (-yoffset / orbitViewData.scrollSensitivity);	// '-yoffset' so scroll up is zoom in and scroll down is zoom out
+
+			// Constrain the distance so that it doesn't pass the 'lookAtPoint' (origin)
+			if (orbitViewData.distanceFromLookAtPoint < 0.2)
+				orbitViewData.distanceFromLookAtPoint = 0.2;
+
+			cout << "(after scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
+
+			updateCamera();
+		}
+
+		// note:
+		// scroll up -> yOffset = 1
+		// scroll down -> yOffset = -1
+		// xoffset = 0 for both
 	}
 
 	virtual void windowSizeCallback(int width, int height) override
@@ -414,12 +481,16 @@ private:
 	windowControlData& windowData;
 	curveRelatedData& curveData = windowData.curveRelatedData;
 	optionData& optionData;
+	orbitViewerData& orbitViewData = windowData.orbitViewerData;
 	vector<vec3>& controlPoints = curveData.controlPts;
 	int mouseButton; // 0: left mouse button | 1: right mouse button
 	int mouseAction; // 0: NOT held | 1: held (pressed down)
-	vec2 mousePos;	// mouse position in CLIP SPACE
+	vec2 mousePos;		// mouse position in CLIP space values
+	vec2 prevMousePos;	// mouse position in CLIP space values
 	bool movingControlPoint;
-	tuple<bool, int> cpToMoveTupleData;
+	tuple<bool, int> cpToMoveTupleData;	// <bool, int>, the boolean represents if the control point to move exists and the int is where this CP is located in the std::vector containing the CP's
+	float& theta = orbitViewData.theta;
+	float& phi = orbitViewData.phi;
 
 	/// <summary>
 	/// Converts pixel space position to clip space position.
@@ -434,6 +505,21 @@ private:
 
 		pos.x = clipPosX;
 		pos.y = -clipPosY;
+	}
+
+	/// <summary>
+	/// Updates where the Camera is situated
+	/// </summary>
+	void updateCamera()
+	{
+		// Update coordinates
+		float distance = orbitViewData.distanceFromLookAtPoint;
+		float x = distance * sin(phi) * cos(theta);
+		float y = distance * cos(phi);
+		float z = distance * sin(phi) * sin(theta);
+
+		// Set new camera position
+		orbitViewData.cameraPos = vec3(x, y, z);
 	}
 
 	void moveControlPointToPos(vec3& controlPointToMove, const vec2 mousePos)
@@ -488,7 +574,7 @@ private:
 		return make_tuple(false, -1);
 	}
 
-	// test
+	// test , debug
 	float calcVec2Length(vec2 v)
 	{
 		return sqrt((v.x * v.x) + (v.y * v.y));
@@ -546,6 +632,7 @@ public:
 		checkboxValue(false),
 		comboSelection(0),
 		curveData(d.curveRelatedData),
+		orbitViewData(d.orbitViewerData),
 		windowData(d)
 	{
 		// Initialize options for the combo box
@@ -641,13 +728,23 @@ public:
 				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
 			}
 			ImGui::EndChild();
-		}
 
-		ImGui::Checkbox("Reset window", &resetWindowBool);
-		if (resetWindowBool)
+			ImGui::Checkbox("Reset window", &resetCurveWindowBool);
+			if (resetCurveWindowBool)
+			{
+				resetCurveWindow();
+				resetCurveWindowBool = false;
+			}
+		}
+		// For camera views
+		else
 		{
-			resetWindow();
-			resetWindowBool = false;
+			ImGui::Checkbox("Reset camera", &resetCamera);
+			if (resetCamera)
+			{
+				resetOrbitViewWindow();
+				resetCamera = false;
+			}
 		}
 
 		/*
@@ -686,19 +783,40 @@ private:
 	const char* options[6]; // Options for the combo box
 	windowControlData& windowData;
 	curveRelatedData& curveData;
+	orbitViewerData& orbitViewData;
 	vector<vec3>& controlPts = curveData.controlPts;
 	int& numberOfIterations = curveData.numIterations;
 	bool& showCurvePoints = curveData.showCurvePoints;
 	bool& deleteControlPts = curveData.deleteControlPts;
-	bool& resetWindowBool = windowData.resetWindow;
+	bool& resetCurveWindowBool = curveData.resetWindow;
+	bool& resetCamera = orbitViewData.resetWindow;
 
 	/// <summary>
 	/// Clears the window of active control points
 	/// </summary>
-	void resetWindow()
+	void resetCurveWindow()
 	{
 		curveData.controlPts.clear();
 		curveData.curve.clear();
+	}
+
+	/// <summary>
+	/// Resets the camera view to default values
+	/// </summary>
+	void resetOrbitViewWindow()
+	{
+		defaultOrbitViewData df = orbitViewData.defaultData;
+		orbitViewData.aspectRatio = df.aspectRatio;
+		orbitViewData.cameraPos = df.cameraPos;
+		orbitViewData.distanceFromLookAtPoint = df.distanceFromLookAtPoint;
+		orbitViewData.farPlane = df.farPlane;
+		orbitViewData.fieldOfView = df.fieldOfView;
+		orbitViewData.mouseSensitivity = df.mouseSensitivity;
+		orbitViewData.nearPlane = df.nearPlane;
+		orbitViewData.phi = df.phi;
+		orbitViewData.resetWindow = false;
+		orbitViewData.scrollSensitivity = df.scrollSensitivity;
+		orbitViewData.theta = df.theta;
 	}
 };
 
@@ -914,7 +1032,7 @@ int main() {
 
 	//GLDebug::enable();
 
-	// make sure to comment out the vec3's inside
+	// note to self: make sure to comment out the vec3's inside
 	std::vector<glm::vec3> cp_positions_vector =
 	{
 		{-.5f, -.5f, 0.f},
@@ -922,16 +1040,19 @@ int main() {
 		{ .5f,  .5f, 0.f},
 		{-.5f,  .5f, 0.f}
 	};
-	vector<vec3> curve;
 
+	// Create structs
+	vector<vec3> curve;
 	int numberOfIOteration = DEFAULT_NUM_CURVE_ITERATIONS;
 	bool showCurvePoints = false;
 	bool deleteControlPts = false;
-	bool clearWindow = false;
-	curveRelatedData curveData = { cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts };
-	mat4 matrix = mat4(1.0f);
-	orbitViewerData orbitViewData = { matrix };
-	windowControlData windowData = { window, curveData, orbitViewData, clearWindow };
+	bool clearCurveWindow = false;
+	curveRelatedData curveData = { cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts, clearCurveWindow };
+
+	bool clearViewWindow = false;
+	orbitViewerData orbitViewData = { clearViewWindow };
+
+	windowControlData windowData = { window, curveData, orbitViewData };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -988,7 +1109,7 @@ int main() {
 	while (!window.shouldClose()) {
 		glfwPollEvents();
 
-		//---- do the settting of cpu stuff in here (checkOptionChosen)
+		//---- note to self: do the settting of cpu stuff in here (checkOptionChosen)
 		checkOptionChosen(geometries, windowData, optionData);
 
 		//// update the control points for cpu
@@ -1042,34 +1163,12 @@ int main() {
 		// Set the view matrix for all other options
 		else
 		{
-			/*
-			const float fieldOfView = glm::radians(45.0f);
-			const float aspectRatio = 1.f;
-			const float nearPlane = 0.1f;
-			const float farPlane = 100.f;
-			const vec3 cameraPos = vec3(vec2(0.f), 3.0f);
-			const vec3 lookAtPoint = vec3(0.f);
-			const vec3 upVector = vec3(0.f, 1.0f, 0.f);
-
-			mat4 viewMat4;
-			mat4 perspectiveMat4;
-
-			defaultOrbitViewData()
-			{
-				viewMat4 = glm::lookAt(cameraPos, lookAtPoint, upVector);
-				perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
-			}
-			*/
-
-			// set default view projection
-			// maybe use 'if-statment'
 			mat4 model = mat4(1.0f);
-			mat4 viewMatrix = orbitViewData.defaultData.viewMat4;
-			mat4 projection = orbitViewData.defaultData.perspectiveMat4 * viewMatrix * model;
-			shader_program_default.setMat4Transform("transformationMatrix", projection);
+			mat4 viewMat = glm::lookAt(orbitViewData.cameraPos, orbitViewData.lookAtPoint, orbitViewData.defaultData.upVector);
+			mat4 projectionMat = orbitViewData.defaultData.perspectiveMat4;
+			glm::mat4 modelViewProjection = projectionMat * viewMat * model;
+			shader_program_default.setMat4Transform("transformationMatrix", modelViewProjection);
 
-			//mat4 model = mat4(1.0f);
-			//mat4 viewMatrix = glm::lookAt(orbitViewData.cameraPos, orbitViewData.defaultData.lookAtPoint, )
 		}
 
 		//Render control points

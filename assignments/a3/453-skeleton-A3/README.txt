@@ -11,3 +11,7 @@ NOTE: adding/moving points is enabled by default.
 
 "Show curve points": When enabled, shows the points that make up the selected curve (These points cannot be moved)
 "Reset Window": Clears all the active control points placed by the user.
+
+-- Orbit Viewer Controls
+Rotate Camera: Hold right mouse button down and move mouse to start rotating the camera.
+Zoom in/out: Using the mouse scroll wheel, scroll up to zoom in, and scroll down to zoom out. 
