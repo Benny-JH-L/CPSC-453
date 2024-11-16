@@ -43,17 +43,99 @@ struct curveRelatedData
 	int& numIterations;
 	bool& showCurvePoints;		// to show curve points
 	bool& deleteControlPts;		// to delete curve points
+	const mat4 defaultViewMat = mat4(1.0f);
+};
+
+/// <summary>
+/// Default orbit viewer values
+/// </summary>
+struct defaultOrbitViewData
+{
+	const float fieldOfView = glm::radians(45.0f);
+	const float aspectRatio = 1.f;
+	const float nearPlane = 0.1f;
+	const float farPlane = 100.f;
+	const vec3 cameraPos = vec3(vec2(0.f), 3.0f);
+	const vec3 lookAtPoint = vec3(0.f);
+	const vec3 upVector = vec3(0.f, 1.0f, 0.f);
+
+	mat4 viewMat4;
+	mat4 perspectiveMat4;
+
+	defaultOrbitViewData()
+	{
+		viewMat4 = glm::lookAt(cameraPos, lookAtPoint, upVector);
+		perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
+	}
 };
 
 struct orbitViewerData
 {
+	defaultOrbitViewData defaultData;
+	const vec3 lookAtPoint = vec3(0.f);		// looking at the origin
+	vec3 cameraPos = vec3(vec2(0.f), 3.0f);	// default at 3.0f
+	vec3 upVector = vec3(0.f, 1.0f, 0.f);	// default
 
+	//vec3 
+	mat4& matrix;	// idk if i'll keep this
+
+	orbitViewerData(mat4& mat) :
+		matrix(mat),
+		defaultData(defaultOrbitViewData())
+	{
+	}
+
+	/// <summary>
+	/// Sets the 'theta' in degrees.
+	/// </summary>
+	/// <param name="degrees"></param>
+	void setTheta(float degrees)
+	{
+		theta = degrees;
+	}
+
+	/// <summary>
+	/// Returns the previously set 'theta' (degrees) as glm::radians
+	/// </summary>
+	/// <returns>glm::radians</returns>
+	float getTheta()
+	{
+		return glm::radians(theta);
+	}
+
+	/// <summary>
+	/// Sets the 'phi' in degrees.
+	/// </summary>
+	/// <param name="degrees"></param>
+	void setPhi(float degrees)
+	{
+		phi = degrees;
+	}
+
+	/// <summary>
+	/// Returns the previously set 'phi' (degrees) as glm::radians
+	/// </summary>
+	/// <returns>glm::radians</returns>
+	float getPhi()
+	{
+		return glm::radians(phi);
+	}
+
+	//void translateCameraPos(vec3 val)
+	//{
+	//	cameraPos += val;
+	//}
+
+private:
+	float theta = 0.f;
+	float phi = 0.f;
 };
 
 struct windowControlData
 {
 	Window& window;
 	curveRelatedData& curveRelatedData;
+	orbitViewerData& orbitViewerData;
 	//vector<vec3>& controlPts;	// The control points the user entered
 	//vector<vec3>& curve;		// points that represent the generated curve
 	//int& numIterations;
@@ -662,7 +744,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			break;
 
 		default:
-			cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
+			//cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
 			return;	// if i want to keep showing the curve previously generated curve, use 'break' if i don't
 		}
 	}
@@ -835,10 +917,10 @@ int main() {
 	// make sure to comment out the vec3's inside
 	std::vector<glm::vec3> cp_positions_vector =
 	{
-		//{-.5f, -.5f, 0.f},
-		//{ .5f, -.5f, 0.f},
-		//{ .5f,  .5f, 0.f},
-		//{-.5f,  .5f, 0.f}
+		{-.5f, -.5f, 0.f},
+		{ .5f, -.5f, 0.f},
+		{ .5f,  .5f, 0.f},
+		{-.5f,  .5f, 0.f}
 	};
 	vector<vec3> curve;
 
@@ -847,7 +929,9 @@ int main() {
 	bool deleteControlPts = false;
 	bool clearWindow = false;
 	curveRelatedData curveData = { cp_positions_vector, curve, numberOfIOteration, showCurvePoints, deleteControlPts };
-	windowControlData windowData = { window, curveData, clearWindow };
+	mat4 matrix = mat4(1.0f);
+	orbitViewerData orbitViewData = { matrix };
+	windowControlData windowData = { window, curveData, orbitViewData, clearWindow };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -941,6 +1025,52 @@ int main() {
 		
 		// Use the default shader (can use different ones for different objects)
 		shader_program_default.use();
+
+		// Initialize options for the combo box
+		//options[0] = "Curve Editor - Bezier";
+		//options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
+		//options[2] = "Orbit Viewer - Curve";
+		//options[3] = "Orbit Viewer - Surface of Revolution";
+		//options[4] = "Orbit Viewer - Tensor Product 1";
+		//options[5] = "Orbit Viewer - Tensor Product 2";
+
+		// Set the view matrix for curve editors
+		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
+		{
+			shader_program_default.setMat4Transform("transformationMatrix", curveData.defaultViewMat);
+		}
+		// Set the view matrix for all other options
+		else
+		{
+			/*
+			const float fieldOfView = glm::radians(45.0f);
+			const float aspectRatio = 1.f;
+			const float nearPlane = 0.1f;
+			const float farPlane = 100.f;
+			const vec3 cameraPos = vec3(vec2(0.f), 3.0f);
+			const vec3 lookAtPoint = vec3(0.f);
+			const vec3 upVector = vec3(0.f, 1.0f, 0.f);
+
+			mat4 viewMat4;
+			mat4 perspectiveMat4;
+
+			defaultOrbitViewData()
+			{
+				viewMat4 = glm::lookAt(cameraPos, lookAtPoint, upVector);
+				perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
+			}
+			*/
+
+			// set default view projection
+			// maybe use 'if-statment'
+			mat4 model = mat4(1.0f);
+			mat4 viewMatrix = orbitViewData.defaultData.viewMat4;
+			mat4 projection = orbitViewData.defaultData.perspectiveMat4 * viewMatrix * model;
+			shader_program_default.setMat4Transform("transformationMatrix", projection);
+
+			//mat4 model = mat4(1.0f);
+			//mat4 viewMatrix = glm::lookAt(orbitViewData.cameraPos, orbitViewData.defaultData.lookAtPoint, )
+		}
 
 		//Render control points
 		cp_point_gpu.bind();
