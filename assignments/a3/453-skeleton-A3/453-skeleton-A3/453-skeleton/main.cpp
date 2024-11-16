@@ -16,6 +16,8 @@
 #include "Window.h"
 #include "Panel.h"
 
+#include <GLFW/glfw3.h>	//idk
+
 // my headers
 //#include "curve/CurveGenerator.h"
 #include <tuple>
@@ -146,6 +148,8 @@ struct windowControlData
 	Window& window;
 	curveRelatedData& curveRelatedData;
 	orbitViewerData& orbitViewerData;
+	bool& enableBonus;
+
 	//vector<vec3>& controlPts;	// The control points the user entered
 	//vector<vec3>& curve;		// points that represent the generated curve
 	//int& numIterations;
@@ -262,6 +266,54 @@ private:
 		}
 		return pt;
 	}
+};
+
+class SurfaceOfRevolution
+{
+public:
+
+	static vector<vec3> generate(vector<vec3> bSplineCurve)
+	{
+
+		vector<vec3> surface;
+
+		//for (int i = 0; i < bSplineCurve.size(); i++)	// go though all curve points
+		//{
+		//	vec3 curvePoint = bSplineCurve[i];
+		//	for (float rad = glm::radians(0.f); rad < glm::radians(180.f); rad += glm::radians(90.f))
+		//	{
+		//		vec3 sPoint;
+		//		sPoint.x = curvePoint.x * cos(rad) + curvePoint.z;
+		//		sPoint.y = curvePoint.y;
+		//		sPoint.z = curvePoint.x * sin(rad);
+		//		//sPoint.x = curvePoint.x * cos(rad) + curvePoint.z * sin(rad);
+		//		//sPoint.y = curvePoint.y;
+		//		//sPoint.z = -curvePoint.x * sin(rad) + curvePoint.z * cos(rad);
+		//		sPoint.x = curvePoint.x * cos(rad) - curvePoint.z * sin(rad);
+
+		//		surface.push_back(sPoint);
+		//	}
+		//}
+
+		int num_segments = 100;
+
+		const static double piApprox = atan(1) * 4;	// pi approximation
+
+		for (int i = 0; i < bSplineCurve.size(); i++)
+		{
+			for (int j = 0; j < num_segments; j++)
+			{
+				vec3 point = bSplineCurve[i];
+				float theta = 2.0f * piApprox * i / num_segments;
+				float x = point.x * cos(theta) - point.z * sin(theta);
+				float z = point.x * sin(theta) + point.z * cos(theta);
+				surface.push_back(vec3(x, point.y, z));
+			}
+		}
+
+
+		return surface;
+	};
 };
 
 class CurveEditorCallBack : public CallbackInterface
@@ -657,6 +709,8 @@ public:
 
 	virtual void render() override
 	{
+		ImGui::Checkbox("Enable Bonus 1", &enableBonus1);
+
 		// Color selector
 		ImGui::ColorEdit3("Select Background Color", colorValue); // RGB color selector
 		ImGui::Text("Selected Color: R: %.3f, G: %.3f, B: %.3f", colorValue[0], colorValue[1], colorValue[2]);
@@ -790,6 +844,7 @@ private:
 	bool& deleteControlPts = curveData.deleteControlPts;
 	bool& resetCurveWindowBool = curveData.resetWindow;
 	bool& resetCamera = orbitViewData.resetWindow;
+	bool& enableBonus1 = windowData.enableBonus;
 
 	/// <summary>
 	/// Clears the window of active control points
@@ -826,8 +881,18 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	vector<vec3> cp_positions_vector = curveData.controlPts;	// User entered control points
 	vector<vec3> curveGenerated;								// Curve generated
 
+	// Initialize options for the combo box
+	//options[0] = "Curve Editor - Bezier";
+	//options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
+	//options[2] = "Orbit Viewer - Curve";
+	//options[3] = "Orbit Viewer - Surface of Revolution";
+	//options[4] = "Orbit Viewer - Tensor Product 1";
+	//options[5] = "Orbit Viewer - Tensor Product 2";
+
 	if (cp_positions_vector.size() >= 2)
 	{
+		//vector<vec3> bspline;		// (ONLY USED FOR Surface of Revolution)
+
 		switch (optionData.comboSelection)
 		{
 		case 0:	// Bezier curve
@@ -860,7 +925,28 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			// ensure that the last point in the curve is the last control point entered
 			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 			break;
+		case 2:		// Orbit View of surface generated
+			return;	// return so it keeps the previously generated curve
+		case 3:		// Surface of revolution
+			//cout << "surface making entered" << endl; // debug
+			//bspline = cp_positions_vector;
+			//for (int i = 0; i < curveData.numIterations; i++)
+			//{
+			//	bspline = CurveGenerator::chaikin(bspline);	// Create the curve so far
+			//}
+			//// ensure that the last point in the curve is the last control point entered
+			//bspline.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 
+			curveGenerated = cp_positions_vector;							// Initial curve
+			for (int i = 0; i < curveData.numIterations; i++)
+			{
+				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
+			}
+			// ensure that the last point in the curve is the last control point entered
+			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
+
+			curveGenerated = SurfaceOfRevolution::generate(curveGenerated);	// result is the generated surface
+			break;
 		default:
 			//cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
 			return;	// if i want to keep showing the curve previously generated curve, use 'break' if i don't
@@ -1052,7 +1138,8 @@ int main() {
 	bool clearViewWindow = false;
 	orbitViewerData orbitViewData = { clearViewWindow };
 
-	windowControlData windowData = { window, curveData, orbitViewData };
+	bool enableBonus1 = false;
+	windowControlData windowData = { window, curveData, orbitViewData, enableBonus1 };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -1171,26 +1258,72 @@ int main() {
 
 		}
 
-		//Render control points
-		cp_point_gpu.bind();
-		glPointSize(CONTROL_POINT_SIZE);
-		glDrawArrays(GL_POINTS, 0, cp_point_cpu.verts.size());
-
-		//Render curve connecting control points
-		cp_line_gpu.bind();
-		//glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
-		glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
-
-		if (curveData.showCurvePoints)
+		// Render control points for curve editor and 3D viewer
+		if (optionData.comboSelection == 0 || optionData.comboSelection == 1 || optionData.comboSelection == 2)
 		{
+			//Render control points
+			cp_point_gpu.bind();
+			glPointSize(CONTROL_POINT_SIZE);
+			glDrawArrays(GL_POINTS, 0, cp_point_cpu.verts.size());
+			//Render lines connecting control points
+			cp_line_gpu.bind();
+			//glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
+			glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
+
 			// Render points generated for the curve
-			curve_point_gpu.bind();
-			glPointSize(5.f);
-			glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
+			if (curveData.showCurvePoints)
+			{
+				curve_point_gpu.bind();
+				glPointSize(5.f);
+				glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
+			}
 		}
-		// Render curve generated
-		curve_line_gpu.bind();
-		glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
+
+		////Render control points
+		//cp_point_gpu.bind();
+		//glPointSize(CONTROL_POINT_SIZE);
+		//glDrawArrays(GL_POINTS, 0, cp_point_cpu.verts.size());
+
+		////Render lines connecting control points
+		//cp_line_gpu.bind();
+		////glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
+		//glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
+
+		//if (curveData.showCurvePoints)
+		//{
+		//	// Render points generated for the curve
+		//	curve_point_gpu.bind();
+		//	glPointSize(5.f);
+		//	glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
+		//}
+		
+		// Render curve generated for curve editor and 3D viewer
+		if (optionData.comboSelection == 0 || optionData.comboSelection == 1 || optionData.comboSelection == 2)
+		{
+			curve_line_gpu.bind();
+			glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
+		}
+		else
+		{
+			
+			vector<vec3> test = 
+			{
+				vec3(-0.5f, -0.5f, 0.f),
+				vec3(0.5f, -0.5f, 0.f),
+				vec3(0.5f, 0.5f, 0.f),
+
+				vec3(-0.5f, -0.5f, 0.5f),
+				vec3(-0.5f, 0.5f, 0.5f),
+				vec3(0.5f, 0.5f, 0.5f)
+			};
+			curve_line_cpu.verts = test;
+			curve_line_gpu.setVerts(curve_line_cpu.verts);
+			curve_line_gpu.bind();
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
+			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());
+			//glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
+		}
+
 
 		//------------------------------------------
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
