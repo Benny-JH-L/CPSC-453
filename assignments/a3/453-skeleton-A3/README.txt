@@ -24,4 +24,13 @@ First place a set of control points and enable "show curve points".
 Next switch to "Orbit viewer - Surface of Revolution".
 Then switch to "Orbit viewer - curve".
 This will show you the control points, and the points that make up the surface.
-(Note: if you swap back to "surface of revolution" the contro points and surface points will be removed)
+(Note: if you swap back to "surface of revolution" the control points and surface points won't be shown)
+
+
+-- Warnings
+I don't recommend using the highest iterations for b-spline generation, or high number of 'slices' for 
+surface of revolution generation. But looking at smooth stuff is nice :)
+
+
+-- Bonus 1
+Able to modify perspective camera FOV, near clip distance, and far clip distance, also has reset funcionality.

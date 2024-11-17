@@ -28,7 +28,7 @@
 using namespace std;
 using namespace glm;
 
-const static double piApprox = atan(1) * 4;											// pi approximation
+const static double PI_APPROX = atan(1) * 4;										// pi approximation
 const static float CONTROL_POINT_SIZE = 15.f;										// Size of the control point's box
 const static float CONTROL_POINT_LENGTH = 2 * (CONTROL_POINT_SIZE / 1000.f);		// Length of the control point's box
 const static float CONTROL_POINT_WIDTH= CONTROL_POINT_LENGTH;						// Width of the control point's box
@@ -37,6 +37,10 @@ const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 const static int MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 200;
 const static int MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 2;
+const static float MIN_NEAR_PLANE = 0.1f;
+const static float MAX_NEAR_PLANE = 4.f;
+const static float MIN_FAR_PLANE = 0.2f;
+const static float MAX_FAR_PLANE = 10.f;
 
 void testDeCasteljauAlgo();
 string toString(vector<vec3> arr);
@@ -99,6 +103,7 @@ struct orbitViewerData
 	float distanceFromLookAtPoint = 3.f;	// Distance from the 'lookAtPoint' (origin) (world space)
 	float theta = glm::radians(90.f);		// Ensure radians
 	float phi = glm::radians(90.f);			// Ensure radians
+	bool showWireFrame = false;				// switch between wireframe and solid surface
 
 	orbitViewerData(bool& resetWindow) :
 		resetCamera(resetWindow),
@@ -799,27 +804,17 @@ public:
 		else
 		{
 			if (comboSelection == 2)
-			{
 				ImGui::Checkbox("Switch Curve", &swapCurveSelectionForViewer);
-
-				//if (swapCurveSelectionForViewer == 0)
-				//{
-				//	swapCurveSelectionForViewer = 1;
-				//	//comboSelection = 1;
-				//}
-				//else if (swapCurveSelectionForViewer == 1)
-				//{
-				//	swapCurveSelectionForViewer = 0;
-				//	//comboSelection = 0;
-				//}
-
-			}
+			else if (comboSelection > 2)
+				ImGui::Checkbox("Show Wireframe", &showWireFrame);
 
 			ImGui::SliderFloat("Aspect Ratio", &orbitViewData.aspectRatio, 0.5f, 2.f, "Current aspect ratio: %.3f");  // NEED TO MAKE AS '&'
 			ImGui::Text("Camera Position: (%.3f, %.3f, %.3f)", orbitViewData.cameraPos.x, orbitViewData.cameraPos.y, orbitViewData.cameraPos.z);  // NEED TO MAKE AS '&'
 			ImGui::Text("Distance from origin (look at): %.3f", orbitViewData.distanceFromLookAtPoint);
-			ImGui::SliderFloat("Far Plane", &orbitViewData.farPlane, 0.f, 200.f, "Curent: %.3f");
-			ImGui::SliderFloat("Near Plane", &orbitViewData.nearPlane, 0.f, 4.f, "Current: %.3f");
+			//ImGui::SliderFloat("Far Plane", &orbitViewData.farPlane, 0.2f, 200.f, "Curent: %.3f");
+			//ImGui::SliderFloat("Near Plane", &orbitViewData.nearPlane, 0.1f, 4.f, "Current: %.3f");
+			ImGui::SliderFloat("Far Plane", &orbitViewData.farPlane, MIN_FAR_PLANE, MAX_FAR_PLANE, "Curent: %.3f");
+			ImGui::SliderFloat("Near Plane", &orbitViewData.nearPlane, MIN_NEAR_PLANE, MAX_NEAR_PLANE, "Current: %.3f");
 			ImGui::SliderFloat("Field Of View (Radians)", &orbitViewData.fieldOfView, glm::radians(25.f), glm::radians(180.f), "Current FOV: %.3f");
 			ImGui::Text("Field Of View (Degrees): %.3f", glm::degrees(orbitViewData.fieldOfView));
 			ImGui::SliderFloat("Mouse sensitivity", &orbitViewData.mouseSensitivity, 0.5f, 200.f, "Current: %.3f");
@@ -931,8 +926,9 @@ private:
 	bool& deleteControlPts = curveData.deleteControlPts;
 	bool& resetCurveWindowBool = curveData.resetWindow;
 	bool& resetCamera = orbitViewData.resetCamera;
+	bool& showWireFrame = orbitViewData.showWireFrame;
 	bool& enableBonus1 = windowData.enableBonus;
-	bool swapCurveSelectionForViewer;
+	bool swapCurveSelectionForViewer;					// is initialized to false (stores whether or not the user wants to swap curve generation method while in 3D viewer
 
 	/// <summary>
 	/// Clears the window of active control points
@@ -949,16 +945,16 @@ private:
 	void resetOrbitViewWindow()
 	{
 		defaultOrbitViewData df = orbitViewData.defaultData;
-		//orbitViewData.aspectRatio = df.aspectRatio;	// want to keep current aspecet ratio
+		//orbitViewData.aspectRatio = df.aspectRatio;	// want to keep current aspect ratio
 		orbitViewData.cameraPos = df.cameraPos;
 		orbitViewData.distanceFromLookAtPoint = df.distanceFromLookAtPoint;
 		orbitViewData.farPlane = df.farPlane;
 		orbitViewData.fieldOfView = df.fieldOfView;
-		orbitViewData.mouseSensitivity = df.mouseSensitivity;
+		//orbitViewData.mouseSensitivity = df.mouseSensitivity;	// want to keep current sensitivity
 		orbitViewData.nearPlane = df.nearPlane;
 		orbitViewData.phi = df.phi;
 		orbitViewData.resetCamera = false;
-		orbitViewData.scrollSensitivity = df.scrollSensitivity;
+		//orbitViewData.scrollSensitivity = df.scrollSensitivity;	// want to keep current sensitivity
 		orbitViewData.theta = df.theta;
 	}
 };
@@ -1439,26 +1435,14 @@ int main() {
 		}
 		else
 		{
-			
-			//vector<vec3> test = 
-			//{
-			//	vec3(-0.5f, -0.5f, 0.f),
-			//	vec3(0.5f, -0.5f, 0.f),
-			//	vec3(0.5f, 0.5f, 0.f),
-
-			//	vec3(-0.5f, -0.5f, 0.5f),
-			//	vec3(-0.5f, 0.5f, 0.5f),
-			//	vec3(0.5f, 0.5f, 0.5f)
-			//};
-			//curve_line_cpu.verts = test;
-
-			curve_line_gpu.setVerts(curve_line_cpu.verts);
 			curve_line_gpu.bind();
-			//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe 
-			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());
-			//for (int i = 0, j = 3; i < curve_line_cpu.verts.size(); i++)
-			//	glDrawArrays(GL_TRIANGLES, i, j);
+
+			if (orbitViewData.showWireFrame)
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe 
+			else
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
+
+			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
 		}
 
 
