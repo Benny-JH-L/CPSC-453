@@ -272,11 +272,17 @@ class SurfaceOfRevolution
 {
 public:
 
-	static vector<vec3> generate(vector<vec3> bSplineCurve)
+	/// <summary>
+	/// Returns a tuple containing the mesh point locations, and triangles that make up the mesh.
+	/// tuple : (mesh points, mesh triangle).
+	/// </summary>
+	/// <param name="bSplineCurve"></param>
+	/// <returns></returns>
+	static tuple<vector<vec3>, vector<vec3>> generate(vector<vec3> bSplineCurve)
 	{
-
-		vector<vec3> surface;
-
+		const static double piApprox = atan(1) * 4;	// pi approximation
+		vector<vec3> meshPoints;
+		vector<vec3> meshTriangles;
 		//for (int i = 0; i < bSplineCurve.size(); i++)	// go though all curve points
 		//{
 		//	vec3 curvePoint = bSplineCurve[i];
@@ -295,24 +301,77 @@ public:
 		//	}
 		//}
 
-		int num_segments = 100;
+		//for (int i = 0; i < bSplineCurve.size(); i++)
+		//{
+		//	for (int j = 0; j < spacing; j++)
+		//	{
+		//		vec3 point = bSplineCurve[i];
+		//		float theta = 2.0f * piApprox * i / spacing;
+		//		float x = point.x * cos(theta) - point.z * sin(theta);
+		//		float z = point.x * sin(theta) + point.z * cos(theta);
+		//		surface.push_back(vec3(x, point.y, z));
+		//	}
+		//}
 
-		const static double piApprox = atan(1) * 4;	// pi approximation
+		int numSlices = 10;
+		float angleStep = 2.0f * glm::pi<float>() / numSlices;
+		vector<vector<vec3>> temp2D;	// each nested vector contains a b-spline curve point rotated 'numSlices' times
 
+		// Create mesh points
 		for (int i = 0; i < bSplineCurve.size(); i++)
 		{
-			for (int j = 0; j < num_segments; j++)
+			vector<vec3> temp;
+			// Create mesh point by rotating the b-spline curve point
+			for (int j = 0; j <= numSlices; j++)
 			{
-				vec3 point = bSplineCurve[i];
-				float theta = 2.0f * piApprox * i / num_segments;
-				float x = point.x * cos(theta) - point.z * sin(theta);
-				float z = point.x * sin(theta) + point.z * cos(theta);
-				surface.push_back(vec3(x, point.y, z));
+				float angle = j * angleStep;
+
+				// rotate about x-axis
+				//float x = bSplineCurve[i].x;
+				//float y = bSplineCurve[i].y * cos(angle) - bSplineCurve[i].z * sin(angle);
+				//float z = bSplineCurve[i].y * sin(angle) + bSplineCurve[i].z * cos(angle);
+
+				// rotate about y-axis
+				float x = bSplineCurve[i].x * cos(angle);
+				float z = bSplineCurve[i].x * sin(angle);
+				float y = bSplineCurve[i].y;
+
+				// rotate about z-axis
+				//float x = bSplineCurve[i].x * cos(angle) - bSplineCurve[i].y * sin(angle);
+				//float y = bSplineCurve[i].x * sin(angle) + bSplineCurve[i].y * cos(angle);
+				//float z = bSplineCurve[i].z;
+
+				meshPoints.push_back(vec3(x, y, z));
+				temp.push_back(vec3(x, y, z));
 			}
+			temp2D.push_back(temp);
 		}
 
+		// Create mesh triangles
+		for (int i = 0; i < temp2D.size() - 1; i++)		// minus 1, as we can't draw a triangle with only the last set of points left
+		{
+			vector<vec3> currentSetOfPoints = temp2D[i];
+			vector<vec3> nextSetOfPoints = temp2D[i + 1];
 
-		return surface;
+			// First triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)	// minus 1, as we can't draw a triangle with other points left
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+			}
+			// Second triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+				meshTriangles.push_back(currentSetOfPoints[j + 1]);
+
+			}
+			// result is a square defined by these two triangles (triangles are drawn counter clock wise)
+		}
+
+		return make_tuple(meshPoints, meshTriangles);
 	};
 };
 
@@ -799,6 +858,25 @@ public:
 				resetOrbitViewWindow();
 				resetCamera = false;
 			}
+
+			// Scrollable block (DEBUG)
+			ImGui::TextWrapped("Active Control Points (Scrollable Block):");
+			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+			for (int i = 0; i < controlPts.size(); i++)
+			{
+				vec3 v = controlPts[i];
+				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			}
+			ImGui::EndChild();
+
+			// Scrollable block (DEBUG)
+			ImGui::TextWrapped("Active Curve Points (Scrollable Block):");
+			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+			for (int i = 0; i < curvePts.size(); i++) {
+				vec3 v = curvePts[i];
+				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			}
+			ImGui::EndChild();
 		}
 
 		/*
@@ -839,6 +917,7 @@ private:
 	curveRelatedData& curveData;
 	orbitViewerData& orbitViewData;
 	vector<vec3>& controlPts = curveData.controlPts;
+	vector<vec3>& curvePts = curveData.curve;
 	int& numberOfIterations = curveData.numIterations;
 	bool& showCurvePoints = curveData.showCurvePoints;
 	bool& deleteControlPts = curveData.deleteControlPts;
@@ -880,6 +959,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	curveRelatedData curveData = windowData.curveRelatedData;
 	vector<vec3> cp_positions_vector = curveData.controlPts;	// User entered control points
 	vector<vec3> curveGenerated;								// Curve generated
+	tuple<vector<vec3>, vector<vec3>> tupleForSurfaceOfRevolution;	// contains meshPoints (1st element) and meshTriangles (2nd element)
 
 	// Initialize options for the combo box
 	//options[0] = "Curve Editor - Bezier";
@@ -922,8 +1002,8 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
-			// ensure that the last point in the curve is the last control point entered
-			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
+			//// ensure that the last point in the curve is the last control point entered
+			//curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 			break;
 		case 2:		// Orbit View of surface generated
 			return;	// return so it keeps the previously generated curve
@@ -942,10 +1022,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
-			// ensure that the last point in the curve is the last control point entered
-			curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
-
-			curveGenerated = SurfaceOfRevolution::generate(curveGenerated);	// result is the generated surface
+			tupleForSurfaceOfRevolution = SurfaceOfRevolution::generate(curveGenerated);	// result is the generated surface
 			break;
 		default:
 			//cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
@@ -971,12 +1048,30 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	cp_line_cpu.verts = cp_positions_vector;
 	cp_line_cpu.cols = vector<vec3>(cp_line_cpu.verts.size(), vec3(0.f, 1.f, 0.f));
 
-	// update the curve
-	curve_point_cpu.verts = curveGenerated;
-	curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
-	// update curve line
-	curve_line_cpu.verts = curveGenerated;
-	curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
+	// Update the curve stuff for curve editors & their 3D viewer
+	if (optionData.comboSelection == 0 || optionData.comboSelection == 1 || optionData.comboSelection == 2)
+	{
+		// update the curve
+		curve_point_cpu.verts = curveGenerated;
+		curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
+		// update curve line
+		curve_line_cpu.verts = curveGenerated;
+		curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
+	}
+	// Surface of Revolution
+	else if (optionData.comboSelection == 3)
+	{
+		auto [meshPoints, meshTriangles] = tupleForSurfaceOfRevolution;
+
+		// update the curve
+		curve_point_cpu.verts = meshPoints;
+		curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
+
+		// update curve line
+		curve_line_cpu.verts = meshTriangles;
+		curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
+	}
+
 }
 
 /*
@@ -1258,7 +1353,7 @@ int main() {
 
 		}
 
-		// Render control points for curve editor and 3D viewer
+		// Render control points for curve editor and their 3D viewer
 		if (optionData.comboSelection == 0 || optionData.comboSelection == 1 || optionData.comboSelection == 2)
 		{
 			//Render control points
@@ -1306,22 +1401,25 @@ int main() {
 		else
 		{
 			
-			vector<vec3> test = 
-			{
-				vec3(-0.5f, -0.5f, 0.f),
-				vec3(0.5f, -0.5f, 0.f),
-				vec3(0.5f, 0.5f, 0.f),
+			//vector<vec3> test = 
+			//{
+			//	vec3(-0.5f, -0.5f, 0.f),
+			//	vec3(0.5f, -0.5f, 0.f),
+			//	vec3(0.5f, 0.5f, 0.f),
 
-				vec3(-0.5f, -0.5f, 0.5f),
-				vec3(-0.5f, 0.5f, 0.5f),
-				vec3(0.5f, 0.5f, 0.5f)
-			};
-			curve_line_cpu.verts = test;
+			//	vec3(-0.5f, -0.5f, 0.5f),
+			//	vec3(-0.5f, 0.5f, 0.5f),
+			//	vec3(0.5f, 0.5f, 0.5f)
+			//};
+			//curve_line_cpu.verts = test;
+
 			curve_line_gpu.setVerts(curve_line_cpu.verts);
 			curve_line_gpu.bind();
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
+			//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe 
 			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());
-			//glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
+			//for (int i = 0, j = 3; i < curve_line_cpu.verts.size(); i++)
+			//	glDrawArrays(GL_TRIANGLES, i, j);
 		}
 
 
