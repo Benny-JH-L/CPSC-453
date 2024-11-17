@@ -28,12 +28,15 @@
 using namespace std;
 using namespace glm;
 
+const static double piApprox = atan(1) * 4;											// pi approximation
 const static float CONTROL_POINT_SIZE = 15.f;										// Size of the control point's box
 const static float CONTROL_POINT_LENGTH = 2 * (CONTROL_POINT_SIZE / 1000.f);		// Length of the control point's box
 const static float CONTROL_POINT_WIDTH= CONTROL_POINT_LENGTH;						// Width of the control point's box
 const static int DEFAULT_NUM_CURVE_ITERATIONS = 6;									// the default number of iterations for curve generation
 const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
+const static int MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 200;
+const static int MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 2;
 
 void testDeCasteljauAlgo();
 string toString(vector<vec3> arr);
@@ -82,7 +85,7 @@ struct defaultOrbitViewData
 struct orbitViewerData
 {
 	defaultOrbitViewData defaultData;
-	bool& resetWindow;
+	bool& resetCamera;
 
 	float fieldOfView = glm::radians(45.0f);
 	float aspectRatio = 1.f;
@@ -98,49 +101,10 @@ struct orbitViewerData
 	float phi = glm::radians(90.f);			// Ensure radians
 
 	orbitViewerData(bool& resetWindow) :
-		resetWindow(resetWindow),
+		resetCamera(resetWindow),
 		defaultData(defaultOrbitViewData())
 	{
 	}
-
-	/*
-	///// <summary>
-	///// Sets the 'theta' in degrees.
-	///// </summary>
-	///// <param name="degrees"></param>
-	//void setTheta(float degrees)
-	//{
-	//	theta = degrees;
-	//}
-
-	///// <summary>
-	///// Returns the previously set 'theta' (degrees) as glm::radians
-	///// </summary>
-	///// <returns>glm::radians</returns>
-	//float getTheta()
-	//{
-	//	return glm::radians(theta);
-	//}
-
-	///// <summary>
-	///// Sets the 'phi' in degrees.
-	///// </summary>
-	///// <param name="degrees"></param>
-	//void setPhi(float degrees)
-	//{
-	//	phi = degrees;
-	//}
-
-	///// <summary>
-	///// Returns the previously set 'phi' (degrees) as glm::radians
-	///// </summary>
-	///// <returns>glm::radians</returns>
-	//float getPhi()
-	//{
-	//	return glm::radians(phi);
-	//}
-	*/
-
 };
 
 struct windowControlData
@@ -149,7 +113,8 @@ struct windowControlData
 	curveRelatedData& curveRelatedData;
 	orbitViewerData& orbitViewerData;
 	bool& enableBonus;
-
+	int& numberOfSlices;			// ONLY used by Surface of revolution
+	int previousOptionChosen = -1;
 	//vector<vec3>& controlPts;	// The control points the user entered
 	//vector<vec3>& curve;		// points that represent the generated curve
 	//int& numIterations;
@@ -165,6 +130,7 @@ struct windowControlData
 struct optionData
 {
 	int& comboSelection;   // Index of selected option in combo box
+	bool& swapCurveSelectionForViewer;	// only used for "Orbit viwer - Curve"
 	const char* options[]; // Options for the combo box
 };
 
@@ -273,47 +239,18 @@ class SurfaceOfRevolution
 public:
 
 	/// <summary>
-	/// Returns a tuple containing the mesh point locations, and triangles that make up the mesh.
-	/// tuple : (mesh points, mesh triangle).
+	/// Returns a tuple containing the mesh point positions, and triangles that make up the mesh.
+	/// 1st element: mesh point positions, std::vector(vec3).
+	/// 2nd element: triangle mesh, std::vector(vec3).
 	/// </summary>
-	/// <param name="bSplineCurve"></param>
+	/// <param name="bSplineCurve"> the b-spline curve to make the surface from.</param>
+	/// <param name="numSlices"> how many 'slices' wanted when generating the surface.</param>
 	/// <returns></returns>
-	static tuple<vector<vec3>, vector<vec3>> generate(vector<vec3> bSplineCurve)
+	static tuple<vector<vec3>, vector<vec3>> generate(vector<vec3> bSplineCurve, int numSlices)
 	{
-		const static double piApprox = atan(1) * 4;	// pi approximation
 		vector<vec3> meshPoints;
 		vector<vec3> meshTriangles;
-		//for (int i = 0; i < bSplineCurve.size(); i++)	// go though all curve points
-		//{
-		//	vec3 curvePoint = bSplineCurve[i];
-		//	for (float rad = glm::radians(0.f); rad < glm::radians(180.f); rad += glm::radians(90.f))
-		//	{
-		//		vec3 sPoint;
-		//		sPoint.x = curvePoint.x * cos(rad) + curvePoint.z;
-		//		sPoint.y = curvePoint.y;
-		//		sPoint.z = curvePoint.x * sin(rad);
-		//		//sPoint.x = curvePoint.x * cos(rad) + curvePoint.z * sin(rad);
-		//		//sPoint.y = curvePoint.y;
-		//		//sPoint.z = -curvePoint.x * sin(rad) + curvePoint.z * cos(rad);
-		//		sPoint.x = curvePoint.x * cos(rad) - curvePoint.z * sin(rad);
 
-		//		surface.push_back(sPoint);
-		//	}
-		//}
-
-		//for (int i = 0; i < bSplineCurve.size(); i++)
-		//{
-		//	for (int j = 0; j < spacing; j++)
-		//	{
-		//		vec3 point = bSplineCurve[i];
-		//		float theta = 2.0f * piApprox * i / spacing;
-		//		float x = point.x * cos(theta) - point.z * sin(theta);
-		//		float z = point.x * sin(theta) + point.z * cos(theta);
-		//		surface.push_back(vec3(x, point.y, z));
-		//	}
-		//}
-
-		int numSlices = 10;
 		float angleStep = 2.0f * glm::pi<float>() / numSlices;
 		vector<vector<vec3>> temp2D;	// each nested vector contains a b-spline curve point rotated 'numSlices' times
 
@@ -368,7 +305,7 @@ public:
 				meshTriangles.push_back(currentSetOfPoints[j + 1]);
 
 			}
-			// result is a square defined by these two triangles (triangles are drawn counter clock wise)
+			// result is a square/rectangle defined by these two triangles (triangles are drawn counter clock wise)
 		}
 
 		return make_tuple(meshPoints, meshTriangles);
@@ -585,6 +522,13 @@ public:
 	{
 		Log::info("WindowSizeCallback: width={}, height={}", width, height);
 		CallbackInterface::windowSizeCallback(width, height); // Important, calls glViewport(0, 0, width, height);
+
+		// Adjust aspect ratio
+		if (height <= width)
+			orbitViewData.aspectRatio = (float)width / (float)height;
+		else
+			orbitViewData.aspectRatio = 1.f / ((float)height / (float)width);
+
 	}
 
 private:
@@ -764,6 +708,8 @@ public:
 		colorValue[0] = 0.5f; // R
 		colorValue[1] = 0.5f; // G
 		colorValue[2] = 0.5f; // B
+
+		swapCurveSelectionForViewer = false;
 	}
 
 	virtual void render() override
@@ -810,7 +756,7 @@ public:
 		{
 			// Number of iterations input
 			//ImGui::InputInt("Iterations", &numberOfIterations, 1, 1);
-			ImGui::SliderInt("Iterations", &numberOfIterations, MIN_NUMBER_OF_ITERATIONS_FOR_CURVES, MAX_NUMBER_OF_ITERATIONS_FOR_CURVES, "Drag Value: %d");
+			ImGui::SliderInt("Iterations", &numberOfIterations, MIN_NUMBER_OF_ITERATIONS_FOR_CURVES, MAX_NUMBER_OF_ITERATIONS_FOR_CURVES, "Iteration: %d");
 			ImGui::Text("Min number of iterations: %d", MIN_NUMBER_OF_ITERATIONS_FOR_CURVES);
 			ImGui::Text("Max number of iterations: %d", MAX_NUMBER_OF_ITERATIONS_FOR_CURVES);
 
@@ -852,6 +798,44 @@ public:
 		// For camera views
 		else
 		{
+			if (comboSelection == 2)
+			{
+				ImGui::Checkbox("Switch Curve", &swapCurveSelectionForViewer);
+
+				//if (swapCurveSelectionForViewer == 0)
+				//{
+				//	swapCurveSelectionForViewer = 1;
+				//	//comboSelection = 1;
+				//}
+				//else if (swapCurveSelectionForViewer == 1)
+				//{
+				//	swapCurveSelectionForViewer = 0;
+				//	//comboSelection = 0;
+				//}
+
+			}
+
+			ImGui::SliderFloat("Aspect Ratio", &orbitViewData.aspectRatio, 0.5f, 2.f, "Current aspect ratio: %.3f");  // NEED TO MAKE AS '&'
+			ImGui::Text("Camera Position: (%.3f, %.3f, %.3f)", orbitViewData.cameraPos.x, orbitViewData.cameraPos.y, orbitViewData.cameraPos.z);  // NEED TO MAKE AS '&'
+			ImGui::Text("Distance from origin (look at): %.3f", orbitViewData.distanceFromLookAtPoint);
+			ImGui::SliderFloat("Far Plane", &orbitViewData.farPlane, 0.f, 200.f, "Curent: %.3f");
+			ImGui::SliderFloat("Near Plane", &orbitViewData.nearPlane, 0.f, 4.f, "Current: %.3f");
+			ImGui::SliderFloat("Field Of View (Radians)", &orbitViewData.fieldOfView, glm::radians(25.f), glm::radians(180.f), "Current FOV: %.3f");
+			ImGui::Text("Field Of View (Degrees): %.3f", glm::degrees(orbitViewData.fieldOfView));
+			ImGui::SliderFloat("Mouse sensitivity", &orbitViewData.mouseSensitivity, 0.5f, 200.f, "Current: %.3f");
+			ImGui::SliderFloat("Mouse Scroll sensitivity", &orbitViewData.scrollSensitivity, 5.f, 20.f, "Current: %.3f");
+			ImGui::Text("(Mouse Scroll sensitivity: Lower value the faster)");
+			ImGui::Text("Phi (Degrees): %.3f", glm::degrees(orbitViewData.phi));
+			ImGui::Text("Theta (Degrees): %.3f", glm::degrees(orbitViewData.theta)); 
+
+			if (comboSelection == 3)
+			{
+				ImGui::SliderInt("Number of Slices", &windowData.numberOfSlices, MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION, MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION, "Current: %d");
+				ImGui::Text("Min number of slices: %d", MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
+				ImGui::Text("Min number of slices: %d", MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
+			}
+
+
 			ImGui::Checkbox("Reset camera", &resetCamera);
 			if (resetCamera)
 			{
@@ -859,24 +843,43 @@ public:
 				resetCamera = false;
 			}
 
-			// Scrollable block (DEBUG)
-			ImGui::TextWrapped("Active Control Points (Scrollable Block):");
-			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
-			for (int i = 0; i < controlPts.size(); i++)
-			{
-				vec3 v = controlPts[i];
-				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
-			}
-			ImGui::EndChild();
+			//defaultOrbitViewData defaultData;
+			//bool& resetCamera;
 
-			// Scrollable block (DEBUG)
-			ImGui::TextWrapped("Active Curve Points (Scrollable Block):");
-			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
-			for (int i = 0; i < curvePts.size(); i++) {
-				vec3 v = curvePts[i];
-				ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
-			}
-			ImGui::EndChild();
+			//float fieldOfView = glm::radians(45.0f);
+			//float aspectRatio = 1.f;
+			//float nearPlane = 0.1f;
+			//float farPlane = 100.f;
+			//const vec3 lookAtPoint = vec3(0.f);		// looking at the origin (0.0, 0.0, 0.0)
+			//vec3 cameraPos = vec3(vec2(0.f), 3.0f);	// initial at 3.0f
+
+			//float mouseSensitivity = 100.0f;		// How fast the camera movement should be
+			//float scrollSensitivity = 10.0f;		// How fast the scroll in/out should be
+			//float distanceFromLookAtPoint = 3.f;	// Distance from the 'lookAtPoint' (origin) (world space)
+			//float theta = glm::radians(90.f);		// Ensure radians
+			//float phi = glm::radians(90.f);			// Ensure radians
+
+
+
+
+			//// Scrollable block (DEBUG)
+			//ImGui::TextWrapped("Active Control Points (Scrollable Block):");
+			//ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+			//for (int i = 0; i < controlPts.size(); i++)
+			//{
+			//	vec3 v = controlPts[i];
+			//	ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			//}
+			//ImGui::EndChild();
+
+			//// Scrollable block (DEBUG)
+			//ImGui::TextWrapped("Active Curve Points (Scrollable Block):");
+			//ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
+			//for (int i = 0; i < curvePts.size(); i++) {
+			//	vec3 v = curvePts[i];
+			//	ImGui::Text("Vec3(%.5f, %.5f, %.5f)", v.x, v.y, v.z);	// Display active control points positions
+			//}
+			//ImGui::EndChild();
 		}
 
 		/*
@@ -903,6 +906,11 @@ public:
 		return comboSelection;
 	}
 
+	bool& getSwapCurveSelectionBool()
+	{
+		return swapCurveSelectionForViewer;
+	}
+
 private:
 	float colorValue[3];  // Array for RGB color values
 	char inputText[256];  // Buffer for input text
@@ -917,13 +925,14 @@ private:
 	curveRelatedData& curveData;
 	orbitViewerData& orbitViewData;
 	vector<vec3>& controlPts = curveData.controlPts;
-	vector<vec3>& curvePts = curveData.curve;
+	//vector<vec3>& curvePts = curveData.curve;	// debug
 	int& numberOfIterations = curveData.numIterations;
 	bool& showCurvePoints = curveData.showCurvePoints;
 	bool& deleteControlPts = curveData.deleteControlPts;
 	bool& resetCurveWindowBool = curveData.resetWindow;
-	bool& resetCamera = orbitViewData.resetWindow;
+	bool& resetCamera = orbitViewData.resetCamera;
 	bool& enableBonus1 = windowData.enableBonus;
+	bool swapCurveSelectionForViewer;
 
 	/// <summary>
 	/// Clears the window of active control points
@@ -940,7 +949,7 @@ private:
 	void resetOrbitViewWindow()
 	{
 		defaultOrbitViewData df = orbitViewData.defaultData;
-		orbitViewData.aspectRatio = df.aspectRatio;
+		//orbitViewData.aspectRatio = df.aspectRatio;	// want to keep current aspecet ratio
 		orbitViewData.cameraPos = df.cameraPos;
 		orbitViewData.distanceFromLookAtPoint = df.distanceFromLookAtPoint;
 		orbitViewData.farPlane = df.farPlane;
@@ -948,7 +957,7 @@ private:
 		orbitViewData.mouseSensitivity = df.mouseSensitivity;
 		orbitViewData.nearPlane = df.nearPlane;
 		orbitViewData.phi = df.phi;
-		orbitViewData.resetWindow = false;
+		orbitViewData.resetCamera = false;
 		orbitViewData.scrollSensitivity = df.scrollSensitivity;
 		orbitViewData.theta = df.theta;
 	}
@@ -1006,6 +1015,28 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			//curveGenerated.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 			break;
 		case 2:		// Orbit View of surface generated
+
+			// If the user chose to swap the way the curve is generated
+			if (optionData.swapCurveSelectionForViewer && windowData.previousOptionChosen >= 0)
+			{
+				// Swap to bezier
+				if (windowData.previousOptionChosen == 1)
+				{
+					optionData.comboSelection = 0;	// temporary
+					windowData.previousOptionChosen = 0;
+				}
+				// Swap to b-spline
+				else
+				{
+					optionData.comboSelection = 1;	// temporary
+					windowData.previousOptionChosen = 1;
+				}
+
+				checkOptionChosen(geoms, windowData, optionData);	// Call again to generate the desired curve
+				optionData.comboSelection = 2;		// Set back 
+				optionData.swapCurveSelectionForViewer = false;
+			}
+
 			return;	// return so it keeps the previously generated curve
 		case 3:		// Surface of revolution
 			//cout << "surface making entered" << endl; // debug
@@ -1022,13 +1053,17 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
-			tupleForSurfaceOfRevolution = SurfaceOfRevolution::generate(curveGenerated);	// result is the generated surface
+			tupleForSurfaceOfRevolution = SurfaceOfRevolution::generate(curveGenerated, windowData.numberOfSlices);	// result is the mesh points and triangle mesh
 			break;
 		default:
 			//cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
 			return;	// if i want to keep showing the curve previously generated curve, use 'break' if i don't
 		}
 	}
+
+	// Update previous chosen option if it has changed
+	if (windowData.previousOptionChosen != optionData.comboSelection)
+		windowData.previousOptionChosen = optionData.comboSelection;
 
 	CPU_Geometry& cp_point_cpu = geoms.cp_point_cpu;
 	CPU_Geometry& cp_line_cpu = geoms.cp_line_cpu;
@@ -1234,12 +1269,13 @@ int main() {
 	orbitViewerData orbitViewData = { clearViewWindow };
 
 	bool enableBonus1 = false;
-	windowControlData windowData = { window, curveData, orbitViewData, enableBonus1 };
+	int numberOfSlices = 20;
+	windowControlData windowData = { window, curveData, orbitViewData, enableBonus1, numberOfSlices };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
 
-	optionData optionData = {curve_editor_panel_renderer->getSelectedOption(), curve_editor_panel_renderer->getOptions()};
+	optionData optionData = {curve_editor_panel_renderer->getSelectedOption(), curve_editor_panel_renderer->getSwapCurveSelectionBool(), curve_editor_panel_renderer->getOptions()};
 
 	auto curve_editor_callback = std::make_shared<CurveEditorCallBack>(windowData, optionData);
 	//auto turn_table_3D_viewer_callback = std::make_shared<TurnTable3DViewerCallBack>();
@@ -1347,7 +1383,10 @@ int main() {
 		{
 			mat4 model = mat4(1.0f);
 			mat4 viewMat = glm::lookAt(orbitViewData.cameraPos, orbitViewData.lookAtPoint, orbitViewData.defaultData.upVector);
-			mat4 projectionMat = orbitViewData.defaultData.perspectiveMat4;
+			//mat4 projectionMat = orbitViewData.defaultData.perspectiveMat4;
+			mat4 projectionMat = glm::perspective(orbitViewData.fieldOfView, orbitViewData.aspectRatio, orbitViewData.nearPlane, orbitViewData.farPlane);
+			//perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
+
 			glm::mat4 modelViewProjection = projectionMat * viewMat * model;
 			shader_program_default.setMat4Transform("transformationMatrix", modelViewProjection);
 

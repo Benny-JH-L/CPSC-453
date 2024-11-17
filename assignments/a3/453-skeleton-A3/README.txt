@@ -10,8 +10,18 @@ Deleting Control Points: Click the box next to a label "Delete curve points" in 
 NOTE: adding/moving points is enabled by default.
 
 "Show curve points": When enabled, shows the points that make up the selected curve (These points cannot be moved)
+	- this feature carries over to the 3D curve viewer as well.
 "Reset Window": Clears all the active control points placed by the user.
 
 -- Orbit Viewer Controls
 Rotate Camera: Hold right mouse button down and move mouse to start rotating the camera.
 Zoom in/out: Using the mouse scroll wheel, scroll up to zoom in, and scroll down to zoom out. 
+
+
+
+--Other 'cool' feature
+First place a set of control points and enable "show curve points".
+Next switch to "Orbit viewer - Surface of Revolution".
+Then switch to "Orbit viewer - curve".
+This will show you the control points, and the points that make up the surface.
+(Note: if you swap back to "surface of revolution" the contro points and surface points will be removed)
