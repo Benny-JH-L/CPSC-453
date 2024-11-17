@@ -115,6 +115,14 @@ struct orbitViewerData
 	}
 };
 
+struct tensorProductData
+{
+	vector<vec3> surface1 =
+	{
+
+	};
+};
+
 struct windowControlData
 {
 	Window& window;
@@ -194,6 +202,11 @@ public:
 		return curveSoFar;
 	}
 
+	/// <summary>
+	/// Generates an open polynomial B-Spline curve.
+	/// </summary>
+	/// <param name="coursePts"> control points</param>
+	/// <returns> a std::vector(glm::vec3) that contains the open polynomial B-spine curve.</returns>
 	static vector<vec3> chaikin(const vector<vec3> coursePts)
 	{
 		int numCoursePts = coursePts.size();
@@ -247,6 +260,7 @@ class SurfaceOfRevolution
 public:
 
 	/// <summary>
+	/// Takes in a B-Spline curve and the desired number of "slices" (larger slice value = smoother surface).
 	/// Returns a tuple containing the mesh point positions, and triangles that make up the mesh.
 	/// 1st element: mesh point positions, std::vector(vec3).
 	/// 2nd element: triangle mesh, std::vector(vec3).
@@ -318,6 +332,122 @@ public:
 
 		return make_tuple(meshPoints, meshTriangles);
 	};
+};
+
+class BSplineSurface
+{
+public:
+	BSplineSurface(int uDeg, int vDeg, const vector<float>& uKnots, const vector<float>& vKnots, const vector<vector<vec3>>& ctrlPts) :
+		uDegree(uDeg),
+		vDegree(vDeg),
+		uKnots(uKnots),
+		vKnots(vKnots),
+		controlPoints(ctrlPts)
+	{}
+
+	float basisFunction(int i, int k, float t, const std::vector<float>& knots) const
+	{
+		if (k == 0) {
+			return (t >= knots[i] && t < knots[i + 1]) ? 1.0f : 0.0f;
+		}
+		float denom1 = knots[i + k] - knots[i];
+		float denom2 = knots[i + k + 1] - knots[i + 1];
+
+		float term1 = denom1 > 0 ? (t - knots[i]) / denom1 * basisFunction(i, k - 1, t, knots) : 0.0f;
+		float term2 = denom2 > 0 ? (knots[i + k + 1] - t) / denom2 * basisFunction(i + 1, k - 1, t, knots) : 0.0f;
+
+		return term1 + term2;
+	}
+
+	glm::vec3 evaluate(float u, float v) const
+	{
+		glm::vec3 point(0.0f);
+		int n = controlPoints.size();
+		int m = controlPoints[0].size();
+
+		for (int i = 0; i < n; ++i) {
+			for (int j = 0; j < m; ++j) {
+				float bu = basisFunction(i, uDegree, u, uKnots);
+				float bv = basisFunction(j, vDegree, v, vKnots);
+				point += bu * bv * controlPoints[i][j];
+			}
+		}
+		return point;
+	}
+
+	/// <summary>
+	/// index 0 is surface
+	/// index 1 is color
+	/// </summary>
+	/// <param name="resolutionU"></param>
+	/// <param name="resolutionV"></param>
+	/// <returns></returns>
+	vector<vector<vec3>> draw(int resolutionU, int resolutionV) const
+	{
+		vector<vec3> surface;
+		vector<vec3> col;
+		for (int i = 0; i < resolutionU - 1; ++i) {
+			for (int j = 0; j < resolutionV - 1; ++j) {
+				float u0 = static_cast<float>(i) / (resolutionU - 1);
+				float u1 = static_cast<float>(i + 1) / (resolutionU - 1);
+				float v0 = static_cast<float>(j) / (resolutionV - 1);
+				float v1 = static_cast<float>(j + 1) / (resolutionV - 1);
+
+				//glColor3f(u0, v0, 0.5f);
+				//glVertex3fv(&evaluate(u0, v0)[0]);
+				//glColor3f(u1, v0, 0.5f);
+				//glVertex3fv(&evaluate(u1, v0)[0]);
+				//glColor3f(u1, v1, 0.5f);
+				//glVertex3fv(&evaluate(u1, v1)[0]);
+				//glColor3f(u0, v1, 0.5f);
+				//glVertex3fv(&evaluate(u0, v1)[0]);
+
+				//evaluate(u0, v0)[0];
+				//evaluate(u1, v0)[0];
+				//evaluate(u1, v1)[0];
+				//evaluate(u0, v1)[0];
+				col.push_back(vec3(1.f, 1.f, 1.f));
+				col.push_back(vec3(1.f, 1.f, 1.f));
+				col.push_back(vec3(1.f, 1.f, 1.f));
+				col.push_back(vec3(1.f, 1.f, 1.f));
+
+				surface.push_back(evaluate(u0, v0));
+				surface.push_back(evaluate(u1, v0));
+				surface.push_back(evaluate(u1, v1));
+				surface.push_back(evaluate(u0, v1));
+			}
+		}
+		vector<vector<vec3>> ret;
+		ret.push_back(surface);
+		ret.push_back(col);
+		return ret;
+	}
+
+	static vector<float> generateKnotVector(int numControlPoints, int degree)
+	{
+		int numKnots = numControlPoints + degree + 1;
+		std::vector<float> knots(numKnots);
+
+		// Generate a clamped uniform knot vector
+		for (int i = 0; i < numKnots; ++i) {
+			if (i < degree + 1) {
+				knots[i] = 0.0f; // Start clamp
+			}
+			else if (i >= numKnots - degree - 1) {
+				knots[i] = 1.0f; // End clamp
+			}
+			else {
+				knots[i] = float(i - degree) / float(numControlPoints - degree);
+			}
+		}
+
+		return knots;
+	}
+
+private:
+	int uDegree, vDegree;
+	std::vector<float> uKnots, vKnots;
+	std::vector<std::vector<glm::vec3>> controlPoints;
 };
 
 class CurveEditorCallBack : public CallbackInterface
@@ -976,6 +1106,32 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	vector<vec3> curveGenerated;								// Curve generated
 	tuple<vector<vec3>, vector<vec3>> tupleForSurfaceOfRevolution;	// contains meshPoints (1st element) and meshTriangles (2nd element)
 
+	// testing ONLY
+	std::vector<float> uKnots = { 0, 0, 0, 1, 2, 3, 3, 3 };
+	std::vector<float> vKnots = { 0, 0, 0, 1, 2, 2, 2 };
+
+	std::vector<std::vector<glm::vec3>> controlPoints = {
+		{{-1, -1, 0}, {-1, 0, 1}, {-1, 1, 0}},
+		{{0, -1, 1}, {0, 0, 2}, {0, 1, 1}},
+		{{1, -1, 0}, {1, 0, 1}, {1, 1, 0}}
+	};
+
+
+	std::vector<std::vector<glm::vec3>> tps1 = {
+			{{-2, 0, -2}, {-1, 0, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
+			{{-2, 0, -1}, {-1, 1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
+			{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
+			{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
+			{{-2, 0, 2}, {-1, 0, 2}, {0, 0, 2}, {1, 0, 2}, {2, 0, 2}}
+	};
+	std::vector<float> uKnots2 = BSplineSurface::generateKnotVector(tps1.size(), 2);
+	std::vector<float> vKnots2 = BSplineSurface::generateKnotVector(tps1.size(), 2);
+
+	// testing ONLY
+	//BSplineSurface tensorSurface = BSplineSurface(2, 2, uKnots, vKnots, controlPoints);
+	BSplineSurface tensorSurface = BSplineSurface(2, 2, uKnots2, vKnots2, tps1);
+	vector<vector<vec3>> tensorSurfaceValues = tensorSurface.draw(60, 60);
+
 	// Initialize options for the combo box
 	//options[0] = "Curve Editor - Bezier";
 	//options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
@@ -1073,6 +1229,17 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			}
 			tupleForSurfaceOfRevolution = SurfaceOfRevolution::generate(curveGenerated, windowData.numberOfSlices);	// result is the mesh points and triangle mesh
 			break;
+		case 4:	// Tensor product 1
+			windowData.curveRelatedData.controlPts.clear();
+			windowData.curveRelatedData.curve.clear();
+			for (vector<vec3> set : tps1)
+			{
+				for (vec3 p : set)
+					windowData.curveRelatedData.controlPts.push_back(p);
+			}
+			curveGenerated = tensorSurfaceValues[0];	// test
+
+			break;
 		default:
 			//cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
 			return;	// if i want to keep showing the curve previously generated curve, use 'break' if i don't
@@ -1123,6 +1290,15 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 		// update curve line
 		curve_line_cpu.verts = meshTriangles;
 		curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
+	}
+	else if (optionData.comboSelection == 4)
+	{
+		// TEST ONLY
+		curve_point_cpu.verts = tensorSurfaceValues[0];
+		curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
+
+		curve_line_cpu.verts = tensorSurfaceValues[0];
+		curve_line_cpu.cols = tensorSurfaceValues[1];
 	}
 
 }
@@ -1337,10 +1513,10 @@ int main() {
 
 	// Testing things
 	//testDeCasteljauAlgo();
-	vec2 ptSize = vec2(CONTROL_POINT_SIZE / 1000.f, CONTROL_POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
-	cout << "half length/width: " << to_string(ptSize) << endl;	// te above ^ is half the length/width
-	cout << "cp_point length: " << CONTROL_POINT_LENGTH << endl;
-	cout << "cp_point width: " << CONTROL_POINT_WIDTH << endl;
+	//vec2 ptSize = vec2(CONTROL_POINT_SIZE / 1000.f, CONTROL_POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	//cout << "half length/width: " << to_string(ptSize) << endl;	// te above ^ is half the length/width
+	//cout << "cp_point length: " << CONTROL_POINT_LENGTH << endl;
+	//cout << "cp_point width: " << CONTROL_POINT_WIDTH << endl;
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
@@ -1464,7 +1640,10 @@ int main() {
 			else
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
 
-			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			if (optionData.comboSelection != 4)
+				glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			else 
+				glDrawArrays(GL_LINES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
 		}
 
 
