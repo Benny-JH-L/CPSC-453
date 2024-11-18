@@ -18,6 +18,8 @@
 
 #include <GLFW/glfw3.h>	//idk
 
+// my headers
+//#include "curve/CurveGenerator.h"
 #include <tuple>
 
 #include "glm/glm.hpp"
@@ -108,7 +110,7 @@ struct orbitViewerData
 	vec3 cameraPos = vec3(vec2(0.f), 3.0f);	// initial at 3.0f
 
 	float mouseSensitivity = 100.0f;		// How fast the camera movement should be
-	float scrollSensitivity = 1.0f;		// How fast the scroll in/out should be
+	float scrollSensitivity = 10.0f;		// How fast the scroll in/out should be
 	float distanceFromLookAtPoint = 3.f;	// Distance from the 'lookAtPoint' (origin) (world space)
 	float theta = glm::radians(90.f);		// Ensure radians
 	float phi = glm::radians(90.f);			// Ensure radians
@@ -402,6 +404,11 @@ public:
 					surfaceSoFar.push_back(p2);
 				if (p3 != vec3(0.f))
 					surfaceSoFar.push_back(p3);
+
+				//surfacePoints.push_back(p0);
+				//surfacePoints.push_back(p1);
+				//surfacePoints.push_back(p2);
+				//surfacePoints.push_back(p3);
 			}
 
 			for (int k = 0; k < surfaceSoFar.size(); k++)
@@ -435,6 +442,219 @@ public:
 
 		return make_tuple(surfacePoints, triangleMesh);
 	}
+
+
+	/* THE FOLLOWING IMPLEMENTS A SORT OF BEZIER PATCH
+	static vector<vec3> generate2(vector<vector<vec3>> controlPoints)
+	{
+		// vector<vector<vec3>> controlPoints -> contains the 'u' and 'v' curves
+
+		// Separate the curves
+		//vector<vector<vec3>> uCurve;
+		//for (vector<vec3> curve : controlPoints)
+		//	uCurve.push_back(curve);
+
+		//vector<vector<vec3>> vCurve;
+		//for (int i = 0; i < controlPoints.size(); i++)
+		//{
+		//	vector<vec3> curve;
+		//	for (int j = 0; j < controlPoints[i].size(); j++)
+		//	{
+		//		curve.push_back(controlPoints[j][i]);
+		//	}
+		//	vCurve.push_back(curve);
+		//}
+
+
+		//for (int i = 0; i < uCurve.size(); i++)
+		//{
+		//	// compute inner summation
+		//	for (int k = 0; k < vCurve.size(); k++)
+		//	{
+		//		vec3 p = controlPoints[i][k];
+
+		//		// B(j, d')(v)
+		//		for (int j = 0; j < degree; j++)
+		//		{
+		//			bezierBasisFunction(controlPoints[k][i], )
+		//		}
+		//	}
+		//}
+
+		int degree1 = controlPoints[0].size();	// each v-curve should have the same number of control points
+		int degree2 = controlPoints.size();		// each u-curve should have the same number of control points
+		vector<vector<vec3>> surfacePoints;
+
+		vector<vec3> surfaceReturnTEMPORARY;
+
+		for (int u = 0; u <= 1; u += 0.2)
+		{
+			vector<vec3> surfaceSoFar;
+			for (float v = 0; v <= 1; v += 0.2)
+			{
+
+
+				// outer summation
+				for (float i = 0; i < 2; i++)
+				{
+					vector<vec3> toSum;
+					vec3 summed;
+
+					// Inner summation
+					for (int j = 0; j < 2; j++)
+					{
+						vec3 p = controlPoints[j][i];
+						p *= bezierBasisFunction(j, j, v);
+						toSum.push_back(p);
+					}
+
+					// sum
+					summed = toSum[0];
+					for (int k = 1; k < toSum.size(); k++)
+						summed += toSum[k];
+
+					summed *= bezierBasisFunction(i, i, u);
+					surfaceSoFar.push_back(summed);
+					surfaceReturnTEMPORARY.push_back(summed);
+				}
+
+
+			}
+		}
+
+		// Self generated
+		vector<vector<vec3>> tensorSurfaceControlPoints2 =
+		{
+				{{-2, -4, -3}, {-1, -2, -3}, {0, 0, -3}, {1, 0, -3}, {2, 0, -3}},
+				{{-2, -3, -2}, {-1, -2, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
+				{{-2, -2, -1}, {-1, -1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
+				{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
+				{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
+				{{-2, 0, 2}, {-1, 1, 2}, {0, 2, 2}, {1, 6, 2}, {2, 0, 2}},
+				{{-2, 0, 3}, {-1, 0, 3}, {0, 0, 3}, {1, 0, 3}, {2, 0, 3}}
+
+		};
+		// rows are the 'u' vectors
+		// cols are the 'v' vectors
+		return surfaceReturnTEMPORARY;
+	}
+
+	static vec3 generate3(
+		const std::vector<std::vector<glm::vec3>>& controlPoints,
+		int d, int d_prime, double u, double v) {
+
+		glm::vec3 Q(0.0f, 0.0f, 0.0f); // Initialize Q(u, v) for 3D space
+
+		for (int i = 0; i <= d; ++i) {
+			for (int j = 0; j <= d_prime; ++j) {
+				double B_i_d = bezierBasisFunction(i, d, u);        // Bézier basis function for u
+				double B_j_d_prime = bezierBasisFunction(j, d_prime, v); // Bézier basis function for v
+
+				// Contribution of control point P[i][j]
+				Q += controlPoints[i][j] * static_cast<float>(B_i_d * B_j_d_prime);
+			}
+		}
+
+		return Q; // Return the calculated point on the surface
+	}
+
+	static tuple<vector<vec3>, vector<vec3>> generate4(
+		const std::vector<std::vector<glm::vec3>>& controlPoints,
+		int d, int d_prime, double u, double v)
+	{
+		glm::vec3 Q(0.0f, 0.0f, 0.0f); // Initialize Q(u, v) for 3D space
+
+		for (int i = 0; i <= d; ++i)
+		{
+			for (int j = 0; j <= d_prime; ++j)
+			{
+				double B_i_d = bezierBasisFunction(i, d, u);        // Bézier basis function for u
+				double B_j_d_prime = bezierBasisFunction(j, d_prime, v); // Bézier basis function for v
+
+				// Contribution of control point P[i][j]
+				Q += controlPoints[i][j] * static_cast<float>(B_i_d * B_j_d_prime);
+			}
+		}
+	}
+
+
+	static tuple<vector<vec3>, vector<vec3>> gen(const std::vector<std::vector<glm::vec3>> controlPoints, int d, int d_prime)
+	{
+		vector<vec3> surfacePoints;
+		vector<vector<vec3>> temp2D;
+
+		for (float u = 0.f; u <= 1.f; u += 0.2f)
+		{
+			vector<vec3> s;
+			for (float v = 0.f; v <= 1.f; v += 0.2f)
+			{
+				s.push_back(generate3(controlPoints, d, d_prime, u, v));
+				surfacePoints.push_back(generate3(controlPoints, d, d_prime, u, v));
+
+			}
+			temp2D.push_back(s);
+		}
+		// Create mesh triangles
+		vector<vec3> meshTriangles;
+		for (int i = 0; i < temp2D.size() - 1; i++)		// minus 1, as we can't draw a triangle with only the last set of points left
+		{
+			vector<vec3> currentSetOfPoints = temp2D[i];
+			vector<vec3> nextSetOfPoints = temp2D[i + 1];
+
+			// First triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)	// minus 1, as we can't draw a triangle with other points left
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+			}
+			// Second triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+				meshTriangles.push_back(currentSetOfPoints[j + 1]);
+
+			}
+			// result is a square/rectangle defined by these two triangles (triangles are drawn counter clock wise)
+		}
+
+		return make_tuple(surfacePoints, meshTriangles);
+	}
+
+	static float bezierBasisFunction(int controlPointIndex, int degree, float w)
+	{
+		// vector<float< coefficients;
+		//for (int i = 0; i < controlPoint.size(); i++)
+		//{
+		//	int chose = choose(degree, i);
+		//	coefficients.push_back(chose * (w ^ i) * ((1 - w) ^ (degree - i)));
+		//}
+		
+		return (choose(degree, controlPointIndex) * (pow(w, controlPointIndex)) * pow((1 - w), (degree - controlPointIndex)));
+	}
+
+	/// <summary>
+	/// 'd' choose ''i'
+	/// </summary>
+	/// <param name="d"></param>
+	/// <param name="i"></param>
+	/// <returns></returns>
+	static int choose(int d, int i)
+	{
+		float numerator = factorial(d);
+		float denominator = factorial(i) * (factorial(d - i));
+		return numerator / denominator;
+	}
+
+	static int factorial(int n)
+	{
+		int val = 1;
+		for (int i = 1; i <= n; i++)
+			val *= i;
+		return val;
+	}
+	*/
 
 private:
 
@@ -548,7 +768,7 @@ public:
 			// Deselect the moving control point when left-mouse button is released
 			if (button == 0 && action == 0 && movingControlPoint)
 			{
-				cout << "No longer moving cp" << endl;	// debug
+				cout << "no longer moving cp" << endl;	// debug
 				movingControlPoint = false;
 			}
 			// place a control point
@@ -564,7 +784,7 @@ public:
 
 				if (cpPointExist)	// delete point
 				{
-					//cout << "FOUND POINT TO REMOVE" << endl;	// debug
+					cout << "FOUND POINT TO REMOVE" << endl;	// debug
 
 					// create a new 'std::vector<vec3>' that does not contain the specified point
 					vector<vec3> temp;
@@ -576,6 +796,44 @@ public:
 					}
 					controlPoints = temp;						// set new control points
 				}
+
+				/*
+				// moved most of this code into a function
+				//bool keepChecking = true;
+				//for (int i = 0; i < controlPoints.size() && keepChecking; i++)
+				//{
+				//	float halfLen = CONTROL_POINT_LENGTH / 2.f;
+				//	float halfWidth = CONTROL_POINT_WIDTH / 2.f;
+
+				//	vector<vec2> cp_corners =
+				//	{
+				//		(controlPoints[i] + vec3(-halfWidth, -halfLen, 0.f)),	// bottom left corner
+				//		(controlPoints[i] + vec3(halfWidth, -halfLen, 0.f)),	// bottom right corner
+				//		(controlPoints[i] + vec3(halfWidth, halfLen, 0.f)),		// top right corner
+				//		(controlPoints[i] + vec3(-halfWidth, halfLen, 0.f)),	// top left corner
+				//	};
+
+				//	bool withinX = cp_corners[0].x <= mousePos.x && mousePos.x <= cp_corners[2].x;	// mouse-x-pos has to be between the bottom left and top right corner-x-pos's
+				//	bool withinY = cp_corners[0].y <= mousePos.y && mousePos.y <= cp_corners[2].y;	// mouse-y-pos has to be between the bottom left and top right corner-y-pos's
+
+				//	if (withinX && withinY)
+				//	{
+				//		cout << "FOUND POINT TO REMOVE" << endl;	// debug
+
+				//		// create a new 'vector' that does not contain this specified point
+				//		vector<vec3> temp;
+				//		for (int k = 0; k < controlPoints.size(); k++)
+				//		{
+				//			if (controlPoints[k] == controlPoints[i])	// found the control point to be removed, skip it
+				//				continue;
+				//			temp.push_back(controlPoints[k]);
+				//		}
+
+				//		keepChecking = false;	// stop checking
+				//		windowData.controlPts = temp;
+				//	}
+				//}
+				*/
 			}
 		}
 
@@ -586,7 +844,7 @@ public:
 
 	virtual void cursorPosCallback(double xpos, double ypos) override
 	{
-		//Log::info("[CURSOR-POS-CALLBACK PIXEL]: xpos={}, ypos={}", xpos, ypos);
+		Log::info("[CURSOR-POS-CALLBACK PIXEL]: xpos={}, ypos={}", xpos, ypos);
 		vec2 pos = vec2(xpos, ypos);
 		toClipSpace(pos);
 		mousePos = pos;
@@ -625,6 +883,10 @@ public:
 			// Move camera if right-click is being held
 			if (mouseButton == 1 && mouseAction == 1)
 			{
+				//static double lastX = xpos, lastY = ypos;
+				//double xOffset = xpos - lastX;
+				//double yOffset = ypos - lastY;
+
 				float lastX = prevMousePos.x;
 				float lastY = prevMousePos.y;
 
@@ -645,7 +907,7 @@ public:
 				else if (phi > glm::radians(179.5f))
 					phi = glm::radians(179.5f);
 
-				update3DCameraPos();
+				updateCamera();
 			}
 		}
 
@@ -665,15 +927,15 @@ public:
 		{
 			//cout << "(before scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
 
-			orbitViewData.distanceFromLookAtPoint += (-yoffset * orbitViewData.scrollSensitivity);	// '-yoffset' so scroll up is zoom in and scroll down is zoom out
+			orbitViewData.distanceFromLookAtPoint += (-yoffset / orbitViewData.scrollSensitivity);	// '-yoffset' so scroll up is zoom in and scroll down is zoom out
 
 			// Constrain the distance so that it doesn't pass the 'lookAtPoint' (origin)
 			if (orbitViewData.distanceFromLookAtPoint < 0.2)
 				orbitViewData.distanceFromLookAtPoint = 0.2;
 
-			cout << "(After scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
+			cout << "(after scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
 
-			update3DCameraPos();
+			updateCamera();
 		}
 
 		// note:
@@ -729,7 +991,7 @@ private:
 	/// <summary>
 	/// Updates where the Camera is situated
 	/// </summary>
-	void update3DCameraPos()
+	void updateCamera()
 	{
 		// Update coordinates
 		float distance = orbitViewData.distanceFromLookAtPoint;
@@ -793,6 +1055,11 @@ private:
 		return make_tuple(false, -1);
 	}
 
+	// test , debug
+	float calcVec2Length(vec2 v)
+	{
+		return sqrt((v.x * v.x) + (v.y * v.y));
+	}
 };
 
 /// <summary>
@@ -845,7 +1112,7 @@ public:
 
 	virtual void render() override
 	{
-		//ImGui::Checkbox("Enable Bonus 1", &enableBonus1);
+		ImGui::Checkbox("Enable Bonus 1", &enableBonus1);
 
 		// Color selector
 		ImGui::ColorEdit3("Select Background Color", colorValue); // RGB color selector
@@ -868,6 +1135,7 @@ public:
 				numberOfIterations = 1;
 			else if (numberOfIterations > MAX_NUMBER_OF_ITERATIONS_FOR_CURVES)	// Setting the max of iterations to "MAX_NUMBER_OF_ITERATIONS_FOR_CURVES"
 				numberOfIterations = MAX_NUMBER_OF_ITERATIONS_FOR_CURVES;
+
 
 			// Checkbox
 			ImGui::Checkbox("Show curve points", &showCurvePoints);
@@ -915,6 +1183,7 @@ public:
 			ImGui::SliderFloat("Near Plane", &orbitViewData.nearPlane, MIN_NEAR_PLANE, MAX_NEAR_PLANE, "Current: %.3f");
 			ImGui::SliderFloat("Field Of View (Radians)", &orbitViewData.fieldOfView, glm::radians(25.f), glm::radians(180.f), "Current FOV: %.3f");
 			ImGui::Text("Field Of View (Degrees): %.3f", glm::degrees(orbitViewData.fieldOfView));
+			ImGui::Text("(Mouse Scroll sensitivity: Lower value the faster)");
 			ImGui::Text("Phi (Degrees): %.3f", glm::degrees(orbitViewData.phi));
 			ImGui::Text("Theta (Degrees): %.3f", glm::degrees(orbitViewData.theta)); 
 
@@ -934,7 +1203,7 @@ public:
 		}
 
 			ImGui::SliderFloat("Mouse sensitivity", &orbitViewData.mouseSensitivity, 0.5f, 200.f, "Current: %.3f");
-			ImGui::SliderFloat("Mouse Scroll sensitivity", &orbitViewData.scrollSensitivity, 0.2f, 3.f, "Current: %.3f");
+			ImGui::SliderFloat("Mouse Scroll sensitivity", &orbitViewData.scrollSensitivity, 5.f, 20.f, "Current: %.3f");
 
 			ImGui::Checkbox("Reset camera", &resetCamera);
 			if (resetCamera)
@@ -945,8 +1214,7 @@ public:
 		}
 	}
 
-	glm::vec3 getColor() const
-	{
+	glm::vec3 getColor() const {
 		return glm::vec3(colorValue[0], colorValue[1], colorValue[2]);
 	}
 
@@ -980,6 +1248,7 @@ private:
 	orbitViewerData& orbitViewData;
 	tensorProductData& tensorData;
 	vector<vec3>& controlPts = curveData.controlPts;
+	//vector<vec3>& curvePts = curveData.curve;	// debug
 	int& numberOfIterations = curveData.numIterations;
 	bool& showCurvePoints = curveData.showCurvePoints;
 	bool& deleteControlPts = curveData.deleteControlPts;
@@ -1025,14 +1294,20 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	vector<vec3> curveGenerated;								// Curve generated
 	tensorProductData tensorData = windowData.tensorProductData;
 	tuple<vector<vec3>, vector<vec3>> surfaceOfRevolutionValues;	// contains meshPoints (1st element) and meshTriangles (2nd element)
-	tuple<vector<vec3>, vector<vec3>> tensorSurfaceValues;			// contains meshPoints (1st element) and meshTriangles (2nd element)
+	tuple<vector<vec3>, vector<vec3>> tensorSurfaceValues;
 
 	if (cp_positions_vector.size() >= 2)
 	{
+		//vector<vec3> bspline;		// (ONLY USED FOR Surface of Revolution)
+
 		switch (optionData.comboSelection)
 		{
 		case 0:	// Bezier curve
 			//cout << "CHOSEN Bezier " << endl;	// debug
+
+			// debug
+			//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
+			//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
 
 			// Generate the curve
 			for (float u = 0; u <= 1; u += (0.5f / curveData.numIterations))
@@ -1196,8 +1471,139 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	}
 }
 
+/* IMPLMENTS BEZIER PATCH
+//void checkOptionChosen(CPU_Geometry& cp_point_cpu, CPU_Geometry& cp_line_cpu, windowControlPtData& windowData, optionData& optionData)
+//{
+//	//cout << "\n[CHECKING OPTION]" << endl;	// debug
+//
+//	vector<vec3> userControlPoints = windowData.controlPts;
+//	vector<vec3> cp_positions_vector;	// positions to update
+//
+//	vector<vec3> cp_line_colours;
+//	// Pair up control points such that it forms the green lines properly
+//	for (int i = 1; i < userControlPoints.size(); i++)
+//	{
+//		cp_positions_vector.push_back(userControlPoints[i - 1]);
+//		cp_positions_vector.push_back(userControlPoints[i]);
+//
+//		// Colors for the original control points entered
+//		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
+//		cp_line_colours.push_back(vec3(0.f, 1.f, 0.f));
+//	}
+//	int sizeOfColorsForOriginalControlPts = cp_line_colours.size();
+//
+//	// Colors for the original control points entered
+//	//for (int i = 0; i < cp_positions_vector.size(); i++)
+//	//{
+//	//	cp_line_colours.push_back(vec3(0.f,1.f,0.f));
+//	//}
+//
+//	//vector<vec3> testPoints =
+//	//{
+//	//	vec3(4.f / 4.f ,0.f, 0.f),
+//	//	vec3(8.f / 4.f,2.f / 4.f, 0.f),
+//	//	vec3(0.f ,2.f / 4.f, 0.f),
+//	//	vec3(0.f ,0.f, 0.f)
+//	//};
+//
+//	vector<vec3> generatedCurveSoFar;
+//	// Update control points for the cpu
+	//switch (optionData.comboSelection)
+	//{
+	//case 0:	// Bezier curve
+	//	//cout << "CHOSEN Bezier " << endl;	// debug
+
+	//	// Cases
+	//	if (userControlPoints.size() <= 0)		// No control points
+	//		break;
+	//	else if (userControlPoints.size() <= 1)	// 1 control point
+	//	{
+	//		cp_positions_vector.push_back(userControlPoints[0]);
+	//		break;
+	//	}
+
+	//	// debug
+	//	//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
+	//	//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
+
+	//	vec3 previousBezierPt = userControlPoints[0];
+	//	//for (int i = 0; i < 1; i++)
+	//	//{
+	//		//vec3 previousBezierPt = controlPoints[0];
+	//		// Generate the curve
+	//		for (float u = 0; u <= 1; u += (0.5f / windowData.numIterations))
+	//		{
+	//			cp_positions_vector.push_back(previousBezierPt);
+	//			vec3 currBezierPt = CurveGenerator::bezier(userControlPoints, 2, u)[0];
+	//			cp_positions_vector.push_back(currBezierPt);
+	//			previousBezierPt = currBezierPt;				// update the previously calculated point to this point
+
+	//			//if (u != 0 && u != 1)
+	//			//	generatedCurveSoFar.push_back(currBezierPt);
+	//		}
+	//		//// Set new control points
+	//		//for (int i = 0; i < generatedCurveSoFar.size(); i++)
+	//		//{
+	//		//	controlPoints.push_back(generatedCurveSoFar[i]);
+	//		//}
+	//		//generatedCurveSoFar.clear();
+	//		
+	//	//}
+	//	cp_positions_vector.push_back(userControlPoints[userControlPoints.size() - 1]);		// Adding the last control point so that the 'lines' are drawn properly
+
+	//	break;
+	//case 1: // Quadratic B-spline (Chaikin) curve
+	//	//cout << "CHOSEN Quadratic B-spline (Chaikin) " << endl; // debug
+
+	//	// Cases
+	//	if (userControlPoints.size() <= 0)			// No control points
+	//		break;
+	//	else if (userControlPoints.size() <= 1)		// 1 control point
+	//	{
+	//		cp_positions_vector.push_back(userControlPoints[0]);
+	//		break;
+	//	}
+
+	//	for (int i = 0; i < windowData.numIterations; i++)
+	//	{
+	//		generatedCurveSoFar = CurveGenerator::chaikin(userControlPoints);
+	//		userControlPoints = generatedCurveSoFar;	// set it
+	//	}
+
+	//	// add the points generated into the cp_positions
+	//	for (int j = 1; j < generatedCurveSoFar.size(); j++)
+	//	{
+	//		cp_positions_vector.push_back(generatedCurveSoFar[j - 1]);
+	//		cp_positions_vector.push_back(generatedCurveSoFar[j]);
+	//	}
+
+	//	break;
+	//default:
+	//	cout << "DEFUALT ENTERED OH NO!!" << endl;  // debug
+	//	break;
+	//}
+//
+//	glm::vec3 cp_point_colour = { 1.f, 0.f, 0.f };
+//	glm::vec3 cp_line_colour = { 0.f, 0.5f, 1.f };
+//
+//	// update the control points for cpu
+//	cp_point_cpu.verts = cp_positions_vector;
+//	cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
+//
+//	cp_line_cpu.verts = cp_positions_vector; // I changed it to use GL_LINES
+//	// Set the colors of the generated curve's points
+//	for (int i = sizeOfColorsForOriginalControlPts; i < cp_positions_vector.size(); i++)
+//	{
+//		cp_line_colours.push_back(cp_line_colour);
+//	}
+//	cp_line_cpu.cols = cp_line_colours;
+//};
+*/
+
 int main() {
 	Log::debug("Starting main");
+	//cout << "10! = " << TensorProductSurface::factorial(10) << endl; // = 3628800
+	//cout << "10 choose 5 = " << TensorProductSurface::choose(10, 5) << endl; // = 252
 
 	// WINDOW
 	glfwInit();
@@ -1259,26 +1665,45 @@ int main() {
 	cp_point_cpu.verts	= cp_positions_vector;
 	cp_point_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
 	GPU_Geometry cp_point_gpu;
+	//cp_point_gpu.setVerts(cp_point_cpu.verts);
+	//cp_point_gpu.setCols(cp_point_cpu.cols);
 
 	CPU_Geometry cp_line_cpu;
 	cp_line_cpu.verts	= cp_positions_vector; // We are using GL_LINE_STRIP (change this if you want to use GL_LINES)
 	cp_line_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_line_colour);
 	GPU_Geometry cp_line_gpu;
+	//cp_line_gpu.setVerts(cp_line_cpu.verts);
+	//cp_line_gpu.setCols(cp_line_cpu.cols);
 
-	CPU_Geometry curve_point_cpu;	// stores the generated curve from Bezier or B-spline, or points that make up a surface
-	GPU_Geometry curve_point_gpu;	
-	CPU_Geometry curve_line_cpu;	// stores the generated curve from Bezier or B-spline or triangle mesh from "surface of rotation", and "tensor product surfaces"
+	CPU_Geometry curve_point_cpu;	// stores the generated curve from Bezier or B-spline, or triangle mesh from "surface of rotation"
+	GPU_Geometry curve_point_gpu;
+	CPU_Geometry curve_line_cpu;
 	GPU_Geometry curve_line_gpu;
 
 	cpuGeometriesData geometries = {cp_point_cpu, cp_line_cpu, curve_point_cpu, curve_line_cpu };
 
+	// Testing things
+	//testDeCasteljauAlgo();
+	//vec2 ptSize = vec2(CONTROL_POINT_SIZE / 1000.f, CONTROL_POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	//cout << "half length/width: " << to_string(ptSize) << endl;	// te above ^ is half the length/width
+	//cout << "cp_point length: " << CONTROL_POINT_LENGTH << endl;
+	//cout << "cp_point width: " << CONTROL_POINT_WIDTH << endl;
+
 	while (!window.shouldClose()) {
 		glfwPollEvents();
 
-		// Checks which option is chosen and computes the necessary points, and sets the CPU geoms
+		//---- note to self: do the settting of cpu stuff in here (checkOptionChosen)
 		checkOptionChosen(geometries, windowData, optionData);
 
-		// set the new control points, and curve points/lines, for gpu
+		//// update the control points for cpu
+		//cp_point_cpu.verts = cp_positions_vector;
+		//cp_point_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
+
+		//cp_line_cpu.verts = cp_positions_vector; // We are using GL_LINE_STRIP (change this if you want to use GL_LINES)
+		//cp_line_cpu.cols = std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_line_colour);
+		//---
+
+		// set the new control points for gpu
 		cp_point_gpu.setVerts(cp_point_cpu.verts);
 		cp_point_gpu.setCols(cp_point_cpu.cols);
 
@@ -1305,6 +1730,14 @@ int main() {
 		// Use the default shader (can use different ones for different objects)
 		shader_program_default.use();
 
+		// Initialize options for the combo box
+		//options[0] = "Curve Editor - Bezier";
+		//options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
+		//options[2] = "Orbit Viewer - Curve";
+		//options[3] = "Orbit Viewer - Surface of Revolution";
+		//options[4] = "Orbit Viewer - Tensor Product 1";
+		//options[5] = "Orbit Viewer - Tensor Product 2";
+
 		// Set the view matrix for curve editors
 		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
 		{
@@ -1315,7 +1748,9 @@ int main() {
 		{
 			mat4 model = mat4(1.0f);
 			mat4 viewMat = glm::lookAt(orbitViewData.cameraPos, orbitViewData.lookAtPoint, orbitViewData.defaultData.upVector);
+			//mat4 projectionMat = orbitViewData.defaultData.perspectiveMat4;
 			mat4 projectionMat = glm::perspective(orbitViewData.fieldOfView, orbitViewData.aspectRatio, orbitViewData.nearPlane, orbitViewData.farPlane);
+			//perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
 
 			glm::mat4 modelViewProjection = projectionMat * viewMat * model;
 			shader_program_default.setMat4Transform("transformationMatrix", modelViewProjection);
@@ -1342,6 +1777,24 @@ int main() {
 			glPointSize(5.f);
 			glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
 		}
+
+		////Render control points
+		//cp_point_gpu.bind();
+		//glPointSize(CONTROL_POINT_SIZE);
+		//glDrawArrays(GL_POINTS, 0, cp_point_cpu.verts.size());
+
+		////Render lines connecting control points
+		//cp_line_gpu.bind();
+		////glLineWidth(10.f); //May do nothing (like it does on my computer): https://community.khronos.org/t/3-0-wide-lines-deprecated/55426
+		//glDrawArrays(GL_LINE_STRIP, 0, cp_line_cpu.verts.size());
+
+		//if (curveData.showCurvePoints)
+		//{
+		//	// Render points generated for the curve
+		//	curve_point_gpu.bind();
+		//	glPointSize(5.f);
+		//	glDrawArrays(GL_POINTS, 0, curve_point_cpu.verts.size());
+		//}
 		
 		// Render curve generated for curve editor and 3D viewer
 		if (optionData.comboSelection == 0 || optionData.comboSelection == 1 || optionData.comboSelection == 2)
@@ -1349,7 +1802,6 @@ int main() {
 			curve_line_gpu.bind();
 			glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
 		}
-		// Render meshes
 		else
 		{
 			curve_line_gpu.bind();
@@ -1359,8 +1811,12 @@ int main() {
 			else
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
 
-			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			//if (optionData.comboSelection != 5)
+			//	glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			//else 
+				glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
 		}
+
 
 		//------------------------------------------
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
@@ -1392,4 +1848,53 @@ string toString(vector<vec3> arr)
 	ret += ']';
 
 	return ret;
+}
+
+void testDeCasteljauAlgo()
+{
+	vector<vec3> controlPts =
+	{
+		vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f),
+		vec3(0.f ,0.f, 0.f)
+	};
+
+	vector<vec3> controlPts1 =
+	{
+		vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f)
+		//vec3(0.f ,2.f, 0.f),
+		//vec3(0.f ,0.f, 0.f)
+	};
+	vector<vec3> controlPts2 =
+	{
+		//vec3(4.f ,0.f, 0.f),
+		vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f)
+		//vec3(0.f ,0.f, 0.f)
+	};
+
+	vector<vec3> controlPts3 =
+	{
+		//vec3(4.f ,0.f, 0.f),
+		//vec3(8.f ,2.f, 0.f),
+		vec3(0.f ,2.f, 0.f),
+		vec3(0.f ,0.f, 0.f)
+	};
+	vector<vec3> result(controlPts.size());
+
+	//result[0] = deCasteljauAlgo(controlPts1, 3, 0.5);
+	//result[1] = deCasteljauAlgo(controlPts2, 3, 0.5);
+	//result[2] = deCasteljauAlgo(controlPts3, 3, 0.5);
+
+	//result = CurveGenerator::bezierCurve(controlPts, 3, 0.5f);
+	result = CurveGenerator::bezier(controlPts, 3, 0.5f);
+	cout << "\n[TEST] control Points: " << toString(controlPts) << endl;
+	cout << "\n[TEST] bezier pt result: " <<  toString(result) << endl;
+	// expected result is vec3(3.5, 1.5, 0)
+
+	//result = CurveGenerator::bezierCurve(controlPts, 1000, 0.5f);
+	result = CurveGenerator::bezier(controlPts, 300, 0.5f);
+	cout << "\n[TEST] bezier pt result: " << toString(result) << endl;
 }

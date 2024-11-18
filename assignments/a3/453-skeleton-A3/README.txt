@@ -33,8 +33,10 @@ See "Bonus 1" for other implmented camera controls.
 
 ---Warnings---
 I don't recommend using the highest iterations for b-spline generation, or high number of 'slices' for 
-surface of revolution generation. But looking at smooth stuff is nice :)
-
+surface of revolution generation. 
+Also do not recommend higher 'qualilty', 'u-degree', and 'v-degree' values for tensor product surfaces.
+But looking at smooth stuff is nice :)
 
 ---Bonus 1---
 Able to modify perspective camera FOV, near clip distance, and far clip distance, also has reset funcionality.
+Maintains aspect ratio for 3D.

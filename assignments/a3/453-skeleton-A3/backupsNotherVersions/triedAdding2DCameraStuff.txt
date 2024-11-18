@@ -18,6 +18,8 @@
 
 #include <GLFW/glfw3.h>	//idk
 
+// my headers
+//#include "curve/CurveGenerator.h"
 #include <tuple>
 
 #include "glm/glm.hpp"
@@ -63,6 +65,22 @@ struct curveRelatedData
 	bool& deleteControlPts;		// to delete curve points
 	bool& resetWindow;			// to reset window
 	const mat4 defaultViewMat = mat4(1.0f);
+};
+
+struct twoDViewData
+{
+	//vec3& cameraPos = vec3(vec2(0.f), 0.0f);
+	//vec3& lookAtPoint = vec3(0.f);				// looks straight down from camera pos
+	//float& distanceFromLookAtPoint = 0.f;	// Distance from the 'lookAtPoint' (world space)
+	//const vec3 upVector = vec3(0.f, 1.0f, 0.f);
+	//bool& clickAndDrag = false;
+	//bool& resetCamera = false;
+	vec3& cameraPos;
+	vec3& lookAtPoint ;				// looks straight down from camera pos
+	float& distanceFromLookAtPoint;	// Distance from the 'lookAtPoint' (world space)
+	bool& clickAndDrag;
+	bool& resetCamera;
+	const vec3 upVector = vec3(0.f, 1.0f, 0.f);
 };
 
 /// <summary>
@@ -156,6 +174,7 @@ struct windowControlData
 	Window& window;
 	curveRelatedData& curveRelatedData;
 	orbitViewerData& orbitViewerData;
+	twoDViewData& twoDViewData;
 	tensorProductData& tensorProductData;
 	bool& enableBonus;
 	int& numberOfSlices;			// ONLY used by Surface of revolution
@@ -548,7 +567,7 @@ public:
 			// Deselect the moving control point when left-mouse button is released
 			if (button == 0 && action == 0 && movingControlPoint)
 			{
-				cout << "No longer moving cp" << endl;	// debug
+				cout << "no longer moving cp" << endl;	// debug
 				movingControlPoint = false;
 			}
 			// place a control point
@@ -564,7 +583,7 @@ public:
 
 				if (cpPointExist)	// delete point
 				{
-					//cout << "FOUND POINT TO REMOVE" << endl;	// debug
+					cout << "FOUND POINT TO REMOVE" << endl;	// debug
 
 					// create a new 'std::vector<vec3>' that does not contain the specified point
 					vector<vec3> temp;
@@ -586,7 +605,7 @@ public:
 
 	virtual void cursorPosCallback(double xpos, double ypos) override
 	{
-		//Log::info("[CURSOR-POS-CALLBACK PIXEL]: xpos={}, ypos={}", xpos, ypos);
+		Log::info("[CURSOR-POS-CALLBACK PIXEL]: xpos={}, ypos={}", xpos, ypos);
 		vec2 pos = vec2(xpos, ypos);
 		toClipSpace(pos);
 		mousePos = pos;
@@ -625,6 +644,10 @@ public:
 			// Move camera if right-click is being held
 			if (mouseButton == 1 && mouseAction == 1)
 			{
+				//static double lastX = xpos, lastY = ypos;
+				//double xOffset = xpos - lastX;
+				//double yOffset = ypos - lastY;
+
 				float lastX = prevMousePos.x;
 				float lastY = prevMousePos.y;
 
@@ -671,9 +694,20 @@ public:
 			if (orbitViewData.distanceFromLookAtPoint < 0.2)
 				orbitViewData.distanceFromLookAtPoint = 0.2;
 
-			cout << "(After scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
+			cout << "(after scroll) distance from origin = " << orbitViewData.distanceFromLookAtPoint << endl;	// debug
 
 			update3DCameraPos();
+		}
+		else if (windowData.enableBonus)
+		{
+			twoDViewData.distanceFromLookAtPoint += (-yoffset * orbitViewData.scrollSensitivity);
+
+			// Constrain the distance so that it doesn't pass the 'lookAtPoint'
+			if (twoDViewData.distanceFromLookAtPoint < 0.2)
+				twoDViewData.distanceFromLookAtPoint = 0.2;
+
+			vec3 oldPos = twoDViewData.cameraPos;
+			twoDViewData.cameraPos = vec3(oldPos.x, oldPos.y, twoDViewData.distanceFromLookAtPoint);
 		}
 
 		// note:
@@ -700,6 +734,7 @@ private:
 	windowControlData& windowData;
 	curveRelatedData& curveData = windowData.curveRelatedData;
 	optionData& optionData;
+	twoDViewData& twoDViewData = windowData.twoDViewData;
 	orbitViewerData& orbitViewData = windowData.orbitViewerData;
 	vector<vec3>& controlPoints = curveData.controlPts;
 	int mouseButton; // 0: left mouse button | 1: right mouse button
@@ -793,6 +828,11 @@ private:
 		return make_tuple(false, -1);
 	}
 
+	// test , debug
+	float calcVec2Length(vec2 v)
+	{
+		return sqrt((v.x * v.x) + (v.y * v.y));
+	}
 };
 
 /// <summary>
@@ -845,7 +885,7 @@ public:
 
 	virtual void render() override
 	{
-		//ImGui::Checkbox("Enable Bonus 1", &enableBonus1);
+		ImGui::Checkbox("Enable Bonus 1", &enableBonus1);
 
 		// Color selector
 		ImGui::ColorEdit3("Select Background Color", colorValue); // RGB color selector
@@ -877,6 +917,16 @@ public:
 			else
 				ImGui::Text("Feature Enabled: Add/Move Control Points");
 
+			if (windowData.enableBonus)
+			{
+				ImGui::Checkbox("Click and Drag", &twoDViewData.clickAndDrag);
+
+				if (twoDViewData.clickAndDrag)
+					ImGui::Text("Feature Enabled: click and drag");	// debug
+				else if (!twoDViewData.clickAndDrag)
+					ImGui::Text("Feature disabled: click and drag");
+			}
+
 			// Scrollable block
 			ImGui::TextWrapped("Active Control Points (Scrollable Block):");
 			ImGui::BeginChild("ScrollableChild", ImVec2(0, 100), true); // Create a scrollable child
@@ -891,6 +941,13 @@ public:
 			{
 				resetCurveWindow();
 				resetCurveWindowBool = false;
+			}
+
+			ImGui::Checkbox("Reset camera", &twoDViewData.resetCamera);
+			if (resetCurveWindowBool)
+			{
+				reset2Dview();
+				twoDViewData.resetCamera = false;
 			}
 		}
 		// For orbit camera views
@@ -945,8 +1002,7 @@ public:
 		}
 	}
 
-	glm::vec3 getColor() const
-	{
+	glm::vec3 getColor() const {
 		return glm::vec3(colorValue[0], colorValue[1], colorValue[2]);
 	}
 
@@ -979,7 +1035,9 @@ private:
 	curveRelatedData& curveData;
 	orbitViewerData& orbitViewData;
 	tensorProductData& tensorData;
+	twoDViewData& twoDViewData = windowData.twoDViewData;
 	vector<vec3>& controlPts = curveData.controlPts;
+	//vector<vec3>& curvePts = curveData.curve;	// debug
 	int& numberOfIterations = curveData.numIterations;
 	bool& showCurvePoints = curveData.showCurvePoints;
 	bool& deleteControlPts = curveData.deleteControlPts;
@@ -1016,6 +1074,13 @@ private:
 		//orbitViewData.scrollSensitivity = df.scrollSensitivity;	// want to keep current sensitivity
 		orbitViewData.theta = df.theta;
 	}
+
+	void reset2Dview()
+	{
+		defaultOrbitViewData df = orbitViewData.defaultData;
+		twoDViewData.distanceFromLookAtPoint = df.distanceFromLookAtPoint;
+		twoDViewData.cameraPos = df.cameraPos;
+	}
 };
 
 void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, optionData& optionData)
@@ -1025,14 +1090,20 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	vector<vec3> curveGenerated;								// Curve generated
 	tensorProductData tensorData = windowData.tensorProductData;
 	tuple<vector<vec3>, vector<vec3>> surfaceOfRevolutionValues;	// contains meshPoints (1st element) and meshTriangles (2nd element)
-	tuple<vector<vec3>, vector<vec3>> tensorSurfaceValues;			// contains meshPoints (1st element) and meshTriangles (2nd element)
+	tuple<vector<vec3>, vector<vec3>> tensorSurfaceValues;
 
 	if (cp_positions_vector.size() >= 2)
 	{
+		//vector<vec3> bspline;		// (ONLY USED FOR Surface of Revolution)
+
 		switch (optionData.comboSelection)
 		{
 		case 0:	// Bezier curve
 			//cout << "CHOSEN Bezier " << endl;	// debug
+
+			// debug
+			//cp_positions_vector = CurveGenerator::bezier(windowData.controlPts, 2, 0.5f); // change the hard coded numbers
+			//cp_positions_vector = CurveGenerator::bezier(testPoints, 2, 0.5f); 	// expected result in std::vector is vec3(3.5, 1.5, 0)
 
 			// Generate the curve
 			for (float u = 0; u <= 1; u += (0.5f / curveData.numIterations))
@@ -1226,10 +1297,18 @@ int main() {
 	bool clearViewWindow = false;
 	orbitViewerData orbitViewData = { clearViewWindow };
 
+	vec3 cameraPos = vec3(vec2(0.f), 0.0f);
+	vec3 lookAtPoint = vec3(0.f);				// looks straight down from camera pos
+	float distanceFromLookAtPoint = 0.f;	// Distance from the 'lookAtPoint' (world space)
+	bool clickAndDrag = false;
+	bool resetCamera = false;
+
+	twoDViewData twoD = { cameraPos, lookAtPoint, distanceFromLookAtPoint, clickAndDrag, resetCamera };
+
 	tensorProductData tData;
 	bool enableBonus1 = false;
 	int numberOfSlices = 20;
-	windowControlData windowData = { window, curveData, orbitViewData, tData, enableBonus1, numberOfSlices };
+	windowControlData windowData = { window, curveData, orbitViewData, twoD, tData, enableBonus1, numberOfSlices };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -1259,18 +1338,29 @@ int main() {
 	cp_point_cpu.verts	= cp_positions_vector;
 	cp_point_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_point_colour);
 	GPU_Geometry cp_point_gpu;
+	//cp_point_gpu.setVerts(cp_point_cpu.verts);
+	//cp_point_gpu.setCols(cp_point_cpu.cols);
 
 	CPU_Geometry cp_line_cpu;
 	cp_line_cpu.verts	= cp_positions_vector; // We are using GL_LINE_STRIP (change this if you want to use GL_LINES)
 	cp_line_cpu.cols	= std::vector<glm::vec3>(cp_point_cpu.verts.size(), cp_line_colour);
 	GPU_Geometry cp_line_gpu;
+	//cp_line_gpu.setVerts(cp_line_cpu.verts);
+	//cp_line_gpu.setCols(cp_line_cpu.cols);
 
-	CPU_Geometry curve_point_cpu;	// stores the generated curve from Bezier or B-spline, or points that make up a surface
-	GPU_Geometry curve_point_gpu;	
-	CPU_Geometry curve_line_cpu;	// stores the generated curve from Bezier or B-spline or triangle mesh from "surface of rotation", and "tensor product surfaces"
+	CPU_Geometry curve_point_cpu;	// stores the generated curve from Bezier or B-spline, or triangle mesh from "surface of rotation"
+	GPU_Geometry curve_point_gpu;
+	CPU_Geometry curve_line_cpu;
 	GPU_Geometry curve_line_gpu;
 
 	cpuGeometriesData geometries = {cp_point_cpu, cp_line_cpu, curve_point_cpu, curve_line_cpu };
+
+	// Testing things
+	//testDeCasteljauAlgo();
+	//vec2 ptSize = vec2(CONTROL_POINT_SIZE / 1000.f, CONTROL_POINT_SIZE / 1000.f);	// use this to get the red 'box' corner values that surrounds the control points, use these as bounds when trying to draw/select them
+	//cout << "half length/width: " << to_string(ptSize) << endl;	// te above ^ is half the length/width
+	//cout << "cp_point length: " << CONTROL_POINT_LENGTH << endl;
+	//cout << "cp_point width: " << CONTROL_POINT_WIDTH << endl;
 
 	while (!window.shouldClose()) {
 		glfwPollEvents();
@@ -1308,14 +1398,23 @@ int main() {
 		// Set the view matrix for curve editors
 		if (optionData.comboSelection == 0 || optionData.comboSelection == 1)
 		{
-			shader_program_default.setMat4Transform("transformationMatrix", curveData.defaultViewMat);
+			mat4 view = mat4(1.f);
+			view = scale(view, vec3(twoD.distanceFromLookAtPoint, twoD.distanceFromLookAtPoint, 0.f));
+			view = translate(view, vec3(-twoD.cameraPos));
+
+			//mat4 viewMat = glm::lookAt(twoD.cameraPos, twoD.lookAtPoint, twoD.upVector);
+			shader_program_default.setMat4Transform("transformationMatrix", view);
+
+			//shader_program_default.setMat4Transform("transformationMatrix", curveData.defaultViewMat);
 		}
 		// Set the view matrix for all other options
 		else
 		{
 			mat4 model = mat4(1.0f);
 			mat4 viewMat = glm::lookAt(orbitViewData.cameraPos, orbitViewData.lookAtPoint, orbitViewData.defaultData.upVector);
+			//mat4 projectionMat = orbitViewData.defaultData.perspectiveMat4;
 			mat4 projectionMat = glm::perspective(orbitViewData.fieldOfView, orbitViewData.aspectRatio, orbitViewData.nearPlane, orbitViewData.farPlane);
+			//perspectiveMat4 = glm::perspective(fieldOfView, aspectRatio, nearPlane, farPlane);
 
 			glm::mat4 modelViewProjection = projectionMat * viewMat * model;
 			shader_program_default.setMat4Transform("transformationMatrix", modelViewProjection);
@@ -1349,7 +1448,6 @@ int main() {
 			curve_line_gpu.bind();
 			glDrawArrays(GL_LINE_STRIP, 0, curve_line_cpu.verts.size());
 		}
-		// Render meshes
 		else
 		{
 			curve_line_gpu.bind();
@@ -1359,8 +1457,12 @@ int main() {
 			else
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
 
-			glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			//if (optionData.comboSelection != 5)
+			//	glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			//else 
+				glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
 		}
+
 
 		//------------------------------------------
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
