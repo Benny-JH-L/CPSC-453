@@ -40,6 +40,14 @@ const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 const static int MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 200;
 const static int MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 2;
+
+const static int MIN_U_DEGREE = 1;
+const static int MAX_U_DEGREE = 4;
+const static int MIN_V_DEGREE = 1;
+const static int MAX_V_DEGREE = 4;
+const static int MIN_QUALITY = 20;
+const static int MAX_QUALITY = 70;
+
 const static float MIN_NEAR_PLANE = 0.1f;
 const static float MAX_NEAR_PLANE = 4.f;
 const static float MIN_FAR_PLANE = 0.2f;
@@ -117,10 +125,32 @@ struct orbitViewerData
 
 struct tensorProductData
 {
-	vector<vec3> surface1 =
+	// From assignment outline
+	const vector<vector<vec3>> tensorSurfaceControlPoints1 =
 	{
+			{{-2, 0, -2}, {-1, 0, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
+			{{-2, 0, -1}, {-1, 1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
+			{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
+			{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
+			{{-2, 0, 2}, {-1, 0, 2}, {0, 0, 2}, {1, 0, 2}, {2, 0, 2}}
+	};
+
+	// Self generated
+	const vector<vector<vec3>> tensorSurfaceControlPoints2 =
+	{
+			{{-2, -4, -3}, {-1, -2, -3}, {0, 0, -3}, {1, 0, -3}, {2, 0, -3}},
+			{{-2, -3, -2}, {-1, -2, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
+			{{-2, -2, -1}, {-1, -1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
+			{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
+			{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
+			{{-2, 0, 2}, {-1, 1, 2}, {0, 2, 2}, {1, 6, 2}, {2, 0, 2}},
+			{{-2, 0, 3}, {-1, 0, 3}, {0, 0, 3}, {1, 0, 3}, {2, 0, 3}}
 
 	};
+
+	int uDegree = 2;
+	int vDegree = 2;
+	int quality = 40;
 };
 
 struct windowControlData
@@ -128,6 +158,7 @@ struct windowControlData
 	Window& window;
 	curveRelatedData& curveRelatedData;
 	orbitViewerData& orbitViewerData;
+	tensorProductData& tensorProductData;
 	bool& enableBonus;
 	int& numberOfSlices;			// ONLY used by Surface of revolution
 	int previousOptionChosen = -1;
@@ -334,18 +365,308 @@ public:
 	};
 };
 
-class BSplineSurface
+class TensorProductSurface
 {
 public:
-	BSplineSurface(int uDeg, int vDeg, const vector<float>& uKnots, const vector<float>& vKnots, const vector<vector<vec3>>& ctrlPts) :
-		uDegree(uDeg),
-		vDegree(vDeg),
-		uKnots(uKnots),
-		vKnots(vKnots),
-		controlPoints(ctrlPts)
-	{}
+	/// <summary>
+	/// Element 1 is surface points
+	/// Element 2 is the triangle mesh
+	/// </summary>
+	/// <param name="resolutionU"></param>
+	/// <param name="resolutionV"></param>
+	/// <returns>a tuple of (vector(vec3), vector(vec3))</returns>
+	static tuple<vector<vec3>, vector<vec3>> generate(vector<vector<vec3>> controlPoints, int uDegree, int vDegree, int resolutionU, int resolutionV) 
+	{
+		vector<vec3> surfacePoints;
+		vector<vector<vec3>> surface;
+		vector<vec3> col;
+		for (int i = 0; i < resolutionU - 1; ++i)
+		{
+			vector<vec3> surfaceSoFar;
 
-	float basisFunction(int i, int k, float t, const std::vector<float>& knots) const
+			for (int j = 0; j < resolutionV - 1; ++j)
+			{
+				float u0 = static_cast<float>(i) / (resolutionU - 1);
+				float u1 = static_cast<float>(i + 1) / (resolutionU - 1);
+				float v0 = static_cast<float>(j) / (resolutionV - 1);
+				float v1 = static_cast<float>(j + 1) / (resolutionV - 1);
+
+				vec3 p0 = evaluate(controlPoints, uDegree, vDegree, u0, v0);
+				vec3 p1 = evaluate(controlPoints, uDegree, vDegree, u1, v0);
+				vec3 p2 = evaluate(controlPoints, uDegree, vDegree, u1, v1);
+				vec3 p3 = evaluate(controlPoints, uDegree, vDegree, u0, v1);
+
+				if (p0 != vec3(0.f))
+					surfaceSoFar.push_back(p0);
+				if (p1 != vec3(0.f))
+					surfaceSoFar.push_back(p1);
+				if (p2 != vec3(0.f))
+					surfaceSoFar.push_back(p2);
+				if (p3 != vec3(0.f))
+					surfaceSoFar.push_back(p3);
+
+				//surfacePoints.push_back(p0);
+				//surfacePoints.push_back(p1);
+				//surfacePoints.push_back(p2);
+				//surfacePoints.push_back(p3);
+			}
+
+			for (int k = 0; k < surfaceSoFar.size(); k++)
+				surfacePoints.push_back(surfaceSoFar[k]);
+
+			surface.push_back(surfaceSoFar);	// One set of curves that define the surface
+		}
+
+
+		vector<vec3> triangleMesh;
+
+		// Create mesh
+		for (int i = 0; i < surface.size() - 2; i++)
+		{
+			vector<vec3> currentCurve = surface[i];
+			vector<vec3> nextCurve = surface[i + 1];
+
+
+			for (int j = 0; j < currentCurve.size() - 1; j++)
+			{
+				// Triangle 1
+				triangleMesh.push_back(currentCurve[j]);
+				triangleMesh.push_back(nextCurve[j]);
+				triangleMesh.push_back(nextCurve[j + 1]);
+				//Triangle 2
+				triangleMesh.push_back(currentCurve[j]);
+				triangleMesh.push_back(nextCurve[j + 1]);
+				triangleMesh.push_back(currentCurve[j + 1]);
+			}
+		}
+
+		return make_tuple(surfacePoints, triangleMesh);
+	}
+
+
+	/*
+	static vector<vec3> generate2(vector<vector<vec3>> controlPoints)
+	{
+		// vector<vector<vec3>> controlPoints -> contains the 'u' and 'v' curves
+
+		// Separate the curves
+		//vector<vector<vec3>> uCurve;
+		//for (vector<vec3> curve : controlPoints)
+		//	uCurve.push_back(curve);
+
+		//vector<vector<vec3>> vCurve;
+		//for (int i = 0; i < controlPoints.size(); i++)
+		//{
+		//	vector<vec3> curve;
+		//	for (int j = 0; j < controlPoints[i].size(); j++)
+		//	{
+		//		curve.push_back(controlPoints[j][i]);
+		//	}
+		//	vCurve.push_back(curve);
+		//}
+
+
+		//for (int i = 0; i < uCurve.size(); i++)
+		//{
+		//	// compute inner summation
+		//	for (int k = 0; k < vCurve.size(); k++)
+		//	{
+		//		vec3 p = controlPoints[i][k];
+
+		//		// B(j, d')(v)
+		//		for (int j = 0; j < degree; j++)
+		//		{
+		//			bezierBasisFunction(controlPoints[k][i], )
+		//		}
+		//	}
+		//}
+
+		int degree1 = controlPoints[0].size();	// each v-curve should have the same number of control points
+		int degree2 = controlPoints.size();		// each u-curve should have the same number of control points
+		vector<vector<vec3>> surfacePoints;
+
+		vector<vec3> surfaceReturnTEMPORARY;
+
+		for (int u = 0; u <= 1; u += 0.2)
+		{
+			vector<vec3> surfaceSoFar;
+			for (float v = 0; v <= 1; v += 0.2)
+			{
+
+
+				// outer summation
+				for (float i = 0; i < 2; i++)
+				{
+					vector<vec3> toSum;
+					vec3 summed;
+
+					// Inner summation
+					for (int j = 0; j < 2; j++)
+					{
+						vec3 p = controlPoints[j][i];
+						p *= bezierBasisFunction(j, j, v);
+						toSum.push_back(p);
+					}
+
+					// sum
+					summed = toSum[0];
+					for (int k = 1; k < toSum.size(); k++)
+						summed += toSum[k];
+
+					summed *= bezierBasisFunction(i, i, u);
+					surfaceSoFar.push_back(summed);
+					surfaceReturnTEMPORARY.push_back(summed);
+				}
+
+
+			}
+		}
+
+		// Self generated
+		vector<vector<vec3>> tensorSurfaceControlPoints2 =
+		{
+				{{-2, -4, -3}, {-1, -2, -3}, {0, 0, -3}, {1, 0, -3}, {2, 0, -3}},
+				{{-2, -3, -2}, {-1, -2, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
+				{{-2, -2, -1}, {-1, -1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
+				{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
+				{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
+				{{-2, 0, 2}, {-1, 1, 2}, {0, 2, 2}, {1, 6, 2}, {2, 0, 2}},
+				{{-2, 0, 3}, {-1, 0, 3}, {0, 0, 3}, {1, 0, 3}, {2, 0, 3}}
+
+		};
+		// rows are the 'u' vectors
+		// cols are the 'v' vectors
+		return surfaceReturnTEMPORARY;
+	}
+
+	static vec3 generate3(
+		const std::vector<std::vector<glm::vec3>>& controlPoints,
+		int d, int d_prime, double u, double v) {
+
+		glm::vec3 Q(0.0f, 0.0f, 0.0f); // Initialize Q(u, v) for 3D space
+
+		for (int i = 0; i <= d; ++i) {
+			for (int j = 0; j <= d_prime; ++j) {
+				double B_i_d = bezierBasisFunction(i, d, u);        // Bézier basis function for u
+				double B_j_d_prime = bezierBasisFunction(j, d_prime, v); // Bézier basis function for v
+
+				// Contribution of control point P[i][j]
+				Q += controlPoints[i][j] * static_cast<float>(B_i_d * B_j_d_prime);
+			}
+		}
+
+		return Q; // Return the calculated point on the surface
+	}
+
+	static tuple<vector<vec3>, vector<vec3>> generate4(
+		const std::vector<std::vector<glm::vec3>>& controlPoints,
+		int d, int d_prime, double u, double v)
+	{
+		glm::vec3 Q(0.0f, 0.0f, 0.0f); // Initialize Q(u, v) for 3D space
+
+		for (int i = 0; i <= d; ++i)
+		{
+			for (int j = 0; j <= d_prime; ++j)
+			{
+				double B_i_d = bezierBasisFunction(i, d, u);        // Bézier basis function for u
+				double B_j_d_prime = bezierBasisFunction(j, d_prime, v); // Bézier basis function for v
+
+				// Contribution of control point P[i][j]
+				Q += controlPoints[i][j] * static_cast<float>(B_i_d * B_j_d_prime);
+			}
+		}
+	}
+
+
+	static tuple<vector<vec3>, vector<vec3>> gen(const std::vector<std::vector<glm::vec3>> controlPoints, int d, int d_prime)
+	{
+		vector<vec3> surfacePoints;
+		vector<vector<vec3>> temp2D;
+
+		for (float u = 0.f; u <= 1.f; u += 0.2f)
+		{
+			vector<vec3> s;
+			for (float v = 0.f; v <= 1.f; v += 0.2f)
+			{
+				s.push_back(generate3(controlPoints, d, d_prime, u, v));
+				surfacePoints.push_back(generate3(controlPoints, d, d_prime, u, v));
+
+			}
+			temp2D.push_back(s);
+		}
+		// Create mesh triangles
+		vector<vec3> meshTriangles;
+		for (int i = 0; i < temp2D.size() - 1; i++)		// minus 1, as we can't draw a triangle with only the last set of points left
+		{
+			vector<vec3> currentSetOfPoints = temp2D[i];
+			vector<vec3> nextSetOfPoints = temp2D[i + 1];
+
+			// First triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)	// minus 1, as we can't draw a triangle with other points left
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+			}
+			// Second triangle
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)
+			{
+				meshTriangles.push_back(currentSetOfPoints[j]);
+				meshTriangles.push_back(nextSetOfPoints[j + 1]);
+				meshTriangles.push_back(currentSetOfPoints[j + 1]);
+
+			}
+			// result is a square/rectangle defined by these two triangles (triangles are drawn counter clock wise)
+		}
+
+		return make_tuple(surfacePoints, meshTriangles);
+	}
+
+	static float bezierBasisFunction(int controlPointIndex, int degree, float w)
+	{
+		// vector<float< coefficients;
+		//for (int i = 0; i < controlPoint.size(); i++)
+		//{
+		//	int chose = choose(degree, i);
+		//	coefficients.push_back(chose * (w ^ i) * ((1 - w) ^ (degree - i)));
+		//}
+		
+		return (choose(degree, controlPointIndex) * (pow(w, controlPointIndex)) * pow((1 - w), (degree - controlPointIndex)));
+	}
+
+	/// <summary>
+	/// 'd' choose ''i'
+	/// </summary>
+	/// <param name="d"></param>
+	/// <param name="i"></param>
+	/// <returns></returns>
+	static int choose(int d, int i)
+	{
+		float numerator = factorial(d);
+		float denominator = factorial(i) * (factorial(d - i));
+		return numerator / denominator;
+	}
+
+	static int factorial(int n)
+	{
+		int val = 1;
+		for (int i = 1; i <= n; i++)
+			val *= i;
+		return val;
+	}
+	*/
+
+private:
+
+	/// <summary>
+	/// Generates the B-spline coefficient.
+	/// </summary>
+	/// <param name="i"></param>
+	/// <param name="k"></param>
+	/// <param name="t"></param>
+	/// <param name="knots"></param>
+	/// <returns></returns>
+	static float basisFunction(int i, int k, float t, const vector<float>& knots) 
 	{
 		if (k == 0) {
 			return (t >= knots[i] && t < knots[i + 1]) ? 1.0f : 0.0f;
@@ -359,70 +680,42 @@ public:
 		return term1 + term2;
 	}
 
-	glm::vec3 evaluate(float u, float v) const
+	/// <summary>
+	/// Calculates the Q(u,v) point for the surface.
+	/// </summary>
+	/// <param name="controlPoints"></param>
+	/// <param name="uDegree"></param>
+	/// <param name="vDegree"></param>
+	/// <param name="u"></param>
+	/// <param name="v"></param>
+	/// <returns></returns>
+	static vec3 evaluate(vector<vector<vec3>> controlPoints, int uDegree, int vDegree, float u, float v) 
 	{
-		glm::vec3 point(0.0f);
+		vec3 point(0.0f);
 		int n = controlPoints.size();
 		int m = controlPoints[0].size();
 
-		for (int i = 0; i < n; ++i) {
-			for (int j = 0; j < m; ++j) {
-				float bu = basisFunction(i, uDegree, u, uKnots);
-				float bv = basisFunction(j, vDegree, v, vKnots);
-				point += bu * bv * controlPoints[i][j];
+		vector<float> uKnots = generateKnotVector(n, uDegree);
+		vector<float> vKnots = generateKnotVector(m, vDegree);;
+
+		for (int i = 0; i < n; ++i)
+		{
+			for (int j = 0; j < m; ++j)
+			{
+				float bu = basisFunction(i, uDegree, u, uKnots);	// Calculate weight for curve along 'u'
+				float bv = basisFunction(j, vDegree, v, vKnots);	// Calculate weight for curve along 'v'
+				point += bu * bv * controlPoints[i][j];				// apply weights to control point
 			}
 		}
 		return point;
 	}
 
 	/// <summary>
-	/// index 0 is surface
-	/// index 1 is color
+	/// Generates a vector of 'knots' for 'u' or 'v' curve
 	/// </summary>
-	/// <param name="resolutionU"></param>
-	/// <param name="resolutionV"></param>
+	/// <param name="numControlPoints"></param>
+	/// <param name="degree"></param>
 	/// <returns></returns>
-	vector<vector<vec3>> draw(int resolutionU, int resolutionV) const
-	{
-		vector<vec3> surface;
-		vector<vec3> col;
-		for (int i = 0; i < resolutionU - 1; ++i) {
-			for (int j = 0; j < resolutionV - 1; ++j) {
-				float u0 = static_cast<float>(i) / (resolutionU - 1);
-				float u1 = static_cast<float>(i + 1) / (resolutionU - 1);
-				float v0 = static_cast<float>(j) / (resolutionV - 1);
-				float v1 = static_cast<float>(j + 1) / (resolutionV - 1);
-
-				//glColor3f(u0, v0, 0.5f);
-				//glVertex3fv(&evaluate(u0, v0)[0]);
-				//glColor3f(u1, v0, 0.5f);
-				//glVertex3fv(&evaluate(u1, v0)[0]);
-				//glColor3f(u1, v1, 0.5f);
-				//glVertex3fv(&evaluate(u1, v1)[0]);
-				//glColor3f(u0, v1, 0.5f);
-				//glVertex3fv(&evaluate(u0, v1)[0]);
-
-				//evaluate(u0, v0)[0];
-				//evaluate(u1, v0)[0];
-				//evaluate(u1, v1)[0];
-				//evaluate(u0, v1)[0];
-				col.push_back(vec3(1.f, 1.f, 1.f));
-				col.push_back(vec3(1.f, 1.f, 1.f));
-				col.push_back(vec3(1.f, 1.f, 1.f));
-				col.push_back(vec3(1.f, 1.f, 1.f));
-
-				surface.push_back(evaluate(u0, v0));
-				surface.push_back(evaluate(u1, v0));
-				surface.push_back(evaluate(u1, v1));
-				surface.push_back(evaluate(u0, v1));
-			}
-		}
-		vector<vector<vec3>> ret;
-		ret.push_back(surface);
-		ret.push_back(col);
-		return ret;
-	}
-
 	static vector<float> generateKnotVector(int numControlPoints, int degree)
 	{
 		int numKnots = numControlPoints + degree + 1;
@@ -443,11 +736,6 @@ public:
 
 		return knots;
 	}
-
-private:
-	int uDegree, vDegree;
-	std::vector<float> uKnots, vKnots;
-	std::vector<std::vector<glm::vec3>> controlPoints;
 };
 
 class CurveEditorCallBack : public CallbackInterface
@@ -826,6 +1114,7 @@ public:
 		comboSelection(0),
 		curveData(d.curveRelatedData),
 		orbitViewData(d.orbitViewerData),
+		tensorData(d.tensorProductData),
 		windowData(d)
 	{
 		// Initialize options for the combo box
@@ -933,7 +1222,7 @@ public:
 				resetCurveWindowBool = false;
 			}
 		}
-		// For camera views
+		// For orbit camera views
 		else
 		{
 			if (comboSelection == 2)
@@ -961,12 +1250,20 @@ public:
 			ImGui::Text("Phi (Degrees): %.3f", glm::degrees(orbitViewData.phi));
 			ImGui::Text("Theta (Degrees): %.3f", glm::degrees(orbitViewData.theta)); 
 
+			// Surface of revolution
 			if (comboSelection == 3)
 			{
 				ImGui::SliderInt("Number of Slices", &windowData.numberOfSlices, MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION, MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION, "Current: %d");
 				ImGui::Text("Min number of slices: %d", MIN_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
 				ImGui::Text("Min number of slices: %d", MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
 			}
+			// Tensor product
+			else if (comboSelection > 3)
+			{
+				ImGui::SliderInt("Quality", &tensorData.quality, MIN_QUALITY, MAX_QUALITY, "Current: %d");
+				ImGui::SliderInt("u-degree", &tensorData.uDegree, MIN_U_DEGREE, MAX_U_DEGREE, "Current: %d");
+				ImGui::SliderInt("v-degree", &tensorData.vDegree, MIN_V_DEGREE, MAX_V_DEGREE, "Current: %d");
+		}
 
 			ImGui::SliderFloat("Mouse sensitivity", &orbitViewData.mouseSensitivity, 0.5f, 200.f, "Current: %.3f");
 			ImGui::SliderFloat("Mouse Scroll sensitivity", &orbitViewData.scrollSensitivity, 5.f, 20.f, "Current: %.3f");
@@ -1059,6 +1356,7 @@ private:
 	windowControlData& windowData;
 	curveRelatedData& curveData;
 	orbitViewerData& orbitViewData;
+	tensorProductData& tensorData;
 	vector<vec3>& controlPts = curveData.controlPts;
 	//vector<vec3>& curvePts = curveData.curve;	// debug
 	int& numberOfIterations = curveData.numIterations;
@@ -1104,41 +1402,9 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	curveRelatedData curveData = windowData.curveRelatedData;
 	vector<vec3> cp_positions_vector = curveData.controlPts;	// User entered control points
 	vector<vec3> curveGenerated;								// Curve generated
-	tuple<vector<vec3>, vector<vec3>> tupleForSurfaceOfRevolution;	// contains meshPoints (1st element) and meshTriangles (2nd element)
-
-	// testing ONLY
-	std::vector<float> uKnots = { 0, 0, 0, 1, 2, 3, 3, 3 };
-	std::vector<float> vKnots = { 0, 0, 0, 1, 2, 2, 2 };
-
-	std::vector<std::vector<glm::vec3>> controlPoints = {
-		{{-1, -1, 0}, {-1, 0, 1}, {-1, 1, 0}},
-		{{0, -1, 1}, {0, 0, 2}, {0, 1, 1}},
-		{{1, -1, 0}, {1, 0, 1}, {1, 1, 0}}
-	};
-
-
-	std::vector<std::vector<glm::vec3>> tps1 = {
-			{{-2, 0, -2}, {-1, 0, -2}, {0, 0, -2}, {1, 0, -2}, {2, 0, -2}},
-			{{-2, 0, -1}, {-1, 1, -1}, {0, 1, -1}, {1, 1, -1}, {2, 0, -1}},
-			{{-2, 0, 0}, {-1, 1, 0}, {0, -1, 0}, {1, 1, 0}, {2, 0, 0}},
-			{{-2, 0, 1}, {-1, 1, 1}, {0, 1, 1}, {1, 1, 1}, {2, 0, 1}},
-			{{-2, 0, 2}, {-1, 0, 2}, {0, 0, 2}, {1, 0, 2}, {2, 0, 2}}
-	};
-	std::vector<float> uKnots2 = BSplineSurface::generateKnotVector(tps1.size(), 2);
-	std::vector<float> vKnots2 = BSplineSurface::generateKnotVector(tps1.size(), 2);
-
-	// testing ONLY
-	//BSplineSurface tensorSurface = BSplineSurface(2, 2, uKnots, vKnots, controlPoints);
-	BSplineSurface tensorSurface = BSplineSurface(2, 2, uKnots2, vKnots2, tps1);
-	vector<vector<vec3>> tensorSurfaceValues = tensorSurface.draw(60, 60);
-
-	// Initialize options for the combo box
-	//options[0] = "Curve Editor - Bezier";
-	//options[1] = "Curve Editor - Quadratic B-spline (Chaikin)";
-	//options[2] = "Orbit Viewer - Curve";
-	//options[3] = "Orbit Viewer - Surface of Revolution";
-	//options[4] = "Orbit Viewer - Tensor Product 1";
-	//options[5] = "Orbit Viewer - Tensor Product 2";
+	tensorProductData tensorData = windowData.tensorProductData;
+	tuple<vector<vec3>, vector<vec3>> surfaceOfRevolutionValues;	// contains meshPoints (1st element) and meshTriangles (2nd element)
+	tuple<vector<vec3>, vector<vec3>> tensorSurfaceValues;
 
 	if (cp_positions_vector.size() >= 2)
 	{
@@ -1214,30 +1480,40 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 			return;	// return so it keeps the previously generated curve
 		case 3:		// Surface of revolution
 			//cout << "surface making entered" << endl; // debug
-			//bspline = cp_positions_vector;
-			//for (int i = 0; i < curveData.numIterations; i++)
-			//{
-			//	bspline = CurveGenerator::chaikin(bspline);	// Create the curve so far
-			//}
-			//// ensure that the last point in the curve is the last control point entered
-			//bspline.push_back(cp_positions_vector[cp_positions_vector.size() - 1]);
 
 			curveGenerated = cp_positions_vector;							// Initial curve
 			for (int i = 0; i < curveData.numIterations; i++)
 			{
 				curveGenerated = CurveGenerator::chaikin(curveGenerated);	// Create the curve so far
 			}
-			tupleForSurfaceOfRevolution = SurfaceOfRevolution::generate(curveGenerated, windowData.numberOfSlices);	// result is the mesh points and triangle mesh
+			surfaceOfRevolutionValues = SurfaceOfRevolution::generate(curveGenerated, windowData.numberOfSlices);	// result is the mesh points and triangle mesh
 			break;
 		case 4:	// Tensor product 1
-			windowData.curveRelatedData.controlPts.clear();
-			windowData.curveRelatedData.curve.clear();
-			for (vector<vec3> set : tps1)
+
+			// Generate the tensor product
+			tensorSurfaceValues = TensorProductSurface::generate(tensorData.tensorSurfaceControlPoints1, tensorData.uDegree, tensorData.vDegree, tensorData.quality, tensorData.quality);
+
+			// Add control points
+			cp_positions_vector.clear();
+			for (vector<vec3> curve : windowData.tensorProductData.tensorSurfaceControlPoints1)
 			{
-				for (vec3 p : set)
-					windowData.curveRelatedData.controlPts.push_back(p);
+				for (vec3 p : curve)
+					cp_positions_vector.push_back(p);
 			}
-			curveGenerated = tensorSurfaceValues[0];	// test
+
+			break;
+		case 5: // Tensor product 2
+
+			// Generate the tensor product
+			tensorSurfaceValues = TensorProductSurface::generate(tensorData.tensorSurfaceControlPoints2, tensorData.uDegree, tensorData.vDegree, tensorData.quality, tensorData.quality);
+
+			// Add control points
+			cp_positions_vector.clear();
+			for (vector<vec3> curve : windowData.tensorProductData.tensorSurfaceControlPoints2)
+			{
+				for (vec3 p : curve)
+					cp_positions_vector.push_back(p);
+			}
 
 			break;
 		default:
@@ -1281,7 +1557,7 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 	// Surface of Revolution
 	else if (optionData.comboSelection == 3)
 	{
-		auto [meshPoints, meshTriangles] = tupleForSurfaceOfRevolution;
+		auto [meshPoints, meshTriangles] = surfaceOfRevolutionValues;
 
 		// update the curve
 		curve_point_cpu.verts = meshPoints;
@@ -1291,16 +1567,18 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 		curve_line_cpu.verts = meshTriangles;
 		curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);
 	}
-	else if (optionData.comboSelection == 4)
+	// Tensor surface products
+	else
 	{
-		// TEST ONLY
-		curve_point_cpu.verts = tensorSurfaceValues[0];
+		auto [meshPoints, triangleMesh] = tensorSurfaceValues;
+		cp_line_cpu.verts.clear();	// Don't want to show the control point lines
+
+		curve_point_cpu.verts = meshPoints;
 		curve_point_cpu.cols = vector<vec3>(curve_point_cpu.verts.size(), vec3(1.f, 1.0f, 0.f));		// have an option to show them
 
-		curve_line_cpu.verts = tensorSurfaceValues[0];
-		curve_line_cpu.cols = tensorSurfaceValues[1];
+		curve_line_cpu.verts = triangleMesh;
+		curve_line_cpu.cols = vector<vec3>(curve_line_cpu.verts.size(), curveColour);					// have an option to show them
 	}
-
 }
 
 /*
@@ -1434,6 +1712,8 @@ void checkOptionChosen(cpuGeometriesData& geoms, windowControlData& windowData, 
 
 int main() {
 	Log::debug("Starting main");
+	//cout << "10! = " << TensorProductSurface::factorial(10) << endl; // = 3628800
+	//cout << "10 choose 5 = " << TensorProductSurface::choose(10, 5) << endl; // = 252
 
 	// WINDOW
 	glfwInit();
@@ -1462,9 +1742,10 @@ int main() {
 	bool clearViewWindow = false;
 	orbitViewerData orbitViewData = { clearViewWindow };
 
+	tensorProductData tData;
 	bool enableBonus1 = false;
 	int numberOfSlices = 20;
-	windowControlData windowData = { window, curveData, orbitViewData, enableBonus1, numberOfSlices };
+	windowControlData windowData = { window, curveData, orbitViewData, tData, enableBonus1, numberOfSlices };
 
 	// CALLBACKS
 	auto curve_editor_panel_renderer = std::make_shared<CurveEditorPanelRenderer>(windowData);
@@ -1640,10 +1921,10 @@ int main() {
 			else
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid surface
 
-			if (optionData.comboSelection != 4)
+			//if (optionData.comboSelection != 5)
+			//	glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
+			//else 
 				glDrawArrays(GL_TRIANGLES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
-			else 
-				glDrawArrays(GL_LINES, 0, curve_line_cpu.verts.size());	// Draw the triangle mesh
 		}
 
 
