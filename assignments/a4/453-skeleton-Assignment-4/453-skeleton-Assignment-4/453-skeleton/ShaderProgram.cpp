@@ -6,6 +6,8 @@
 
 #include "Log.h"
 
+//using namespace std;
+//using namespace glm;
 
 ShaderProgram::ShaderProgram(const std::string& vertexPath, const std::string& fragmentPath)
 	: programID()
@@ -21,6 +23,14 @@ ShaderProgram::ShaderProgram(const std::string& vertexPath, const std::string& f
 		throw std::runtime_error("Shaders did not link.");
 	}
 }
+
+//void ShaderProgram::setModelMat4(const string& name, const mat4& matrix) const
+//{
+//	GLint location = glGetUniformLocation(programID, "M");
+//	if (location == -1) 
+//		std::cerr << "Warning: uniform 'M' doesn't exist or isn't used in the shader program." << std::endl;
+//	glUniformMatrix4fv(location, 1, GL_FALSE, &matrix[0][0]);
+//}
 
 bool ShaderProgram::recompile() {
 

@@ -37,6 +37,9 @@ void Camera::incrementPhi(float dp) {
 	}
 }
 
-void Camera::incrementR(float dr) {
+void Camera::incrementR(float dr)
+{
 	radius -= dr;
+	if (radius <= 0.1)	// Don't allow the camera to invert
+		radius = 0.1;
 }

@@ -9,7 +9,10 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
+#include <glm/gtc/type_ptr.hpp> // For glm::value_ptr
 
+//using namespace std;
+//using namespace glm;
 
 class ShaderProgram {
 
@@ -28,6 +31,10 @@ public:
 	void use() const { glUseProgram(programID); }
 
 	void friend attach(ShaderProgram& sp, Shader& s);
+
+	//void setModelMat4(const string& name, const mat4& matrix) const;
+	//void setViewMat4(const string& name, const mat4& matrix) const;
+	//void setProjectionMat4(const string& name, const mat4& matrix) const;
 
 	operator GLuint() const {
 		return programID;
