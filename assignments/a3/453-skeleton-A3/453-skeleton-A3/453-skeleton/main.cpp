@@ -33,7 +33,7 @@ const static double PI_APPROX = atan(1) * 4;										// pi approximation
 const static float CONTROL_POINT_SIZE = 15.f;										// Size of the control point's box
 const static float CONTROL_POINT_LENGTH = 2 * (CONTROL_POINT_SIZE / 1000.f);		// Length of the control point's box
 const static float CONTROL_POINT_WIDTH= CONTROL_POINT_LENGTH;						// Width of the control point's box
-const static int DEFAULT_NUM_CURVE_ITERATIONS = 6;									// the default number of iterations for curve generation
+const static int DEFAULT_NUM_CURVE_ITERATIONS = 4;									// the default number of iterations for curve generation
 const static int MAX_NUMBER_OF_ITERATIONS_FOR_CURVES = 20;
 const static int MIN_NUMBER_OF_ITERATIONS_FOR_CURVES = 1;
 const static int MAX_NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 200;
@@ -1207,13 +1207,44 @@ int main() {
 	//GLDebug::enable();
 
 	// note to self: make sure to comment out the vec3's inside
-	std::vector<glm::vec3> cp_positions_vector =
+	//std::vector<glm::vec3> cp_positions_vector =
+	//{
+	//	{-.5f, -.5f, 0.f},
+	//	{ .5f, -.5f, 0.f},
+	//	{ .5f,  .5f, 0.f},
+	//	{-.5f,  .5f, 0.f}
+	//};
+
+	//for a4
+	float radius = 1;
+	std::vector<glm::vec3> cp_positions_vector =	// pretty good sphere
 	{
-		{-.5f, -.5f, 0.f},
-		{ .5f, -.5f, 0.f},
-		{ .5f,  .5f, 0.f},
-		{-.5f,  .5f, 0.f}
+		{0.f, -.6f * radius, 0.f},
+		{ .6f * radius, -.5f * radius, 0.f},
+		{ .6f * radius,  .5f * radius, 0.f},
+		{0.f, .6f * radius, 0.f}
 	};
+
+	//std::vector<glm::vec3> cp_positions_vector =
+	//{
+	//	{0.f, 0.f, 0.f},
+	//	{0.f, radius / 3, 0.f},
+	//	{radius / 3,  radius, 0.f},
+	//	{radius, radius, 0.f}
+	//};
+
+	//std::vector<glm::vec3> cp_positions_vector =
+	//{
+	//	{0.f, 0.f, 0.f},
+	//	{radius / 3, 0.f, 0.f},
+	//	{radius,  radius / 3, 0.f},
+	//	{radius, radius, 0.f},
+	//	{radius / 3, radius + 2, 0.f},
+	//	{0.f, radius + 2, 0.f}
+	//};
+
+
+	// end for a4
 
 	// Create structs
 	vector<vec3> curve;
