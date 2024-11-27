@@ -36,11 +36,21 @@ const static float MAX_FRAME_RATE = 200.f;	// 200 frams per second
 
 const static vector<string> typesOfCelestialBodies = { "Planet", "Moon", "Star" };
 const static vector<string> PLANET_NAMES = {"Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"};
-const static vector<string> MARS_MOON_NAMES = { "Phobos", "Deimos" };
-const static vector<string> JUPITER_MOON_NAMES = { "Io", "Europa", "Ganymede"};		// 3 largest
-const static vector<string> SATURN_MOON_NAMES = { "Titan", "Rhea", "Iapetus" };		// 3 largest
-const static vector<string> URANUS_MOON_NAMES = { "Titania", "Oberon", "Ariel" };	// 3 largest
-const static vector<string> NEPTUNE_MOON_NAMES = { "Triton", "Nereid", "Proteus" };	// 3 largest
+
+//struct allMoons
+//{
+//	const vector<string> MARS_MOON_NAMES = { "Phobos", "Deimos" };
+//	const vector<string> JUPITER_MOON_NAMES = { "Io", "Europa", "Ganymede" };	// 3 largest
+//	const vector<string> SATURN_MOON_NAMES = { "Titan", "Rhea", "Iapetus" };		// 3 largest
+//	const vector<string> URANUS_MOON_NAMES = { "Titania", "Oberon", "Ariel" };	// 3 largest
+//	const vector<string> NEPTUNE_MOON_NAMES = { "Triton", "Nereid", "Proteus" };	// 3 largest
+//};
+
+const vector<string> MARS_MOON_NAMES = { "Phobos", "Deimos" };
+const vector<string> JUPITER_MOON_NAMES = { "Io", "Europa", "Ganymede" };	// 3 largest
+const vector<string> SATURN_MOON_NAMES = { "Titan", "Rhea", "Iapetus" };		// 3 largest
+const vector<string> URANUS_MOON_NAMES = { "Titania", "Oberon", "Ariel" };	// 3 largest
+const vector<string> NEPTUNE_MOON_NAMES = { "Triton", "Nereid", "Proteus" };	// 3 largest
 
 struct windowData;
 
@@ -61,17 +71,16 @@ public:
 		texture(texturePath, GL_NEAREST)
 	{
 		generateGeometry();
-		vec3 axis = vec3(0.f, 1.f, 0.f);	// y-axis
-		rotateVec3(axis, axisTilt);			// rotate about 'axisTilt' to get actual planet-axis
 
-		//type = typesOfCelestialBodies[index];
+		mat4 tiltAxis = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));
+		model = tiltAxis * model;
 	}
 
 	string name;
 	float radius;
 	vec3 center;
 	float axisTilt;							// in degrees
-	vec3 axis;
+	vec3 axis = vec3(0.f, 1.f, 0.f);		// y-axis
 	string type;
 	Texture texture;
 	mat4 model = mat4(1.0f);
@@ -103,23 +112,23 @@ private:
 	/// </summary>
 	/// <param name="vecToRotate"></param>
 	/// <param name="degree"></param>
-	void rotateVec3(vec3& vecToRotate, float degree)
-	{
-		float x = vecToRotate.x;
-		float y = vecToRotate.y;
-		float rad = glm::radians(degree);
+	//void rotateVec3(vec3& vecToRotate, float degree)
+	//{
+	//	float x = vecToRotate.x;
+	//	float y = vecToRotate.y;
+	//	float rad = glm::radians(degree);
 
-		float xfinal = x * cos(rad) - y * sin(rad);
-		if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
-			xfinal = 0.f;			// make xfinal 0
-		float yfinal = x * sin(rad) + y * cos(rad);
-		if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
-			yfinal = 0.f;			// make yfinal 0
+	//	float xfinal = x * cos(rad) - y * sin(rad);
+	//	if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
+	//		xfinal = 0.f;			// make xfinal 0
+	//	float yfinal = x * sin(rad) + y * cos(rad);
+	//	if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
+	//		yfinal = 0.f;			// make yfinal 0
 
-		// Set the rotated values
-		vecToRotate.x = xfinal;
-		vecToRotate.y = yfinal;
-	}
+	//	// Set the rotated values
+	//	vecToRotate.x = xfinal;
+	//	vecToRotate.y = yfinal;
+	//}
 
 	// Control points used to generate spherical geometry
 	const vector<vec3> sphereControlPoints =
@@ -309,6 +318,52 @@ public:
 	GuiPanel(windowData& d) :
 		windowData(d)
 	{
+		//int optionsSize = PLANET_NAMES.size();
+		options[0] = "Planets";
+		options[1] = "Moons";
+		options[2] = "Sun";
+
+		// Set planet options
+		for (int i = 0; i < PLANET_NAMES.size(); i++)
+			planetOptions[i] = PLANET_NAMES[i].c_str();
+
+		//allMoons allMoons;
+
+		// Set moon options
+		moonOptions[0] = windowData.moons[0].name.c_str();
+
+		int indexCounter = 1;
+		//for (int i = 0; i < allMoons.MARS_MOON_NAMES.size(); i++, indexCounter++)
+		//	moonOptions[indexCounter] = allMoons.MARS_MOON_NAMES[i].c_str();
+
+		//for (int i = 0; i < allMoons.JUPITER_MOON_NAMES.size(); i++, indexCounter++)
+		//	moonOptions[indexCounter] = allMoons.JUPITER_MOON_NAMES[i].c_str();
+
+		//for (int i = 0; i < allMoons.SATURN_MOON_NAMES.size(); i++, indexCounter++)
+		//	moonOptions[indexCounter] = allMoons.SATURN_MOON_NAMES[i].c_str();
+
+		//for (int i = 0; i < allMoons.URANUS_MOON_NAMES.size(); i++, indexCounter++)
+		//	moonOptions[indexCounter] = allMoons.URANUS_MOON_NAMES[i].c_str();
+
+		//for (int i = 0; i < allMoons.NEPTUNE_MOON_NAMES.size(); i++, indexCounter++)
+		//	moonOptions[indexCounter] = allMoons.NEPTUNE_MOON_NAMES[i].c_str();
+
+		for (int i = 0; i < MARS_MOON_NAMES.size(); i++, indexCounter++)
+			moonOptions[indexCounter] = MARS_MOON_NAMES[i].c_str();
+
+		for (int i = 0; i < JUPITER_MOON_NAMES.size(); i++, indexCounter++)
+			moonOptions[indexCounter] = JUPITER_MOON_NAMES[i].c_str();
+
+		for (int i = 0; i < SATURN_MOON_NAMES.size(); i++, indexCounter++)
+			moonOptions[indexCounter] = SATURN_MOON_NAMES[i].c_str();
+
+		for (int i = 0; i < URANUS_MOON_NAMES.size(); i++, indexCounter++)
+			moonOptions[indexCounter] = URANUS_MOON_NAMES[i].c_str();
+
+		for (int i = 0; i < NEPTUNE_MOON_NAMES.size(); i++, indexCounter++)
+			moonOptions[indexCounter] = NEPTUNE_MOON_NAMES[i].c_str();
+
+		cout << "hi";
 	}
 
 	virtual void render() override
@@ -316,12 +371,39 @@ public:
 		ImGui::SliderInt("Frame Rate", &frames, MIN_FRAME_RATE, MAX_FRAME_RATE, "%d Frames/sec");
 		frameRate = 1.f / frames;
 
-		//ImGui::SliderFloat("Frame Rate: ", &i, -10.f, 10.f, "Current: %.3f");
-		ImGui::Text("Camera focused on: ");
+		ImGui::Combo("Center Camera", &comboSelection, options, IM_ARRAYSIZE(options));
+
+		// Show planets
+		if (comboSelection == 0)
+		{
+			ImGui::Combo("Select a Planet", &planetSelection, planetOptions, IM_ARRAYSIZE(planetOptions));
+			cameraFocusedOnBodyStr = planetOptions[planetSelection];
+		}
+		// Show Moons
+		else if (comboSelection == 1)
+		{
+			ImGui::Combo("Select a Moon", &moonSelection, moonOptions, IM_ARRAYSIZE(moonOptions));
+			cameraFocusedOnBodyStr = moonOptions[moonSelection];
+		}
+		else
+		{
+			cameraFocusedOnBodyStr = windowData.sun.name;
+		}
+
+		string s = "Camera focused on: ";
+		s.append(cameraFocusedOnBodyStr);
+		ImGui::Text(s.c_str());
 
 	}
 private:
+	const char* options[3];			// Options for the combo box
+	int comboSelection = 2;
+	const char* planetOptions[8];			// 8 = size of PLANET_NAMES
+	int planetSelection = 2;				// Earth set as default
+	const char* moonOptions[15];		// 15 = all the moons of the planets
+	int moonSelection = 0;				// Earth's moon set as default
 	windowData& windowData;
+	string cameraFocusedOnBodyStr = windowData.sun.name;	// initialy set it focused on the sun
 	int frames = 10;
 	float& frameRate = windowData.frameRate;
 	string celestialBodyFocusedOn;
@@ -433,9 +515,24 @@ int main() {
 	vector<Planet> planets;
 	vector<Moon> moons;
 	//Star sun = Star("sun", 1, 0.f, "textures/ship.png");
-	windowData windowData = { frameRate, planets, moons, Star("sun", 1, 0.f, "textures/ship.png") };
+	windowData windowData = { frameRate, planets, moons, Star("Sun", 1, 0.f, "textures/ship.png") };
 
 	GLDebug::enable();
+
+	UnitCube cube;
+	cube.generateGeometry();
+
+	// Create Planets and Moons
+	planets.push_back(Planet("earth", 2, -45.f, "textures/ship.png"));
+	Planet& earth = planets[0];
+	earth.translateBody(vec3(3.0f, vec2(0.f)));
+	
+	moons.push_back(Moon("The Moon", 1, 45.f, earth, "textures/ship.png"));
+	Moon* moon = &moons[0];
+	earth.addMoon(moon);
+	moon->translateBody(earth.radius + vec3(1.0f, vec2(0.f)));
+
+	Star& sun = windowData.sun;
 
 	// CALLBACKS
 	shared_ptr<Assignment4> callBack = std::make_shared<Assignment4>();
@@ -446,20 +543,7 @@ int main() {
 
 	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
 
-	UnitCube cube;
-	cube.generateGeometry();
-
-	// Create Planets and Moons
-	planets.push_back(Planet("earth", 2, 0.f, "textures/ship.png"));
-	Planet& earth = planets[0];
-	earth.translateBody(vec3(3.0f, vec2(0.f)));
-	
-	moons.push_back(Moon("moon", 1, 45.f, earth, "textures/ship.png"));
-	Moon* moon = &moons[0];
-	earth.addMoon(moon);
-	moon->translateBody(earth.radius + vec3(1.0f, vec2(0.f)));
-	moon->rotateViaAxis(45.f);
-
+	int i = 1;
 	// RENDER LOOP
 	while (!window.shouldClose())
 	{
@@ -501,6 +585,8 @@ int main() {
 		for (Moon& m : windowData.moons)
 			renderCelestialBody(callBack, shader, m);
 
+		moon->rotateViaAxis(10.f);
+
 		//callBack->setPlanetModelMat(shader, earth);
 		//earth.gpu_geom.bind();
 		//earth.texture.bind();
@@ -531,6 +617,7 @@ int main() {
 				sleepEnd = glfwGetTime();
 			}
 		}
+		i++;
 	}
 	glfwTerminate();
 	return 0;
