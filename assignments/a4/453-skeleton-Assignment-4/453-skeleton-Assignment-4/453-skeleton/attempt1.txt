@@ -31,20 +31,21 @@ using namespace glm;
 
 const static int NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 20;
 const static int NUMBER_OF_ITERATIONS_FOR_CHAIKIN = 4;
-const static float MIN_FRAME_RATE = 10.f;	// 10 frames per second
-const static float MAX_FRAME_RATE = 200.f;	// 200 frams per second
+const static vector<string> typesOfCelestialBodies = { "planet", "moon", "star" };
 
-const static vector<string> typesOfCelestialBodies = { "Planet", "Moon", "Star" };
-const static vector<string> PLANET_NAMES = {"Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"};
-const static vector<string> MARS_MOON_NAMES = { "Phobos", "Deimos" };
-const static vector<string> JUPITER_MOON_NAMES = { "Io", "Europa", "Ganymede"};		// 3 largest
-const static vector<string> SATURN_MOON_NAMES = { "Titan", "Rhea", "Iapetus" };		// 3 largest
-const static vector<string> URANUS_MOON_NAMES = { "Titania", "Oberon", "Ariel" };	// 3 largest
-const static vector<string> NEPTUNE_MOON_NAMES = { "Triton", "Nereid", "Proteus" };	// 3 largest
+//class CelestialBody;	// prototype
+//class Planet;
+//class Moon;
 
-struct windowData;
+struct windowData
+{
+	double frameRate;
+	vector<Planet>& planets;
+	vector<Moon>& moons;
+	Star& sun;
+};
 
-class CelestialBody
+struct CelestialBody
 {
 public:
 	static windowData windowData;
@@ -90,7 +91,7 @@ public:
 		center += val;
 	}
 
-	void rotateViaAxis(float angle)
+	void rotateBodyAxis(float angle)
 	{
 		model = glm::rotate(model, glm::radians(angle), axis);
 	}
@@ -251,55 +252,49 @@ private:
 	};
 };
 
-class Star : public CelestialBody
+struct Star
 {
-public:
 	Star(string name, float radius, float axisTilt, string texturePath) :
-		CelestialBody(name, radius, axisTilt, texturePath)
+		celestialBody(name, radius, axisTilt, texturePath)
 	{
-		type = typesOfCelestialBodies[2];
+		celestialBody.type = typesOfCelestialBodies[2];
 	}
+
+	CelestialBody celestialBody;
 };
 
-class Moon;	// prototype
+struct Moon
+{
+public:
+	Moon(string name, float radius, float axisTilt, Planet& orbitingPlanet, string texturePath) :
+		celestialBody(name, radius, axisTilt, texturePath),
+		orbitingPlanet(orbitingPlanet)
+	{
+		celestialBody.type = typesOfCelestialBodies[1];
+	}
 
-class Planet : public CelestialBody
+	CelestialBody celestialBody;
+	Planet& orbitingPlanet;
+};
+
+struct Planet
 {
 public:
 	Planet(string name, float radius, float axisTilt, string texturePath) :
-		CelestialBody(name, radius, axisTilt, texturePath)
+		celestialBody(name, radius, axisTilt, texturePath)
 	{
-		type = typesOfCelestialBodies[0];
+		celestialBody.type = typesOfCelestialBodies[0];
 	}
 
-	void addMoon(Moon* m)
+	void addMoon(Moon& m)
 	{
 		moons.push_back(m);
 	}
 
-	vector<Moon*> moons;
+	CelestialBody celestialBody;
+	vector<Moon&> moons;
 };
 
-class Moon : public CelestialBody
-{
-public:
-	Moon(string name, float radius, float axisTilt, Planet& orbitingPlanet, string texturePath) :
-		CelestialBody(name, radius, axisTilt, texturePath),
-		orbitingPlanet(orbitingPlanet)
-	{
-		type = typesOfCelestialBodies[1];
-	}
-
-	Planet& orbitingPlanet;
-};
-
-struct windowData
-{
-	float& frameRate;
-	vector<Planet>& planets;
-	vector<Moon>& moons;
-	Star sun;
-};
 
 
 class GuiPanel : public PanelRendererInterface
@@ -313,17 +308,12 @@ public:
 
 	virtual void render() override
 	{
-		ImGui::SliderInt("Frame Rate", &frames, MIN_FRAME_RATE, MAX_FRAME_RATE, "%d Frames/sec");
-		frameRate = 1.f / frames;
-
-		//ImGui::SliderFloat("Frame Rate: ", &i, -10.f, 10.f, "Current: %.3f");
 		ImGui::Text("Camera focused on: ");
 
 	}
 private:
 	windowData& windowData;
-	int frames = 10;
-	float& frameRate = windowData.frameRate;
+	bool showCurvePoints = false;
 	string celestialBodyFocusedOn;
 };
 
@@ -412,14 +402,14 @@ private:
 	double mouseOldY;
 };
 
-void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, CelestialBody& cb)
-{
-	callBack->setPlanetModelMat(sp, cb);
-	cb.gpu_geom.bind();
-	//p.texture.bind();
-	glDrawArrays(GL_TRIANGLES, 0, GLsizei(cb.cpu_geom.verts.size()));
-	//p.texture.unbind();
-}
+//void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, CelestialBody& cb)
+//{
+//	callBack->setPlanetModelMat(sp, cb);
+//	cb.gpu_geom.bind();
+//	//p.texture.bind();
+//	glDrawArrays(GL_TRIANGLES, 0, GLsizei(cb.cpu_geom.verts.size()));
+//	//p.texture.unbind();
+//}
 
 int main() {
 	Log::debug("Starting main");
@@ -429,11 +419,11 @@ int main() {
 	Window window(800, 800, "CPSC 453 - Assignment 3");
 	Panel panel(window.getGLFWwindow());
 	
-	float frameRate = 1.0f / 10.f;
+	double frameRate = 1.0f / 10.f;
 	vector<Planet> planets;
 	vector<Moon> moons;
-	//Star sun = Star("sun", 1, 0.f, "textures/ship.png");
-	windowData windowData = { frameRate, planets, moons, Star("sun", 1, 0.f, "textures/ship.png") };
+	Star sun = Star("sun", 1, 0.f, "textures/ship.png");
+	windowData windowData = { frameRate, planets, moons, sun };
 
 	GLDebug::enable();
 
@@ -453,12 +443,12 @@ int main() {
 	planets.push_back(Planet("earth", 2, 0.f, "textures/ship.png"));
 	Planet& earth = planets[0];
 	earth.translateBody(vec3(3.0f, vec2(0.f)));
-	
+
 	moons.push_back(Moon("moon", 1, 45.f, earth, "textures/ship.png"));
-	Moon* moon = &moons[0];
-	earth.addMoon(moon);
-	moon->translateBody(earth.radius + vec3(1.0f, vec2(0.f)));
-	moon->rotateViaAxis(45.f);
+	Moon& moon = moons[0];
+	moon.translateBody(earth.radius + vec3(1.0f, vec2(0.f)));
+	moon.rotateBodyAxis(45.f);
+
 
 	// RENDER LOOP
 	while (!window.shouldClose())
@@ -484,22 +474,15 @@ int main() {
 		glDrawArrays(GL_TRIANGLES, 0, GLsizei(cube.m_size));
 
 		// Render celestial bodies
-		renderCelestialBody(callBack, shader, windowData.sun);
-
 		for (Planet& p : windowData.planets)
 		{
-			renderCelestialBody(callBack, shader, p);
-			/*
+			//renderCelestialBody(callBack, shader, p);
 			callBack->setPlanetModelMat(shader, p);
 			p.gpu_geom.bind();
 			//p.texture.bind();
 			glDrawArrays(GL_TRIANGLES, 0, GLsizei(p.cpu_geom.verts.size()));
 			//p.texture.unbind();
-			*/
 		}
-
-		for (Moon& m : windowData.moons)
-			renderCelestialBody(callBack, shader, m);
 
 		//callBack->setPlanetModelMat(shader, earth);
 		//earth.gpu_geom.bind();
@@ -518,9 +501,9 @@ int main() {
 
 		double endTime = glfwGetTime();
 
-		if (endTime - startTime < windowData.frameRate)
+		if (endTime - startTime < frameRate)
 		{
-			double sleepTime = windowData.frameRate - (endTime - startTime);
+			double sleepTime = frameRate - (endTime - startTime);
 			//glfwWaitEventsTimeout(sleepTime);
 
 			double sleepStart = glfwGetTime();

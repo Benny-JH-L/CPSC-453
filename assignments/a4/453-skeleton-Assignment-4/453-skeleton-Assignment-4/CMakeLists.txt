@@ -54,6 +54,15 @@ include_directories(SYSTEM thirdparty/fmt-7.0.3/include)
 include_directories(SYSTEM thirdparty/stb-2.26)
 include_directories(SYSTEM thirdparty/imgui-1.78)
 
+#added
+include_directories(SYSTEM thirdparty/imgui-1.91.4-docking)
+set(IMGUI_CPP_FILES
+	thirdparty/imgui-1.91.4-docking/*.cpp # All main files need to be compiled
+	thirdparty/imgui-1.91.4-docking/backends/imgui_impl_opengl3.cpp # OpenGL API >=3.0 
+	thirdparty/imgui-1.91.4-docking/backends/imgui_impl_glfw.cpp # Window Library comp.
+	thirdparty/imgui-1.91.4-docking/misc/cpp/imgui_stdlib.cpp # Allow string inputs
+)
+
 find_package(OpenGL REQUIRED)
 set(LIBRARIES ${LIBRARIES} ${OPENGL_gl_LIBRARY})
 
@@ -97,6 +106,7 @@ file(GLOB SOURCES
     453-skeleton/*
     #thirdparty/glew-2.1.0/src/glew.c
 	thirdparty/imgui-1.78/imgui/*.cpp
+	#${IMGUI_CPP_FILES} # added
 )
 set(INCLUDES ${INCLUDES} src)
 
