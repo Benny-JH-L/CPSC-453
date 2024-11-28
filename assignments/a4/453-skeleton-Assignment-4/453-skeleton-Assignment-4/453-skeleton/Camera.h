@@ -12,13 +12,23 @@
 class Camera {
 public:
 
-	Camera(float t, float p, float r);
+	Camera(float t, float p, float r, glm::vec3& lookAt);
 
 	glm::mat4 getView();
 	glm::vec3 getPos();
 	void incrementTheta(float dt);
 	void incrementPhi(float dp);
 	void incrementR(float dr);
+
+	void resetTheta();
+	void resetPhi();
+	void resetRadius();
+	void setRadius(float r);
+	glm::vec3& lookAt;
+
+	float getTheta();
+	float getPhi();
+	float getRadius();
 
 private:
 
