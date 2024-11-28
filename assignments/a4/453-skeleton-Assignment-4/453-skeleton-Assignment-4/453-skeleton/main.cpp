@@ -25,6 +25,7 @@
 
 #include <tuple>
 #include "Panel.h"
+#include <random>
 
 using namespace std;
 using namespace glm;
@@ -101,24 +102,32 @@ public:
 		//mat4 t = glm::translate(mat4(1.0f), val);
 		//model = t * model;
 
-		//position += val;
+		position += val;
 	}
 
+	/// <summary>
+	/// Sets the rate at which the CelestialBody rotates about its axis (y-axis), in degrees.
+	/// </summary>
+	/// <param name="degree"></param>
 	void setAxisRotationRate(float degree)
 	{
 		axialRotationRate = degree;
 	}
 
+	/// <summary>
+	/// Rotates the CelestialBody by 'axialRotationRate' about it's planetary axis (y-axis).
+	/// </summary>
 	void rotateViaAxis()
 	{
 		axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), axis);
 		//axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), vec3(0.f, 0.f, 1.f));
 	}
 
+	// to be overridden in subclasses
 	virtual void orbitCelestialBody()
 	{}
 
-
+	// to be overridden in subclasses
 	virtual mat4 getModelMat4()
 	{
 		return translation * axialRotation * model;
@@ -334,6 +343,10 @@ public:
 		moons.push_back(m);
 	}
 
+	/// <summary>
+	/// The Planet orbits around its Star by 'orbitRate'.
+	/// Updates the 'orbitalInclination' glm::mat4.
+	/// </summary>
 	void orbitCelestialBody() override
 	{
 		numOrbitCelestialBodyCalls++;
@@ -341,12 +354,15 @@ public:
 		orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
 	}
 
+	/// <summary>
+	/// Returns the model-matrix for this Planet.
+	/// </summary>
+	/// <returns></returns>
 	virtual mat4 getModelMat4() override
 	{
 		//return axialRotation * translation * orbitRotation * model;
 		return orbitalInclination * translation * axialRotation * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
 		//return orbitalInclination * axialRotation * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
-
 	}
 
 	vector<Moon*> moons;
@@ -375,17 +391,24 @@ public:
 		type = typesOfCelestialBodies[1];
 	}
 
+	/// <summary>
+	/// Returns the model-matrix for this Planet.
+	/// </summary>
+	/// <returns></returns>
 	virtual mat4 getModelMat4() override
 	{
 		//return axialRotation * translation * orbitRotation * model;
 		mat4 starToPlanetOrbitInclination = orbitingPlanet.getOrbitalInclination();
 		mat4 planetTranslation = orbitingPlanet.getTranslation();
 
-		return orbitalInclination * planetTranslation * starToPlanetOrbitInclination * translation * axialRotation * model;
-
-		//return orbitRotation * translation * axialRotation * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
+		//return orbitalInclination * planetTranslation * starToPlanetOrbitInclination * translation * axialRotation * model;	// planets with multiple moons slam into each other
+		return starToPlanetOrbitInclination * planetTranslation * orbitalInclination * translation * axialRotation * model; // works better for planets with multiple moons with different orbital rotaions
 	}
 
+	/// <summary>
+	/// The Moon orbits around its Planet by 'orbitRate'.
+	/// Updates the 'orbitalInclination' glm::mat4.
+	/// </summary>
 	void orbitCelestialBody() override
 	{
 		orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
@@ -683,13 +706,16 @@ int main() {
 
 	// Create Planets and Moons
 
-	float radius = 1;
+	float radius = 1.f;
+	float axisTilt = 45.f;
 	float axisRotation = 10.f; // degrees
 	float orbitRate = 5.0f;	// degrees
-	for (int i = 0; i < PLANET_NAMES.size(); i++, radius++)
+
+	// Create Planets
+	for (int i = 0; i < PLANET_NAMES.size(); i++)//, radius += 0.2)
 	{
-		planets.push_back(Planet(PLANET_NAMES[i], radius, 45.f, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
-		planets[i].translateBody(vec3(vec2(0.f), i + 1));
+		planets.push_back(Planet(PLANET_NAMES[i], radius, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
+		planets[i].translateBody(vec3(vec2(0.f), i + radius));
 	}
 
 	/*
@@ -698,17 +724,82 @@ int main() {
 	//earth.translateBody(vec3(3.0f, vec2(0.f)));
 	earth.translateBody(vec3(vec2(0.f), 3.f));
 	*/
-	Planet& earth = planets[2];
+
+	float moonRadius = 0.5;
+	float axisTiltMoon = 40.f;
 	float axisRotationMoon = 10.f; // degrees
 	float orbitRateMoon = 5.0f;	// degrees
 
-	moons.push_back(Moon("The Moon", 1, 45.f, axisRotationMoon, orbitRateMoon, earth, "textures/the_moon.jpg"));
+	moons.push_back(Moon("The Moon", moonRadius, axisTiltMoon, axisRotationMoon, orbitRateMoon + 10.f, planets[2], "textures/the_moon.jpg"));
 	Moon* moon = &moons[0];
-	earth.addMoon(moon);
-	//moon->translateBody(earth.radius + vec3(1.0f, vec2(0.f)));
-	moon->translateBody(vec3(vec2(0.f), 1.0f + earth.position.z + earth.radius));
-	
-	//Star& sun = windowData.sun;
+	planets[2].addMoon(&moons[0]);
+	moon->translateBody(vec3(vec2(0.f), 1.0f + planets[2].position.z));
+
+	// Mars moons
+	int indexCounter = 1;
+	for (int j = 0; j < MARS_MOON_NAMES.size(); j++, indexCounter++)
+	{
+		moons.push_back(Moon(MARS_MOON_NAMES[j], moonRadius / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[3], "textures/the_moon.jpg"));
+		moons[indexCounter].translateBody(vec3(vec2(0.f), planets[3].radius + (2.f / (j+1))));
+	}
+	// Set the Moons for mars
+	planets[3].addMoon(&moons[moons.size() - 2]);
+	planets[3].addMoon(&moons[moons.size() - 1]);
+
+	// Jupiter moons
+	for (int j = 0; j < JUPITER_MOON_NAMES.size(); j++, indexCounter++)
+	{
+		moons.push_back(Moon(JUPITER_MOON_NAMES[j], moonRadius / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[4], "textures/the_moon.jpg"));
+		moons[indexCounter].translateBody(vec3(vec2(0.f), planets[4].radius + (2.f / (j + 1))));
+	}
+	// Set the Moons for Jupiter
+	planets[4].addMoon(&moons[moons.size() - 3]);
+	planets[4].addMoon(&moons[moons.size() - 2]);
+	planets[4].addMoon(&moons[moons.size() - 1]);
+
+	// Saturn moons
+	for (int j = 0; j < SATURN_MOON_NAMES.size(); j++, indexCounter++)
+	{
+		moons.push_back(Moon(SATURN_MOON_NAMES[j], moonRadius / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[5], "textures/the_moon.jpg"));
+		moons[indexCounter].translateBody(vec3(vec2(0.f), planets[5].radius + (2.f / (j + 1))));
+	}
+	// Set the Moons for Saturn
+	planets[5].addMoon(&moons[moons.size() - 3]);
+	planets[5].addMoon(&moons[moons.size() - 2]);
+	planets[5].addMoon(&moons[moons.size() - 1]);
+
+	// Uranus moons
+	for (int j = 0; j < URANUS_MOON_NAMES.size(); j++, indexCounter++)
+	{
+		moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[6], "textures/the_moon.jpg"));
+		moons[indexCounter].translateBody(vec3(vec2(0.f), planets[6].radius + (2.f / (j + 1))));
+	}
+	// Set the Moons for Uranus
+	planets[6].addMoon(&moons[moons.size() - 3]);
+	planets[6].addMoon(&moons[moons.size() - 2]);
+	planets[6].addMoon(&moons[moons.size() - 1]);
+
+	// Neptune moons
+	for (int j = 0; j < NEPTUNE_MOON_NAMES.size(); j++, indexCounter++)
+	{
+		moons.push_back(Moon(NEPTUNE_MOON_NAMES[j], moonRadius / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[7], "textures/the_moon.jpg"));
+		moons[indexCounter].translateBody(vec3(vec2(0.f), planets[7].radius + (2.f / (j + 1))));
+	}
+	// Set the Moons for Neptune
+	planets[7].addMoon(&moons[moons.size() - 3]);
+	planets[7].addMoon(&moons[moons.size() - 2]);
+	planets[7].addMoon(&moons[moons.size() - 1]);
+
+	// Add more orbital variation for the moons
+	float variance = 0.2;
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_real_distribution<> dis(0.1, 1.0);
+	for (int j = 0; j < moons.size(); j++)
+	{
+		float varianceMultiplier = dis(gen);
+		moons[j].orbitRate += (variance * varianceMultiplier);
+	}
 
 	// CALLBACKS
 	shared_ptr<Assignment4> callBack = std::make_shared<Assignment4>(windowData);
@@ -735,7 +826,6 @@ int main() {
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE /*GL_LINE*/);
 
-
 		shader.use();
 		callBack->viewPipeline(shader);
 
@@ -746,9 +836,15 @@ int main() {
 		// Render celestial bodies
 		renderCelestialBody(callBack, shader, windowData.sun);
 
-		//for (Planet& p : windowData.planets)
-		//{
-			//renderCelestialBody(callBack, shader, p);
+		for (Planet& p : windowData.planets)
+		{
+			renderCelestialBody(callBack, shader, p);
+
+			if (!pause)
+			{
+				p.rotateViaAxis();
+				p.orbitCelestialBody();
+			}
 			/*
 			callBack->setPlanetModelMat(shader, p);
 			p.gpu_geom.bind();
@@ -756,19 +852,53 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, GLsizei(p.cpu_geom.verts.size()));
 			//p.texture.unbind();
 			*/
-		//}
-		renderCelestialBody(callBack, shader, earth);
+		}
 
+		//renderCelestialBody(callBack, shader, earth);
+		//earth.rotateViaAxis();
+		//earth.orbitCelestialBody();
+
+		/* mars test
+		renderCelestialBody(callBack, shader, planets[3]);
+		planets[3].rotateViaAxis();
+		planets[3].orbitCelestialBody();
+		
+		for (Moon* m : planets[3].moons)
+		{
+			renderCelestialBody(callBack, shader, *m);
+			m->rotateViaAxis();
+			m->orbitCelestialBody();
+		}
+		*/
+
+		//renderCelestialBody(callBack, shader, planets[7]);
+		//planets[7].rotateViaAxis();
+		//planets[7].orbitCelestialBody();
+
+		//for (Moon* m : planets[7].moons)
+		//{
+		//	renderCelestialBody(callBack, shader, *m);
+		//	m->rotateViaAxis();
+		//	m->orbitCelestialBody();
+		//}
 
 		for (Moon& m : windowData.moons)
+		{
 			renderCelestialBody(callBack, shader, m);
+
+			if (!pause && m.name != "The Moon")
+			{
+				m.rotateViaAxis();
+				m.orbitCelestialBody();
+			}
+		}
 
 		if (!pause)
 		{
-			earth.rotateViaAxis();
-			earth.orbitCelestialBody();
-			moon->rotateViaAxis();
-			moon->orbitCelestialBody();
+			//earth.rotateViaAxis();
+			//earth.orbitCelestialBody();
+			//moon->rotateViaAxis();
+			//moon->orbitCelestialBody();
 		}
 
 
