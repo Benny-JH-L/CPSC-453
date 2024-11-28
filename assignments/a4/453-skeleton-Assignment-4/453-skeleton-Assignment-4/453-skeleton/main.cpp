@@ -84,7 +84,7 @@ public:
 
 	string name;
 	float radius;
-	vec3 position;
+	vec3 position = vec3(0.f);
 	float axisTilt;							// in degrees
 	float axialRotationRate;				// How much to rotate about it's axis, in degrees
 	vec3 axis = vec3(0.f, 1.f, 0.f);		// y-axis
@@ -350,7 +350,7 @@ public:
 	void orbitCelestialBody() override
 	{
 		numOrbitCelestialBodyCalls++;
-		updatePosition();
+		//updatePosition();
 		orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
 	}
 
@@ -697,7 +697,7 @@ int main() {
 	vec3 lookAt = vec3(0.f);
 	bool pause = false;
 	//Star sun = Star("sun", 1, 0.f, "textures/ship.png");
-	windowData windowData = {pause, frameRate, planets, moons, Star("Sun", 1, 0.f, 0.f, "textures/sun.jpg"), lookAt };
+	windowData windowData = {pause, frameRate, planets, moons, Star("Sun", 10.f, 0.f, 0.f, "textures/sun.jpg"), lookAt };
 	
 	GLDebug::enable();
 
@@ -705,18 +705,27 @@ int main() {
 	cube.generateGeometry();
 
 	// Create Planets and Moons
-
-	float radius = 1.f;
 	float axisTilt = 45.f;
 	float axisRotation = 10.f; // degrees
 	float orbitRate = 5.0f;	// degrees
+	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.5, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
 
 	// Create Planets
-	for (int i = 0; i < PLANET_NAMES.size(); i++)//, radius += 0.2)
+	for (int i = 0; i < PLANET_NAMES.size(); i++)
 	{
-		planets.push_back(Planet(PLANET_NAMES[i], radius, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
-		planets[i].translateBody(vec3(vec2(0.f), i + radius));
+		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
+		//planets[i].translateBody(vec3(vec2(0.f), i + radius));
 	}
+
+	// Translate Planets
+	const vector<float> distancePreviousPlanet = {10.f, 5.f, 7.f, 8.f, 10.f, 15.f, 25.f, 35.f};	// 1st: sun-mercury, 2nd: mercury-venus, ..., uranus-neptune
+	//planets[0].translateBody(vec3(vec2(0.f), windowData.sun.radius));
+	planets[0].translateBody(vec3(vec2(0.f), distancePreviousPlanet[0]));
+
+	for (int i = 1; i < planets.size(); i++)
+		//planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + planets[i].radius + 10.f));
+		planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + distancePreviousPlanet[i] + planets[i].radius));
+
 
 	/*
 	planets.push_back(Planet("earth", 2, -45.f, 0.f, windowData.sun, "textures/earth_day.jpg"));
@@ -730,10 +739,10 @@ int main() {
 	float axisRotationMoon = 10.f; // degrees
 	float orbitRateMoon = 5.0f;	// degrees
 
-	moons.push_back(Moon("The Moon", moonRadius, axisTiltMoon, axisRotationMoon, orbitRateMoon + 10.f, planets[2], "textures/the_moon.jpg"));
+	moons.push_back(Moon("The Moon", moonRadius, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], "textures/the_moon.jpg"));
 	Moon* moon = &moons[0];
 	planets[2].addMoon(&moons[0]);
-	moon->translateBody(vec3(vec2(0.f), 1.0f + planets[2].position.z));
+	moon->translateBody(vec3(vec2(0.f), planets[2].radius + 1));
 
 	// Mars moons
 	int indexCounter = 1;
@@ -886,7 +895,7 @@ int main() {
 		{
 			renderCelestialBody(callBack, shader, m);
 
-			if (!pause && m.name != "The Moon")
+			if (!pause) //&& m.name != "The Moon")
 			{
 				m.rotateViaAxis();
 				m.orbitCelestialBody();
@@ -929,6 +938,7 @@ int main() {
 
 			while (sleepEnd - sleepStart < sleepTime)
 			{
+				glfwPollEvents();
 				sleepEnd = glfwGetTime();
 			}
 		}
