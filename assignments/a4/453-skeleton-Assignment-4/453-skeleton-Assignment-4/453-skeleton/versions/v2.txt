@@ -34,8 +34,6 @@ const static int NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 20;
 const static int NUMBER_OF_ITERATIONS_FOR_CHAIKIN = 4;
 const static float MIN_FRAME_RATE = 10.f;	// 10 frames per second
 const static float MAX_FRAME_RATE = 200.f;	// 200 frams per second
-const static float MIN_SIMULATION_RATE = 2.f;
-const static float MAX_SIMULATION_RATE = 100.f;
 
 const static vector<string> typesOfCelestialBodies = { "Planet", "Moon", "Star" };
 const static vector<string> PLANET_NAMES =
@@ -70,44 +68,45 @@ public:
 	// 0: planet
 	// 1: moon
 	// 2: star
-	CelestialBody(string name, float radius, float distanceFromOrbitingCelestialBody, float axisTilt, float axialRotationRate, string texturePath) :
+	CelestialBody(string name, float radius, float axisTilt, float axialRotationRate, string texturePath) :
 		name(name),
 		radius(radius),
-		distanceFromOrbitingCelestialBody(distanceFromOrbitingCelestialBody),
+		position(vec3(0.f, 0.f, 0.f)),
 		axisTilt(axisTilt),
 		axialRotationRate(axialRotationRate),
 		texture(texturePath, GL_NEAREST)
 	{
 		generateGeometry();
 
-		//mat4 tiltAxis = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));
-		//model = tiltAxis * model;
+		mat4 tiltAxis = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));
+		model = tiltAxis * model;
 	}
 
 	string name;
 	float radius;
-	float distanceFromOrbitingCelestialBody;
-	//vec3 position = vec3(0.f);
-	float axisTilt;							// in degrees (About the z-axis)
-	float axialRotationRate;				// How much to rotate about it's axis, in degrees.
+	vec3 position = vec3(0.f);
+	float axisTilt;							// in degrees
+	float axialRotationRate;				// How much to rotate about it's axis, in degrees
+	//vec3 axis = vec3(0.f, 1.f, 0.f);		// y-axis
+	vec3 axis = vec3(0.f, 0.f, 1.f);		// z-axis
 	string type;
 	Texture texture;
 
 	CPU_Geometry cpu_geom;
 	GPU_Geometry gpu_geom;
 
-	//void translateBody(vec3 val)
-	//{
-	//	//translation = glm::translate(translation, val);
-	//	translation = glm::translate(translation, vec3(vec2(0.f), val.z));
+	void translateBody(vec3 val)
+	{
+		//translation = glm::translate(translation, val);
+		translation = glm::translate(translation, vec3(vec2(0.f), val.z));
 
 
-	//	// same thing
-	//	//mat4 t = glm::translate(mat4(1.0f), val);
-	//	//model = t * model;
+		// same thing
+		//mat4 t = glm::translate(mat4(1.0f), val);
+		//model = t * model;
 
-	//	position += val;
-	//}
+		position += val;
+	}
 
 	/// <summary>
 	/// Sets the rate at which the CelestialBody rotates about its axis (y-axis), in degrees.
@@ -121,44 +120,39 @@ public:
 	/// <summary>
 	/// Rotates the CelestialBody by 'axialRotationRate' about it's planetary axis (y-axis).
 	/// </summary>
-	void rotateViaCelestialBodyAxis()
+	void rotateViaAxis()
 	{
-		axialRotationMat4 = glm::rotate(axialRotationMat4, glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// time dependent
+		axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), axis);
 		//axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), vec3(0.f, 0.f, 1.f));
 	}
 
 	// to be overridden in subclasses
-	virtual void orbitCelestialBody(float time) {}
+	virtual void orbitCelestialBody()
+	{}
 
 	// to be overridden in subclasses
 	virtual mat4 getModelMat4()
 	{
-		//return axialRotationMat4 * model;
-		return model;
+		return translation * axialRotation * model;
+		//return model;
 	}
 
 	mat4 getOrbitalInclination()
 	{
-		//return mat4(1.f);
 		return orbitalInclination;
 	}
 
-	mat4 getCelestialBodyAxisTilt()
+	mat4 getTranslation()
 	{
-		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
+		return translation;
 	}
-	//mat4 getTranslation()
-	//{
-	//	return translation;
-	//}
 
-
+	mat4 model = mat4(1.0f);
 
 protected:
-	//mat4 translation = mat4(1.0f);
+	mat4 translation = mat4(1.0f);
+	mat4 axialRotation = mat4(1.0f);
 	mat4 orbitalInclination = mat4(1.0f);
-	mat4 model = mat4(1.0f);
-	mat4 axialRotationMat4 = mat4(1.0f);		// stores the celestial body's axial rotation (about y-axis)
 
 	/// <summary>
 	/// Rotates a vec3 by 'degree's, (Use negative degree for clockwise).
@@ -330,7 +324,7 @@ class Star : public CelestialBody
 {
 public:
 	Star(string name, float radius, float axisTilt, float axisRotation, string texturePath) :
-		CelestialBody(name, radius, 0.f, axisTilt, axisRotation, texturePath)
+		CelestialBody(name, radius, axisTilt, axisRotation, texturePath)
 	{
 		type = typesOfCelestialBodies[2];
 	}
@@ -341,20 +335,8 @@ class Moon;	// prototype
 class Planet : public CelestialBody
 {
 public:
-
-	/// <summary>
-	/// Note: The distance of the planet from the star will be the: star's radius + 'distanceFromOrbitingCelestialBody'.
-	/// </summary>
-	/// <param name="name"></param>
-	/// <param name="radius"></param>
-	/// <param name="distanceFromOrbitingCelestialBody"></param>
-	/// <param name="axisTilt"></param>
-	/// <param name="axisRotation"></param>
-	/// <param name="orbitRate"></param>
-	/// <param name="sun"></param>
-	/// <param name="texturePath"></param>
-	Planet(string name, float radius, float distanceFromOrbitingCelestialBody, float axisTilt, float axisRotation, float orbitRate, Star& sun, string texturePath) :
-		CelestialBody(name, radius, distanceFromOrbitingCelestialBody + sun.radius, axisTilt, axisRotation, texturePath),
+	Planet(string name, float radius, float axisTilt, float axisRotation, float orbitRate, Star& sun, string texturePath) :
+		CelestialBody(name, radius, axisTilt, axisRotation, texturePath),
 		orbitRate(orbitRate),
 		orbitingStar(sun)
 	{
@@ -370,57 +352,41 @@ public:
 	/// The Planet orbits around its Star by 'orbitRate'.
 	/// Updates the 'orbitalInclination' glm::mat4.
 	/// </summary>
-	void orbitCelestialBody(float time) override
+	void orbitCelestialBody() override
 	{
-		//numOrbitCelestialBodyCalls++;
-		////updatePosition();
-		//orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
-
-		// Do orbital inclination
-		mat4 rotateAboutZWithAlpha = rotate(mat4(1.f), glm::radians(0.f), vec3(0.f, 0.f, 1.f));	// alpha is a constant: 0.f
-
-		mat4 p0 = mat4(1.f);
-		mat4 rotateAboutStar = rotate(mat4(1.f), glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its star. (Time dependent)
-		mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-		p0 = rotateAboutStar * translateDistanceFromOrbitingCelestialBody;
-		//p0 =  translateDistanceFromOrbitingCelestialBody * rotateAboutStar;	// this does not give us the orbit correctly.
-
-
-		//orbitalInclination = translate(p0, vec3(0.f)) * rotateAboutZWithAlpha;//vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-		orbitalInclination = rotateAboutZWithAlpha * translate(p0, vec3(0.f));//vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
+		numOrbitCelestialBodyCalls++;
+		//updatePosition();
+		orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
 	}
 
 	/// <summary>
-	/// Returns the model-matrix for this Planet. After it does its axial rotation and orbit about its star.
+	/// Returns the model-matrix for this Planet.
 	/// </summary>
 	/// <returns></returns>
 	virtual mat4 getModelMat4() override
 	{
-		return orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model;
-
 		//return axialRotation * translation * orbitRotation * model;
-		mat4 translation = glm::translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-		return orbitalInclination * translation * axialRotationMat4 * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
+		return orbitalInclination * translation * axialRotation * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
 		//return orbitalInclination * axialRotation * model;	// I think this is the correcet way?, test axialRotation and orbitRotation seperatley and you'll understamd
 		//return model;
 
 
 		// NEW
-		//mat4 axialBodyTilt = glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));	// about z-axis
-		//mat4 axialBodyRotationRate = glm::rotate(mat4(1.0f), glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// about y-axis
-		//mat4 axisMat = axialBodyTilt * axialBodyRotationRate;
+		mat4 axialBodyTilt = glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));	// about z-axis
+		mat4 axialBodyRotationRate = glm::rotate(mat4(1.0f), glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// about y-axis
+		mat4 axisMat = axialBodyTilt * axialBodyRotationRate;
 
-		//mat4 orbitalRotationAboutSun = glm::rotate(mat4(1.f), glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));	// orbit
-		//vec3 distanceFromSun = position - orbitingStar.position;
+		mat4 orbitalRotationAboutSun = glm::rotate(mat4(1.f), glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));	// orbit
+		vec3 distanceFromSun = position - orbitingStar.position;
 
-		//mat4 translateDistanceFromSun = glm::translate(mat4(1.f), distanceFromSun);
+		mat4 translateDistanceFromSun = glm::translate(mat4(1.f), distanceFromSun);
 
-		////mat4 arbitrary = glm::translate(mat4(1.f), vec3(0.f, 0.f, 1.f));
-		//mat4 P0 = orbitalRotationAboutSun * translateDistanceFromSun;
-		//mat4 arbitrary2 = glm::rotate(mat4(1.f), glm::radians(10.f * numOrbitCelestialBodyCalls), vec3(0.f, 1.f, 0.f));
-		//mat4 orbitMat = arbitrary2 * glm::translate(P0, distanceFromSun);
+		//mat4 arbitrary = glm::translate(mat4(1.f), vec3(0.f, 0.f, 1.f));
+		mat4 P0 = orbitalRotationAboutSun * translateDistanceFromSun;
+		mat4 arbitrary2 = glm::rotate(mat4(1.f), glm::radians(10.f * numOrbitCelestialBodyCalls), vec3(0.f, 1.f, 0.f));
+		mat4 orbitMat = arbitrary2 * glm::translate(P0, distanceFromSun);
 
-		//return axisMat * orbitMat * model; // testing
+		return axisMat * orbitMat * model; // testing
 	}
 
 	vector<Moon*> moons;
@@ -430,31 +396,19 @@ public:
 private:
 	int numOrbitCelestialBodyCalls = 0;
 
-	//void updatePosition()
-	//{
-	//	float x = radius * cos(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
-	//	float z = radius * sin(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
-	//	position = vec3(x, 0.f, z);
-	//}
+	void updatePosition()
+	{
+		float x = radius * cos(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
+		float z = radius * sin(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
+		position = vec3(x, 0.f, z);
+	}
 };
 
 class Moon : public CelestialBody
 {
 public:
-
-	/// <summary>
-	/// Note: The distance of the Moon from its orbiting Planet will be the: planet's radius + 'distanceFromOrbitingCelestialBody'.
-	/// </summary>
-	/// <param name="name"></param>
-	/// <param name="radius"></param>
-	/// <param name="distanceFromOrbitingCelestialBody"></param>
-	/// <param name="axisTilt"></param>
-	/// <param name="axisRotation"></param>
-	/// <param name="orbitRate"></param>
-	/// <param name="orbitingPlanet"></param>
-	/// <param name="texturePath"></param>
-	Moon(string name, float radius, float distanceFromOrbitingCelestialBody, float axisTilt, float axisRotation, float orbitRate, Planet& orbitingPlanet, string texturePath) :
-		CelestialBody(name, radius, distanceFromOrbitingCelestialBody + orbitingPlanet.radius, axisTilt, axisRotation, texturePath),
+	Moon(string name, float radius, float axisTilt, float axisRotation, float orbitRate, Planet& orbitingPlanet, string texturePath) :
+		CelestialBody(name, radius, axisTilt, axisRotation, texturePath),
 		orbitingPlanet(orbitingPlanet),
 		orbitRate(orbitRate)
 	{
@@ -462,80 +416,37 @@ public:
 	}
 
 	/// <summary>
-	/// The Moon orbits around its Planet by 'orbitRate'.
-	/// Updates the 'orbitalInclination' glm::mat4.
-	/// </summary>
-	void orbitCelestialBody(float time) override
-	{
-		//orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
-
-		// Do orbital inclination
-		mat4 rotateAboutZWithAlpha = rotate(mat4(1.f), glm::radians(0.f), vec3(0.f, 0.f, 1.f));	// alpha is a constant: 0.f
-
-		mat4 p0 = mat4(1.f);
-		mat4 rotateAboutPlanet = rotate(mat4(1.f), glm::radians(orbitRate * time * 5), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
-		mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));	// distance from Moon to planet
-		p0 = rotateAboutPlanet * translateDistanceFromOrbitingCelestialBody;
-		//p0 =  translateDistanceFromOrbitingCelestialBody * rotateAboutStar;	// this does not give us the orbit correctly.
-
-
-		//orbitalInclination = translate(p0, vec3(0.f)) * rotateAboutZWithAlpha;//vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-		orbitalInclination = rotateAboutZWithAlpha * translate(p0, vec3(0.f));//vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-		//orbitalInclination = rotateAboutZWithAlpha * translate(p0, vec3(vec2(0.f), orbitingPlanet.distanceFromOrbitingCelestialBody));//vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
-
-	}
-
-	/// <summary>
-	/// Returns the model-matrix for this Moon.
+	/// Returns the model-matrix for this Planet.
 	/// </summary>
 	/// <returns></returns>
 	virtual mat4 getModelMat4() override
 	{
-		return orbitingPlanet.getOrbitalInclination() * orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model; // should be correct.
-
-
-
-
-		// OLD
-		mat4 starToOrbitingPlanetOrbitInclination = orbitingPlanet.getOrbitalInclination();
-		mat4 planetTranslation = glm::translate(mat4(1.f), vec3(vec2(0.f), orbitingPlanet.distanceFromOrbitingCelestialBody));
-
-		//return starToOrbitingPlanetOrbitInclination * orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model;
-		//return orbitalInclination * starToOrbitingPlanetOrbitInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model;
-
-		//return planetTranslation * starToOrbitingPlanetOrbitInclination * orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model; // works better for planets with multiple moons with different orbital rotaions
-		//return planetTranslation * orbitalInclination * starToOrbitingPlanetOrbitInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model; // works better for planets with multiple moons with different orbital rotaions
-
-
-		// OLD
 		//return axialRotation * translation * orbitRotation * model;
 		mat4 starToPlanetOrbitInclination = orbitingPlanet.getOrbitalInclination();
-		//mat4 planetTranslation = orbitingPlanet.getTranslation();
-		//mat4 planetTranslation = glm::translate(mat4(1.f), vec3(vec2(0.f), orbitingPlanet.distanceFromOrbitingCelestialBody));
-		mat4 translation = glm::translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
+		mat4 planetTranslation = orbitingPlanet.getTranslation();
 
 		//return orbitalInclination * planetTranslation * starToPlanetOrbitInclination * translation * axialRotation * model;	// planets with multiple moons slam into each other
-		return starToPlanetOrbitInclination * planetTranslation * orbitalInclination * translation * axialRotationMat4 * model; // works better for planets with multiple moons with different orbital rotaions
+		return starToPlanetOrbitInclination * planetTranslation * orbitalInclination * translation * axialRotation * model; // works better for planets with multiple moons with different orbital rotaions
 
 
-		// NEW-> actually old now
-		//mat4 axialBodyRotationRate = glm::rotate(mat4(1.0f), glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// about y-axis
-		//mat4 axialBodyTilt = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));				// about z-axis
-		////mat4 axisMat = axialBodyTilt * axialBodyRotationRate;
-		//mat4 axisMat = axialBodyRotationRate * axialBodyTilt;
+		// NEW
+		mat4 axialBodyRotationRate = glm::rotate(mat4(1.0f), glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// about y-axis
+		mat4 axialBodyTilt = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));				// about z-axis
+		//mat4 axisMat = axialBodyTilt * axialBodyRotationRate;
+		mat4 axisMat = axialBodyRotationRate * axialBodyTilt;
 
 
-		//mat4 orbitalRotationAboutPlanet = glm::rotate(mat4(1.f), glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));	// orbit
-		//vec3 distanceFromPlanet = position - orbitingPlanet.position;
-		////vec3 distanceFromPlanet = orbitingPlanet.position - position;
+		mat4 orbitalRotationAboutPlanet = glm::rotate(mat4(1.f), glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));	// orbit
+		vec3 distanceFromPlanet = position - orbitingPlanet.position;
+		//vec3 distanceFromPlanet = orbitingPlanet.position - position;
 
-		//mat4 translateDistanceFromPlanet = glm::translate(mat4(1.f), distanceFromPlanet);
+		mat4 translateDistanceFromPlanet = glm::translate(mat4(1.f), distanceFromPlanet);
 
-		////mat4 arbitrary = glm::translate(mat4(1.f), vec3(0.f, 0.f, 1.f));
-		//mat4 P0 = orbitalRotationAboutPlanet * translateDistanceFromPlanet;
-		//mat4 orbitMat = glm::translate(P0, distanceFromPlanet);
+		//mat4 arbitrary = glm::translate(mat4(1.f), vec3(0.f, 0.f, 1.f));
+		mat4 P0 = orbitalRotationAboutPlanet * translateDistanceFromPlanet;
+		mat4 orbitMat = glm::translate(P0, distanceFromPlanet);
 
-		//return orbitingPlanet.getOrbitalInclination() * orbitMat * axisMat * model; // testing
+		return orbitingPlanet.getOrbitalInclination() * orbitMat * axisMat * model; // testing
 
 		//mat4 axialBodyRotationRate = glm::rotate(mat4(1.0f), glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// about y-axis
 		//mat4 axialBodyTilt = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));				// about z-axis
@@ -554,6 +465,15 @@ public:
 		//return orbitingPlanet.getOrbitalInclination() * orbitMat * axisMat * model; // testing
 	}
 
+	/// <summary>
+	/// The Moon orbits around its Planet by 'orbitRate'.
+	/// Updates the 'orbitalInclination' glm::mat4.
+	/// </summary>
+	void orbitCelestialBody() override
+	{
+		orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
+	}
+
 	Planet& orbitingPlanet;
 	float orbitRate;
 };
@@ -561,8 +481,7 @@ public:
 struct windowData
 {
 	bool& pause;
-	float& frameRate;		// IDK IF ILL KEEP 
-	float simulationSpeedMultiplier;
+	float& frameRate;
 	vector<Planet>& planets;
 	vector<Moon>& moons;
 	Star sun;
@@ -628,8 +547,6 @@ public:
 
 	virtual void render() override
 	{
-		ImGui::SliderFloat("Simulation Speed Multiplier", &simulationSpeedMultiplier, MIN_SIMULATION_RATE, MAX_SIMULATION_RATE, "Current multiplier: %.3f");
-
 		ImGui::SliderInt("Frame Rate", &frames, MIN_FRAME_RATE, MAX_FRAME_RATE, "%d Frames/sec");
 		frameRate = 1.f / frames;
 
@@ -642,7 +559,7 @@ public:
 			//cameraFocusedOnBodyStr = planetOptions[planetSelection];
 			celestialBodyFocusedOn = &planetObjects[planetSelection];
 			//camera.lookAt = planetObjects[planetSelection].position;
-			//camera.lookAt = celestialBodyFocusedOn->position;
+			camera.lookAt = celestialBodyFocusedOn->position;
 		}
 		// Show Moons
 		else if (comboSelection == 1)
@@ -651,14 +568,14 @@ public:
 			celestialBodyFocusedOn = &moonObjects[moonSelection];
 			//cameraFocusedOnBodyStr = moonOptions[moonSelection];
 			//camera.lookAt = moonObjects[moonSelection].position;
-			//camera.lookAt = celestialBodyFocusedOn->position;
+			camera.lookAt = celestialBodyFocusedOn->position;
 		}
 		else
 		{
 			//cameraFocusedOnBodyStr = windowData.sun.name;
 			celestialBodyFocusedOn = &windowData.sun;
 			//camera.lookAt = windowData.sun.position;
-			//camera.lookAt = celestialBodyFocusedOn->position;
+			camera.lookAt = celestialBodyFocusedOn->position;
 		}
 
 		if (previousComboSelection != comboSelection)
@@ -666,16 +583,16 @@ public:
 			cout << "reset camera values" << endl;
 			previousComboSelection = comboSelection;
 			resetCameraValues();
-			//float r = calcCameraRadiusFromCelestialBodyPosition(celestialBodyFocusedOn->position);
-			//camera.setRadius(r);
+			float r = calcCameraRadiusFromCelestialBodyPosition(celestialBodyFocusedOn->position);
+			camera.setRadius(r);
 		}
 
 		string s = "Camera focused on: ";
 		s.append(celestialBodyFocusedOn->name);
 		ImGui::Text(s.c_str());
 
-		//vec3 celestialBodyPos = celestialBodyFocusedOn->position;
-		//ImGui::Text("Position: (%.3f, %.3f, %.3f)", celestialBodyPos.x, celestialBodyPos.y, celestialBodyPos.z);
+		vec3 celestialBodyPos = celestialBodyFocusedOn->position;
+		ImGui::Text("Position: (%.3f, %.3f, %.3f)", celestialBodyPos.x, celestialBodyPos.y, celestialBodyPos.z);
 		ImGui::Text("Radius: %.3f", celestialBodyFocusedOn->radius);
 
 		// Camera Values
@@ -691,8 +608,8 @@ public:
 
 		ImGui::Text("---DEBUG---");
 		Planet& earth = windowData.planets[2];
-		//vec3 earthPos = earth.position;
-		//ImGui::Text("Earth pos: (%.3f, %.3f, %.3f)", earthPos.x, earthPos.y, earthPos.z);
+		vec3 earthPos = earth.position;
+		ImGui::Text("Earth pos: (%.3f, %.3f, %.3f)", earthPos.x, earthPos.y, earthPos.z);
 
 	}
 private:
@@ -706,7 +623,6 @@ private:
 	const char* moonOptions[15];		// 15 = all the moons of the planets
 	int moonSelection = 0;				// Earth's moon set as default
 
-	float& simulationSpeedMultiplier = windowData.simulationSpeedMultiplier;
 	string cameraFocusedOnBodyStr = windowData.sun.name;	// initialy set it focused on the sun
 	int frames = 10;
 	float& frameRate = windowData.frameRate;
@@ -852,15 +768,13 @@ int main() {
 	Window window(800, 800, "CPSC 453 - Assignment 3");
 	Panel panel(window.getGLFWwindow());
 	
-	float frameRate = 1.0f / 10.f;	// IDK IF ILL KEEP
-	float simulationSpeedMultiplier = 2;
+	float frameRate = 1.0f / 10.f;
 	vector<Planet> planets;
 	vector<Moon> moons;
 	vec3 lookAt = vec3(0.f);
 	bool pause = false;
 	//Star sun = Star("sun", 1, 0.f, "textures/ship.png");
-	float sunRadius = 10.f;
-	windowData windowData = {pause, frameRate, simulationSpeedMultiplier, planets, moons, Star("Sun", sunRadius, 0.f, 0.f, "textures/sun.jpg"), lookAt };
+	windowData windowData = {pause, frameRate, planets, moons, Star("Sun", 10.f, 0.f, 0.f, "textures/sun.jpg"), lookAt };
 	
 	GLDebug::enable();
 
@@ -872,25 +786,23 @@ int main() {
 	float axisRotation = 10.f; // degrees
 	float orbitRate = 5.0f;	// degrees
 	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.5, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
-	const vector<float> distanceFromSun = { 1.f, 2.f, 4.f, 4.f, 5.f, 6.f, 7.f, 8.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
 
 	// DO ONLY EARTH AND MOON FIRST!
 	// Create Planets
 	for (int i = 0; i < PLANET_NAMES.size(); i++)
 	{
-		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], distanceFromSun[i], axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
+		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
 		//planets[i].translateBody(vec3(vec2(0.f), i + radius));
 	}
 
-	//const vector<float> distancePreviousPlanet = { 10.f, 5.f, 7.f, 8.f, 10.f, 15.f, 25.f, 35.f };	// 1st: sun-mercury, 2nd: mercury-venus, ..., uranus-neptune
-
 	// Translate Planets
+	const vector<float> distancePreviousPlanet = {10.f, 5.f, 7.f, 8.f, 10.f, 15.f, 25.f, 35.f};	// 1st: sun-mercury, 2nd: mercury-venus, ..., uranus-neptune
 	//planets[0].translateBody(vec3(vec2(0.f), windowData.sun.radius));
-	//planets[0].translateBody(vec3(vec2(0.f), distancePreviousPlanet[0]));
+	planets[0].translateBody(vec3(vec2(0.f), distancePreviousPlanet[0]));
 
-	//for (int i = 1; i < planets.size(); i++)
-	//	//planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + planets[i].radius + 10.f));
-	//	planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + distancePreviousPlanet[i] + planets[i].radius));
+	for (int i = 1; i < planets.size(); i++)
+		//planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + planets[i].radius + 10.f));
+		planets[i].translateBody(vec3(vec2(0.f), planets[i - 1].position.z + distancePreviousPlanet[i] + planets[i].radius));
 
 	/*
 	planets.push_back(Planet("earth", 2, -45.f, 0.f, windowData.sun, "textures/earth_day.jpg"));
@@ -903,14 +815,12 @@ int main() {
 	float axisTiltMoon = 40.f;
 	float axisRotationMoon = 10.f; // degrees
 	float orbitRateMoon = 5.0f;	// degrees
-	//const vector<float> distanceFromOrbitingPlanet = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-	const float distanceFromOrbitingPlanet = 1.f;
 
-	moons.push_back(Moon("The Moon", moonRadius, distanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], "textures/the_moon.jpg"));
+	moons.push_back(Moon("The Moon", moonRadius, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], "textures/the_moon.jpg"));
 	Moon* moon = &moons[0];
 	planets[2].addMoon(&moons[0]);
-	//moon->translateBody(vec3(vec2(0.f), planets[2].radius + 1));
-	
+	moon->translateBody(vec3(vec2(0.f), planets[2].radius + 1));
+
 	/*
 	// Mars moons
 	int indexCounter = 1;
@@ -1013,22 +923,7 @@ int main() {
 
 		// Render celestial bodies
 		renderCelestialBody(callBack, shader, windowData.sun);
-		// NOTE: sun needs to rotate about axis too.
 
-		// NOTE: ORBIT JUMPS WHEN SIUMULATIONSPEEDMULTIPLIER IS ALTERED -> due to Time0 jumping from less or more than the previous value.
-		float timeO = glfwGetTime() * windowData.simulationSpeedMultiplier;
-		cout << "TimeO: " << timeO << endl;
-
-		Planet& earth = planets[2];
-		//earth.model = modelEarth;
-		renderCelestialBody(callBack, shader, earth);
-		earth.rotateViaCelestialBodyAxis();
-		earth.orbitCelestialBody(timeO);
-
-		Moon& moon = moons[0];
-		renderCelestialBody(callBack, shader, moon);
-		moon.rotateViaCelestialBodyAxis();
-		moon.orbitCelestialBody(timeO);
 
 		/* // for bonus
 		for (Planet& p : windowData.planets)
@@ -1066,7 +961,11 @@ int main() {
 
 
 
-
+		Planet& earth = planets[2];
+		//earth.model = modelEarth;
+		renderCelestialBody(callBack, shader, earth);
+		earth.rotateViaAxis();
+		earth.orbitCelestialBody();
 
 		/* mars test
 		renderCelestialBody(callBack, shader, planets[3]);
@@ -1093,7 +992,10 @@ int main() {
 		//}
 
 		//moons[0].model = modelMoon;
-
+		Moon& moon = moons[0];
+		renderCelestialBody(callBack, shader, moon);
+		moon.rotateViaAxis();
+		moon.orbitCelestialBody();
 		//for (Moon& m : windowData.moons)
 		//{
 		//	renderCelestialBody(callBack, shader, m);
