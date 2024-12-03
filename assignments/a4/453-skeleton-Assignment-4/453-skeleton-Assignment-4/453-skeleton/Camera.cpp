@@ -7,11 +7,12 @@
 
 #include "glm/gtc/matrix_transform.hpp"
 
-Camera::Camera(float t, float p, float r, glm::vec3& lookAt) :
+Camera::Camera(float t, float p, float r, glm::vec3& lookAt, float& sensitivity) :
 	theta(t),
 	phi(p),
 	radius(r),
-	lookAt(lookAt)
+	lookAt(lookAt),
+	sensitivity(sensitivity)
 {
 }
 
@@ -45,7 +46,7 @@ void Camera::incrementPhi(float dp) {
 
 void Camera::incrementR(float dr)
 {
-	radius -= dr;
+	radius -= dr * sensitivity;
 	if (radius <= 0.1)	// Don't allow the camera to invert
 		radius = 0.1;
 }
