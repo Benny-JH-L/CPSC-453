@@ -38,6 +38,7 @@ const static float MIN_SIMULATION_RATE = 2.f;
 const static float MAX_SIMULATION_RATE = 100.f;
 const static float MIN_SCROLL_SENSITIVITY = 2.f;
 const static float MAX_SCROLL_SENSITIVITY = 20.f;
+const static double PI_APPROX = atan(1) * 4;										// pi approximation
 
 const static vector<string> typesOfCelestialBodies = { "Planet", "Moon", "Star" };
 const static vector<string> PLANET_NAMES =
@@ -80,7 +81,8 @@ public:
 		axialRotationRate(axialRotationRate),
 		texture(texturePath, GL_NEAREST)
 	{
-		generateGeometry();
+		//generateGeometryUsingSurfaceOfRevolution();
+		generateGeometryUsingSphericalCoords();
 
 		//mat4 tiltAxis = glm::rotate(mat4(1.0f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));
 		//model = tiltAxis * model;
@@ -134,7 +136,16 @@ public:
 
 	mat4 getCelestialBodyAxisTilt()
 	{
-		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
+		//return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
+		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// (WORKS) tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
+
+		// test (just do the x-axis rotate...)
+		mat4 xAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
+		mat4 zAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
+
+		//return zAxisTilt * xAxisTilt;
+		return xAxisTilt * zAxisTilt;
+
 	}
 	//mat4 getTranslation()
 	//{
@@ -182,7 +193,7 @@ protected:
 		{0.f, .6f * radius, 0.f}
 	};
 
-	void generateGeometry()
+	void generateGeometryUsingSurfaceOfRevolution()
 	{
 		vector<vec3> chaikinCurvePts = sphereControlPoints;
 		for (int i = 0; i < NUMBER_OF_ITERATIONS_FOR_CHAIKIN; i++)
@@ -313,6 +324,114 @@ protected:
 
 		return make_tuple(meshPoints, meshTriangles);
 	};
+
+	void generateGeometryUsingSphericalCoords()
+	{
+		vector<vector<vec3>> sphereStacks;	// each <vector<vec3> contains a stack of the sphere.
+		vector<vec3> sphereVec3s;
+		vector<vec3> sphereMesh;	// a triangle is a group of 3 vec3's.
+
+		vector<vector<vec2>> textureCoordsStack;
+		vector<vec2> textureCoords;
+		vector<vec2> sphereTextCoordMesh;	// a triangle is a group of 3 vec3's.
+
+		vector<vec3> normals;
+
+		int sectors = 20;	// num slices of the sphere
+		int stacks = 20;	// num levels of the sphere
+
+		for (int i = 0; i <= stacks; i++)
+		{
+			float stackAngle = PI_APPROX / 2 - i * (PI_APPROX / stacks); // from pi/2 to -pi/2
+			float xy = radius * cosf(stackAngle);
+			float z = radius * sinf(stackAngle);
+
+			vector<vec3> tempStack;		// stores the sphere's vectors on a stack
+			vector<vec2> tempTextCoords;
+			for (int j = 0; j <= sectors; j++)
+			{
+				float sectorAngle = j * (2 * PI_APPROX / sectors); // from 0 to 2pi
+				float x = xy * cosf(sectorAngle);
+				float y = xy * sinf(sectorAngle);
+				vec3 vertex = vec3(x, y, z);
+
+				sphereVec3s.push_back(vertex);
+				tempStack.push_back(vertex);
+
+				float u = (float)j / sectors;
+				float v = (float)i / stacks;
+
+				if (j == sectors)	// Ensure the last sector (slice) aligns with the first sector (slice)
+					u = 1.f;
+
+				//textureCoords.push_back(vec2(u, v));
+				tempTextCoords.push_back(vec2(u, v));
+			}
+			sphereStacks.push_back(tempStack);
+			textureCoordsStack.push_back(tempTextCoords);
+		}
+
+		// Create triangle mesh
+		for (int i = 0; i < sphereStacks.size() - 1; i++)			// minus 1, as we can't draw a triangle with only the last set of points left
+		{
+			vector<vec3> currentSetOfPoints = sphereStacks[i];
+			vector<vec3> nextSetOfPoints = sphereStacks[i + 1];
+
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)	// minus 1, as we can't draw a triangle with other points left
+			{
+				// First triangle
+				sphereMesh.push_back(currentSetOfPoints[j]);
+				sphereMesh.push_back(nextSetOfPoints[j]);
+				sphereMesh.push_back(nextSetOfPoints[j + 1]);
+
+				// Second triangle
+				sphereMesh.push_back(currentSetOfPoints[j]);
+				sphereMesh.push_back(nextSetOfPoints[j + 1]);
+				sphereMesh.push_back(currentSetOfPoints[j + 1]);
+			}
+		}
+
+		// Create texture coord mesh
+		for (int i = 0; i < textureCoordsStack.size() - 1; i++)			// minus 1, as we can't draw a triangle with only the last set of points left
+		{
+			vector<vec2> currentSetOfPoints = textureCoordsStack[i];
+			vector<vec2> nextSetOfPoints = textureCoordsStack[i + 1];
+
+			for (int j = 0; j < currentSetOfPoints.size() - 1; j++)	// minus 1, as we can't draw a triangle with other points left
+			{
+				// First triangle
+				sphereTextCoordMesh.push_back(currentSetOfPoints[j]);
+				sphereTextCoordMesh.push_back(nextSetOfPoints[j]);
+				sphereTextCoordMesh.push_back(nextSetOfPoints[j + 1]);
+
+				// Second triangle
+				sphereTextCoordMesh.push_back(currentSetOfPoints[j]);
+				sphereTextCoordMesh.push_back(nextSetOfPoints[j + 1]);
+				sphereTextCoordMesh.push_back(currentSetOfPoints[j + 1]);
+			}
+		}
+
+		// generate normals
+		for (vec3 vertex : sphereVec3s)
+			normals.push_back(normalize(vertex));
+
+		cpu_geom.verts = sphereMesh;
+		//cpu_geom.verts = sphereVec3s;	// test (works with textureCoords) -> as in: number of textCoord verties == number of cpu_geom.verts
+
+		//cpu_geom.cols = textureCoords;
+		cpu_geom.normals = normals;
+
+		//cpu_geom.textCoords = textureCoords;
+		cpu_geom.textCoords = sphereTextCoordMesh;
+
+		gpu_geom.setVerts(cpu_geom.verts);
+		//gpu_geom.setCols(cpu_geom.cols);
+		gpu_geom.setNormals(cpu_geom.normals);
+		gpu_geom.setTexCoords(cpu_geom.textCoords);
+
+		std::cout << "Verts size: " << cpu_geom.verts.size() << std::endl;
+		std::cout << "TexCoords size: " << cpu_geom.textCoords.size() << std::endl;
+	}
 };
 
 class Star : public CelestialBody
@@ -742,9 +861,9 @@ void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, C
 {
 	callBack->setPlanetModelMat(sp, cb);
 	cb.gpu_geom.bind();
-	//p.texture.bind();
+	cb.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, GLsizei(cb.cpu_geom.verts.size()));
-	//p.texture.unbind();
+	cb.texture.unbind();
 }
 
 int main() {
@@ -774,13 +893,16 @@ int main() {
 	cube.generateGeometry();
 
 	// Create Planets and Moons
-	float axisTilt = 45.f;
+	//float axisTilt = 45.f;
+	float axisTilt = 90.f;
 	float axisRotation = 10.f; // degrees
 	float orbitRate = 5.0f;	// degrees
 	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.25, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
-	const vector<float> distanceFromSun = { 3.f, 4.f, 10.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
+	const vector<float> distanceFromSun = { 3.f, 4.f, -12.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
 	const float distanceConst = 5.5f;	// distance from sun center to surface.
 
+	//10.f was earths distance from sun
+	
 	// Create Planets
 	planets.push_back(Planet(PLANET_NAMES[0], radiusOfPlanets[0], distanceFromSun[0] + distanceConst, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[0]));
 	for (int i = 1; i < PLANET_NAMES.size(); i++)
@@ -881,6 +1003,7 @@ int main() {
 	float pausedTime = glfwGetTime();
 
 	bool recordPausedTime = false;
+	
 	// RENDER LOOP
 	while (!window.shouldClose())
 	{
@@ -911,55 +1034,55 @@ int main() {
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
-		//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE /*GL_LINE*/);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);		// texture
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE /*GL_LINE*/);	// wireframe
 
 		shader.use();
 		callBack->viewPipeline(shader);
 
 		// cube
-		cube.m_gpu_geom.bind();
-		glDrawArrays(GL_TRIANGLES, 0, GLsizei(cube.m_size));
+		// (WILL CAUSE ISSUES IF I USE GL_FILL (IE TEXTURES))
+		//cube.m_gpu_geom.bind();
+		//glDrawArrays(GL_TRIANGLES, 0, GLsizei(cube.m_size));
 
 
 		// Render celestial bodies
-		renderCelestialBody(callBack, shader, windowData.sun);
+		//renderCelestialBody(callBack, shader, windowData.sun);
 		if (!pause)
 			windowData.sun.rotateViaCelestialBodyAxis();
 
+		timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
+
 		// Testing with only Earth and Moon
-		/*
 		Planet& earth = planets[2];
 		//earth.model = modelEarth;
 		earth.rotateViaCelestialBodyAxis();
-		earth.orbitCelestialBody(timeO);
+		//earth.orbitCelestialBody(timeOrbit);
 		renderCelestialBody(callBack, shader, earth);
 
 		Moon& moon = moons[0];
 		moon.rotateViaCelestialBodyAxis();
-		moon.orbitCelestialBody(timeO);
+		moon.orbitCelestialBody(timeOrbit);
 		renderCelestialBody(callBack, shader, moon);
-		*/
 
-		timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
 		// for bonus
 
-		for (Planet& p : windowData.planets)
-		{
-			renderCelestialBody(callBack, shader, p);
+		//for (Planet& p : windowData.planets)
+		//{
+			//renderCelestialBody(callBack, shader, p);
 
-			if (!pause)
-			{
-				p.rotateViaCelestialBodyAxis();
-				p.orbitCelestialBody(timeOrbit);
-			}
+			//if (!pause)
+			//{
+				//p.rotateViaCelestialBodyAxis();
+				//p.orbitCelestialBody(timeOrbit);
+			//}
 			
 			//callBack->setPlanetModelMat(shader, p);
 			//p.gpu_geom.bind();
 			//p.texture.bind();
 			//glDrawArrays(GL_TRIANGLES, 0, GLsizei(p.cpu_geom.verts.size()));
 			//p.texture.unbind();
-		}
+		//}
 		
 
 		/* mars test
@@ -988,23 +1111,15 @@ int main() {
 
 		//moons[0].model = modelMoon;
 
-		for (Moon& m : windowData.moons)
-		{
-			renderCelestialBody(callBack, shader, m);
-
-			if (!pause) //&& m.name != "The Moon")
-			{
-				m.rotateViaCelestialBodyAxis();
-				m.orbitCelestialBody(timeOrbit);
-			}
-		}
-
-		//if (!pause)
+		//for (Moon& m : windowData.moons)
 		//{
-			//earth.rotateViaAxis();
-			//earth.orbitCelestialBody();
-			//moon->rotateViaAxis();
-			//moon->orbitCelestialBody();
+		//	renderCelestialBody(callBack, shader, m);
+
+		//	if (!pause) //&& m.name != "The Moon")
+		//	{
+		//		m.rotateViaCelestialBodyAxis();
+		//		m.orbitCelestialBody(timeOrbit);
+		//	}
 		//}
 
 
