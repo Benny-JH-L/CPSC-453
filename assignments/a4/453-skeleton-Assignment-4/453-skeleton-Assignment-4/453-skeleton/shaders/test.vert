@@ -17,7 +17,8 @@ void main()
 {
 	fragPos = pos;
 	//fragColor = color;
-	n = normal;
+	//n = normal; // original
+	n = mat3(transpose(inverse(M))) * normal;
 	texCoord = aTexCoord;
 	gl_Position = P * V * M * vec4(pos, 1.0);
 }

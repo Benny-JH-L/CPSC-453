@@ -30,6 +30,8 @@
 using namespace std;
 using namespace glm;
 
+const static float initialTime = glfwGetTime();
+
 const static int NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 20;
 const static int NUMBER_OF_ITERATIONS_FOR_CHAIKIN = 4;
 const static float MIN_FRAME_RATE = 10.f;	// 10 frames per second
@@ -46,6 +48,7 @@ const static vector<string> PLANET_NAMES =
 const static vector<string> PLANET_TEXUTRE_PATHS =
 {"textures/mercury.jpg", "textures/venus_atmosphere.jpg", "textures/earth_day.jpg", "textures/mars.jpg",
 "textures/jupiter.jpg", "textures/saturn.jpg", "textures/uranus.jpg", "textures/neptune.jpg" };
+const static string skyBoxTexturePath = "textures/stars_milky_way.jpg";
 
 //struct allMoons
 //{
@@ -91,7 +94,7 @@ public:
 	string name;
 	float radius;
 	float distanceFromOrbitingCelestialBody;
-	//vec3 position = vec3(0.f);
+	vec3 position = vec3(0.f);
 	float axisTilt;							// in degrees (About the z-axis)
 	float axialRotationRate;				// How much to rotate about it's axis, in degrees.
 	string type;
@@ -112,9 +115,9 @@ public:
 	/// <summary>
 	/// Rotates the CelestialBody by 'axialRotationRate' about it's planetary axis (y-axis).
 	/// </summary>
-	void rotateViaCelestialBodyAxis()
+	void rotateViaCelestialBodyAxis(float time)
 	{
-		axialRotationMat4 = glm::rotate(axialRotationMat4, glm::radians(axialRotationRate), vec3(0.f, 1.f, 0.f));	// time dependent
+		axialRotationMat4 = glm::rotate(axialRotationMat4, glm::radians(axialRotationRate * time), vec3(0.f, 1.f, 0.f));	// time dependent
 		//axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), vec3(0.f, 0.f, 1.f));
 	}
 
@@ -140,11 +143,11 @@ public:
 		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// (WORKS) tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
 
 		// test (just do the x-axis rotate...)
-		mat4 xAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
-		mat4 zAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
+		//mat4 xAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
+		//mat4 zAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
 
 		//return zAxisTilt * xAxisTilt;
-		return xAxisTilt * zAxisTilt;
+		//return xAxisTilt * zAxisTilt;
 
 	}
 	//mat4 getTranslation()
@@ -155,34 +158,9 @@ public:
 
 
 protected:
-	//mat4 translation = mat4(1.0f);
 	mat4 orbitalInclination = mat4(1.0f);
 	mat4 model = mat4(1.0f);
 	mat4 axialRotationMat4 = mat4(1.0f);		// stores the celestial body's axial rotation (about y-axis)
-
-	/// <summary>
-	/// Rotates a vec3 by 'degree's, (Use negative degree for clockwise).
-	/// (Rotates with respect to the origin)
-	/// </summary>
-	/// <param name="vecToRotate"></param>
-	/// <param name="degree"></param>
-	//void rotateVec3(vec3& vecToRotate, float degree)
-	//{
-	//	float x = vecToRotate.x;
-	//	float y = vecToRotate.y;
-	//	float rad = glm::radians(degree);
-
-	//	float xfinal = x * cos(rad) - y * sin(rad);
-	//	if (abs(xfinal) < 1.0e-6)	// if the x-value is a very small number,
-	//		xfinal = 0.f;			// make xfinal 0
-	//	float yfinal = x * sin(rad) + y * cos(rad);
-	//	if (abs(yfinal) < 1.0e-6)	// if the y-value is a very small number,
-	//		yfinal = 0.f;			// make yfinal 0
-
-	//	// Set the rotated values
-	//	vecToRotate.x = xfinal;
-	//	vecToRotate.y = yfinal;
-	//}
 
 	// Control points used to generate spherical geometry
 	const vector<vec3> sphereControlPoints =
@@ -456,7 +434,7 @@ class Planet : public CelestialBody
 public:
 
 	/// <summary>
-	/// Note: The distance of the planet from the star will be the: 'distanceFromOrbitingCelestialBody' + its own radius.
+	/// Note: The distance of the planet from the star will be the: 'distanceFromOrbitingCelestialBody' + its own radius + sun's radius.
 	/// </summary>
 	/// <param name="name"></param>
 	/// <param name="radius"></param>
@@ -468,7 +446,7 @@ public:
 	/// <param name="texturePath"></param>
 	Planet(string name, float radius, float distanceFromOrbitingCelestialBody, float axisTilt, float axisRotation, float orbitRate, Star& sun, string texturePath) :
 		//CelestialBody(name, radius, distanceFromOrbitingCelestialBody + sun.radius + radius, axisTilt, axisRotation, texturePath),
-		CelestialBody(name, radius, distanceFromOrbitingCelestialBody + radius, axisTilt, axisRotation, texturePath),
+		CelestialBody(name, radius, distanceFromOrbitingCelestialBody + radius + sun.radius, axisTilt, axisRotation, texturePath),
 		orbitRate(orbitRate),
 		orbitingStar(sun)
 	{
@@ -480,21 +458,19 @@ public:
 		moons.push_back(m);
 	}
 
+	mat4 rotateAboutStar = mat4(1.f);
 	/// <summary>
 	/// The Planet orbits around its Star by 'orbitRate'.
 	/// Updates the 'orbitalInclination' glm::mat4.
 	/// </summary>
 	void orbitCelestialBody(float time) override
 	{
-		//numOrbitCelestialBodyCalls++;
-		////updatePosition();
-		//orbitalInclination = glm::rotate(orbitalInclination, glm::radians(orbitRate), vec3(0.f, 1.f, 0.f));
-
 		// Do orbital inclination
 		mat4 rotateAboutZWithAlpha = rotate(mat4(1.f), glm::radians(0.f), vec3(0.f, 0.f, 1.f));	// alpha is a constant: 0.f
 
 		mat4 p0 = mat4(1.f);
-		mat4 rotateAboutStar = rotate(mat4(1.f), glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its star. (Time dependent)
+		//mat4 rotateAboutStar = rotate(mat4(1.f), glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its star. (Time dependent)
+		rotateAboutStar = rotate(rotateAboutStar, glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its star. (Time dependent)
 		mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));
 		p0 = rotateAboutStar * translateDistanceFromOrbitingCelestialBody;
 		//p0 =  translateDistanceFromOrbitingCelestialBody * rotateAboutStar;	// this does not give us the orbit correctly.
@@ -517,19 +493,33 @@ public:
 		return orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model;
 	}
 
+	void generateRing(float distanceFromPlanet, float thicknessOfRing)
+	{
+		haveRings = true;
+
+		vector<vec3> chaikinCurvePts = { vec3(distanceFromPlanet + radius, vec2(0.f)), vec3(distanceFromPlanet + radius + thicknessOfRing, vec2(0.f))};
+		for (int i = 0; i < NUMBER_OF_ITERATIONS_FOR_CHAIKIN; i++)
+			chaikinCurvePts = chaikinOpen(chaikinCurvePts);
+
+		auto [meshPoints, meshTriangles] = surfaceOfRevolution(chaikinCurvePts, NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
+		cpu_geom.verts = meshTriangles;
+		
+	}
+
+	bool hasRings()
+	{
+		return haveRings;
+	}
+
 	vector<Moon*> moons;
 	Star& orbitingStar;
 	float orbitRate;
+	CPU_Geometry cpu_geom_ring;
+	GPU_Geometry gpu_geom_ring;
 
 private:
 	int numOrbitCelestialBodyCalls = 0;
-
-	//void updatePosition()
-	//{
-	//	float x = radius * cos(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
-	//	float z = radius * sin(glm::radians(orbitRate) * numOrbitCelestialBodyCalls);
-	//	position = vec3(x, 0.f, z);
-	//}
+	bool haveRings = false;
 };
 
 class Moon : public CelestialBody
@@ -555,6 +545,7 @@ public:
 		type = typesOfCelestialBodies[1];
 	}
 
+	mat4 rotateAboutPlanet = mat4(1.f);
 	/// <summary>
 	/// The Moon orbits around its Planet by 'orbitRate'.
 	/// Updates the 'orbitalInclination' glm::mat4.
@@ -565,7 +556,8 @@ public:
 		mat4 rotateAboutZWithAlpha = rotate(mat4(1.f), glm::radians(0.f), vec3(0.f, 0.f, 1.f));	// alpha is a constant: 0.f
 
 		mat4 p0 = mat4(1.f);
-		mat4 rotateAboutPlanet = rotate(mat4(1.f), glm::radians(orbitRate * time * 5), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
+		//mat4 rotateAboutPlanet = rotate(mat4(1.f), glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
+		rotateAboutPlanet = rotate(rotateAboutPlanet, glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
 		mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(vec2(0.f), distanceFromOrbitingCelestialBody));	// distance from Moon to planet
 		p0 = rotateAboutPlanet * translateDistanceFromOrbitingCelestialBody;
 		//p0 =  translateDistanceFromOrbitingCelestialBody * rotateAboutStar;	// this does not give us the orbit correctly.
@@ -599,7 +591,6 @@ public:
 struct windowData
 {
 	bool& pause;
-	float& frameRate;		// IDK IF ILL KEEP 
 	float simulationSpeedMultiplier;
 	float scrollSensitivity;
 	vector<Planet>& planets;
@@ -667,9 +658,6 @@ public:
 	virtual void render() override
 	{
 		ImGui::SliderFloat("Simulation Speed Multiplier", &simulationSpeedMultiplier, MIN_SIMULATION_RATE, MAX_SIMULATION_RATE, "Current multiplier: %.3f");
-
-		ImGui::SliderInt("Frame Rate", &frames, MIN_FRAME_RATE, MAX_FRAME_RATE, "%d Frames/sec");
-		frameRate = 1.f / frames;
 
 		ImGui::Combo("Center Camera", &comboSelection, options, IM_ARRAYSIZE(options));
 
@@ -748,7 +736,6 @@ private:
 	float& simulationSpeedMultiplier = windowData.simulationSpeedMultiplier;
 	string cameraFocusedOnBodyStr = windowData.sun.name;	// initialy set it focused on the sun
 	int frames = 10;
-	float& frameRate = windowData.frameRate;
 	CelestialBody* celestialBodyFocusedOn;
 	vector<Planet>& planetObjects = windowData.planets;
 	vector<Moon>& moonObjects = windowData.moons;
@@ -874,34 +861,31 @@ int main() {
 	Window window(800, 800, "CPSC 453 - Assignment 3");
 	Panel panel(window.getGLFWwindow());
 	
-	float frameRate = 1.0f / 10.f;	// IDK IF ILL KEEP
 	float simulationSpeedMultiplier = 2.f;
 	float sensitivity = 10.f;
 	vector<Planet> planets;
 	vector<Moon> moons;
 	vec3 lookAt = vec3(0.f);
 	bool pause = false;
-	//Star sun = Star("sun", 1, 0.f, "textures/ship.png");
+
 	float sunRadius = 10.f;
 	float sunAxialTilt = 0.f;
-	float sunAxialRotation = 10.f;
-	windowData windowData = {pause, frameRate, simulationSpeedMultiplier, sensitivity, planets, moons, Star("Sun", sunRadius, sunAxialTilt, sunAxialRotation, "textures/sun.jpg"), lookAt };
+	float sunAxialRotation = 2.f;
+	windowData windowData = {pause, simulationSpeedMultiplier, sensitivity, planets, moons, Star("Sun", sunRadius, sunAxialTilt, sunAxialRotation, "textures/sun.jpg"), lookAt };
 	
 	GLDebug::enable();
 
-	UnitCube cube;
-	cube.generateGeometry();
+	//UnitCube cube;
+	//cube.generateGeometry();
 
 	// Create Planets and Moons
-	//float axisTilt = 45.f;
-	float axisTilt = 90.f;
+	float axisTilt = 45.f;
+	//float axisTilt = 90.f;
 	float axisRotation = 10.f; // degrees
 	float orbitRate = 5.0f;	// degrees
 	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.25, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
-	const vector<float> distanceFromSun = { 3.f, 4.f, -12.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
+	const vector<float> distanceFromSun = { 3.f, 4.f, 10.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
 	const float distanceConst = 5.5f;	// distance from sun center to surface.
-
-	//10.f was earths distance from sun
 	
 	// Create Planets
 	planets.push_back(Planet(PLANET_NAMES[0], radiusOfPlanets[0], distanceFromSun[0] + distanceConst, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[0]));
@@ -910,12 +894,12 @@ int main() {
 		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], distanceFromSun[i] + planets[i-1].distanceFromOrbitingCelestialBody, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
 	}
 
-	float moonRadius = 0.25;
+	float moonRadius = 0.5;
 	float axisTiltMoon = 40.f;
 	float axisRotationMoon = 10.f; // degrees
 	float orbitRateMoon = 5.0f;	// degrees
 	//const vector<float> distanceFromOrbitingPlanet = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-	const float distanceFromOrbitingPlanet = 1.2f;
+	const float distanceFromOrbitingPlanet = 2.f;
 
 	moons.push_back(Moon("The Moon", moonRadius, distanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], "textures/the_moon.jpg"));
 	Moon* moon = &moons[0];
@@ -986,7 +970,17 @@ int main() {
 		float varianceMultiplier = dis(gen);
 		moons[j].orbitRate += (variance * varianceMultiplier);
 	}
+
+	// Create skybox
+	float skyBoxRadius = 990.f;
+	float distanceFromOrbitingCelestialBodySkyBox = 0.f;
+	float axialTilt = 0.f;
+	float axialRotationRate = 0.f;
+	CelestialBody skyBox = CelestialBody("Sky Box", skyBoxRadius, distanceFromOrbitingCelestialBodySkyBox, axialTilt, axialRotationRate, skyBoxTexturePath);
+
 	
+	cout << "skyBox vert size: " << skyBox.cpu_geom.verts.size() << endl;;
+	cout << "skyBox textCoords size: " << skyBox.cpu_geom.textCoords.size() << endl;
 
 	// CALLBACKS
 	shared_ptr<Assignment4> callBack = std::make_shared<Assignment4>(windowData);
@@ -1003,27 +997,20 @@ int main() {
 	float pausedTime = glfwGetTime();
 
 	bool recordPausedTime = false;
-	
+
+	float currentTime;
+	float lastTime = glfwGetTime();
+
 	// RENDER LOOP
 	while (!window.shouldClose())
 	{
-		//if (!pause)
-		//{
-		//	timeOrbit = (glfwGetTime() - pausedTime) * windowData.simulationSpeedMultiplier;
-		//	//pausedTime = 0.f;
-		//	recordPausedTime = false;
-		//}
+		currentTime = glfwGetTime();
 
-		//if (!recordPausedTime && pause)
-		//{
-		//	pausedTime = glfwGetTime();
-		//	recordPausedTime = true;
-		//}
+		//float deltaTime = abs(currentTime - initialTime) * windowData.simulationSpeedMultiplier;
+		float deltaTime = abs(currentTime - lastTime) * windowData.simulationSpeedMultiplier;
+		lastTime = glfwGetTime();
 
-		//// debug
-		//cout << "currentTime: " << glfwGetTime() << endl;
-		//cout << "TimeO: " << timeOrbit << endl;
-		//cout << "Paused time: " << pausedTime << endl;
+		//cout << "Delta time: " << deltaTime << endl;	// debug
 
 		double startTime = glfwGetTime();
 
@@ -1047,92 +1034,48 @@ int main() {
 
 
 		// Render celestial bodies
-		//renderCelestialBody(callBack, shader, windowData.sun);
+		renderCelestialBody(callBack, shader, skyBox);
+
+		renderCelestialBody(callBack, shader, windowData.sun);
 		if (!pause)
-			windowData.sun.rotateViaCelestialBodyAxis();
+			windowData.sun.rotateViaCelestialBodyAxis(deltaTime);
 
 		timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
 
 		// Testing with only Earth and Moon
-		Planet& earth = planets[2];
-		//earth.model = modelEarth;
-		earth.rotateViaCelestialBodyAxis();
-		//earth.orbitCelestialBody(timeOrbit);
-		renderCelestialBody(callBack, shader, earth);
+		//Planet& earth = planets[2];
+		//earth.rotateViaCelestialBodyAxis(deltaTime);
+		//earth.orbitCelestialBody(deltaTime);
+		//renderCelestialBody(callBack, shader, earth);
 
-		Moon& moon = moons[0];
-		moon.rotateViaCelestialBodyAxis();
-		moon.orbitCelestialBody(timeOrbit);
-		renderCelestialBody(callBack, shader, moon);
+		//Moon& moon = moons[0];
+		//moon.rotateViaCelestialBodyAxis(deltaTime);
+		//moon.orbitCelestialBody(deltaTime);
+		//renderCelestialBody(callBack, shader, moon);
 
 		// for bonus
 
-		//for (Planet& p : windowData.planets)
-		//{
-			//renderCelestialBody(callBack, shader, p);
-
-			//if (!pause)
-			//{
-				//p.rotateViaCelestialBodyAxis();
-				//p.orbitCelestialBody(timeOrbit);
-			//}
-			
-			//callBack->setPlanetModelMat(shader, p);
-			//p.gpu_geom.bind();
-			//p.texture.bind();
-			//glDrawArrays(GL_TRIANGLES, 0, GLsizei(p.cpu_geom.verts.size()));
-			//p.texture.unbind();
-		//}
-		
-
-		/* mars test
-		renderCelestialBody(callBack, shader, planets[3]);
-		planets[3].rotateViaAxis();
-		planets[3].orbitCelestialBody();
-		
-		for (Moon* m : planets[3].moons)
+		for (Planet& p : windowData.planets)
 		{
-			renderCelestialBody(callBack, shader, *m);
-			m->rotateViaAxis();
-			m->orbitCelestialBody();
+			renderCelestialBody(callBack, shader, p);
+
+			if (!pause)
+			{
+				p.rotateViaCelestialBodyAxis(deltaTime);
+				p.orbitCelestialBody(deltaTime);
+			}
 		}
-		*/
 
-		//renderCelestialBody(callBack, shader, planets[7]);
-		//planets[7].rotateViaAxis();
-		//planets[7].orbitCelestialBody();
+		for (Moon& m : windowData.moons)
+		{
+			renderCelestialBody(callBack, shader, m);
 
-		//for (Moon* m : planets[7].moons)
-		//{
-		//	renderCelestialBody(callBack, shader, *m);
-		//	m->rotateViaAxis();
-		//	m->orbitCelestialBody();
-		//}
-
-		//moons[0].model = modelMoon;
-
-		//for (Moon& m : windowData.moons)
-		//{
-		//	renderCelestialBody(callBack, shader, m);
-
-		//	if (!pause) //&& m.name != "The Moon")
-		//	{
-		//		m.rotateViaCelestialBodyAxis();
-		//		m.orbitCelestialBody(timeOrbit);
-		//	}
-		//}
-
-
-		//callBack->setPlanetModelMat(shader, earth);
-		//earth.gpu_geom.bind();
-		//earth.texture.bind();
-		//glDrawArrays(GL_TRIANGLES, 0, GLsizei(earth.cpu_geom.verts.size()));
-		//earth.texture.unbind();
-
-		//moon.rotatePlanetAxis(45.f);
-		//callBack->setPlanetModelMat(shader, moon);
-		//moon.gpu_geom.bind();
-		//glDrawArrays(GL_TRIANGLES, 0, GLsizei(moon.cpu_geom.verts.size()));
+			if (!pause) //&& m.name != "The Moon")
+			{
+				m.rotateViaCelestialBodyAxis(deltaTime);
+				m.orbitCelestialBody(deltaTime);
+			}
+		}
 
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 		panel.render();
@@ -1140,20 +1083,20 @@ int main() {
 
 		double endTime = glfwGetTime();
 
-		if (endTime - startTime < windowData.frameRate)
-		{
-			double sleepTime = windowData.frameRate - (endTime - startTime);
-			//glfwWaitEventsTimeout(sleepTime);
+		//if (endTime - startTime < windowData.frameRate)
+		//{
+		//	double sleepTime = windowData.frameRate - (endTime - startTime);
+		//	//glfwWaitEventsTimeout(sleepTime);
 
-			double sleepStart = glfwGetTime();
-			double sleepEnd = -1;
+		//	double sleepStart = glfwGetTime();
+		//	double sleepEnd = -1;
 
-			while (sleepEnd - sleepStart < sleepTime)
-			{
-				glfwPollEvents();
-				sleepEnd = glfwGetTime();
-			}
-		}
+		//	while (sleepEnd - sleepStart < sleepTime)
+		//	{
+		//		glfwPollEvents();
+		//		sleepEnd = glfwGetTime();
+		//	}
+		//}
 
 	}
 	glfwTerminate();
