@@ -49,6 +49,7 @@ const static int stacks = 20;	// num levels of the sphere
 const static float MAX_CAMERA_RADIUS = 1000.f;
 const static float CAMERA_FAR_PLANE = 10000.f;
 const static float CAMERA_NEAR_PLANE = 0.01;
+const static float INITIAL_CAMERA_RADIUS = 100.f;
 
 // Shading
 const static vec3 LIGHT_COLOUR = vec3(1.f);		// White colour
@@ -67,7 +68,8 @@ const static vector<string> PLANET_NAMES =
 const static vector<string> PLANET_TEXUTRE_PATHS =
 {"textures/mercury.jpg", "textures/venus_atmosphere.jpg", "textures/earth_day.jpg", "textures/mars.jpg",
 "textures/jupiter.jpg", "textures/saturn.jpg", "textures/uranus.jpg", "textures/neptune.jpg" };
-const static string SKYBOX_TEXTURE_PATH = "textures/stars_milky_way.jpg";
+//const static string SKYBOX_TEXTURE_PATH = "textures/4k_stars_milky_way.jpg";	// Lower resolution of the sky box texture
+const static string SKYBOX_TEXTURE_PATH = "textures/8k_stars_milky_way.jpg";
 const static string MOON_TEXTURE_PATH = "textures/the_moon.jpg";	// all the moons will be using this texture.
 
 //struct allMoons
@@ -779,7 +781,7 @@ class Assignment4 : public CallbackInterface
 
 public:
 	Assignment4(windowData& windowData) :
-		camera(glm::radians(45.f), glm::radians(45.f), 3.0, windowData.lookAt, windowData.scrollSensitivity, MAX_CAMERA_RADIUS)
+		camera(glm::radians(45.f), glm::radians(45.f), INITIAL_CAMERA_RADIUS, windowData.lookAt, windowData.scrollSensitivity, MAX_CAMERA_RADIUS)
 		, aspect(1.0f)
 		, rightMouseDown(false)
 		, mouseOldX(0.0)
@@ -821,6 +823,11 @@ public:
 		aspect = float(width)/float(height);
 	}
 
+	/// <summary>
+	/// Sets the Model, View, and Perspective uniform matrices,
+	/// and also other necessary uniforms for the planet and moon shader.
+	/// </summary>
+	/// <param name="sp"></param>
 	void viewPipeline(ShaderProgram &sp)
 	{
 		sp.use();
@@ -941,8 +948,12 @@ int main() {
 	
 	GLDebug::enable();
 
-	//UnitCube cube;
-	//cube.generateGeometry();
+	// Create skybox
+	float skyBoxRadius = MAX_CAMERA_RADIUS + 100.f;			// Make sky box larger than the max radius of camera so it does not go out of the sky box.
+	float distanceFromOrbitingCelestialBodySkyBox = 0.f;
+	float axialTilt = 0.f;
+	float axialRotationRate = 0.f;
+	CelestialBody skyBox = CelestialBody("Sky Box", skyBoxRadius, distanceFromOrbitingCelestialBodySkyBox, axialTilt, axialRotationRate, SKYBOX_TEXTURE_PATH);
 
 	// Create Planets and Moons
 	float axisTilt = 45.f;
@@ -1036,17 +1047,6 @@ int main() {
 		moons[j].orbitRate += (variance * varianceMultiplier);
 	}
 
-	// Create skybox
-	float skyBoxRadius = MAX_CAMERA_RADIUS + 100.f;			// Make sky box larger than the max radius of camera so it does not go out of the sky box.
-	float distanceFromOrbitingCelestialBodySkyBox = 0.f;
-	float axialTilt = 0.f;
-	float axialRotationRate = 0.f;
-	CelestialBody skyBox = CelestialBody("Sky Box", skyBoxRadius, distanceFromOrbitingCelestialBodySkyBox, axialTilt, axialRotationRate, SKYBOX_TEXTURE_PATH);
-
-	
-	cout << "skyBox vert size: " << skyBox.cpu_geom.verts.size() << endl;;
-	cout << "skyBox textCoords size: " << skyBox.cpu_geom.textCoords.size() << endl;
-
 	// CALLBACKS
 	shared_ptr<Assignment4> callBack = std::make_shared<Assignment4>(windowData);
 	callBack->camera.lookAt = windowData.lookAt;
@@ -1055,30 +1055,23 @@ int main() {
 	auto gui_panel_renderer = std::make_shared<GuiPanel>(windowData, callBack->camera);
 	panel.setPanelRenderer(gui_panel_renderer);
 
-	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
+	ShaderProgram shaderForPlanetsMoonsSkyBox("shaders/test.vert", "shaders/test.frag");
 	ShaderProgram shaderForSun("shaders/sun.vert", "shaders/sun.frag");
-
-	// NOTE: ORBIT JUMPS WHEN SIUMULATIONSPEEDMULTIPLIER IS ALTERED -> due to Time0 jumping from less or more than the previous value.
-	float timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
-	float pausedTime = glfwGetTime();
-
-	bool recordPausedTime = false;
 
 	float currentTime;
 	float lastTime = glfwGetTime();
+
+	//UnitCube cube;
+	//cube.generateGeometry();
 
 	// RENDER LOOP
 	while (!window.shouldClose())
 	{
 		currentTime = glfwGetTime();
-
-		//float deltaTime = abs(currentTime - initialTime) * windowData.simulationSpeedMultiplier;
 		float deltaTime = abs(currentTime - lastTime) * windowData.simulationSpeedMultiplier;
 		lastTime = glfwGetTime();
 
 		//cout << "Delta time: " << deltaTime << endl;	// debug
-
-		double startTime = glfwGetTime();
 
 		glfwPollEvents();
 
@@ -1090,22 +1083,20 @@ int main() {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);		// texture
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE /*GL_LINE*/);	// wireframe
 
-		callBack->viewPipeline(shader);
+		callBack->viewPipeline(shaderForPlanetsMoonsSkyBox);
 
 		// cube
-		// (WILL CAUSE ISSUES IF I USE GL_FILL (IE TEXTURES))
+		// (WILL CAUSE ISSUES IF GL_FILL (TEXTURES) IS USED)
 		//cube.m_gpu_geom.bind();
 		//glDrawArrays(GL_TRIANGLES, 0, GLsizei(cube.m_size));
 
 
 		// Render celestial bodies
-		renderCelestialBody(callBack, shader, skyBox);
+		renderCelestialBody(callBack, shaderForPlanetsMoonsSkyBox, skyBox);
 
 		renderCelestialBody(callBack, shaderForSun, windowData.sun);
 		if (!pause)
 			windowData.sun.rotateViaCelestialBodyAxis(deltaTime);
-
-		timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
 
 		// Testing with only Earth and Moon
 		//Planet& earth = planets[2];
@@ -1119,10 +1110,9 @@ int main() {
 		//renderCelestialBody(callBack, shader, moon);
 
 		// for bonus
-
 		for (Planet& p : windowData.planets)
 		{
-			renderCelestialBody(callBack, shader, p);
+			renderCelestialBody(callBack, shaderForPlanetsMoonsSkyBox, p);
 
 			if (!pause)
 			{
@@ -1133,9 +1123,9 @@ int main() {
 
 		for (Moon& m : windowData.moons)
 		{
-			renderCelestialBody(callBack, shader, m);
+			renderCelestialBody(callBack, shaderForPlanetsMoonsSkyBox, m);
 
-			if (!pause) //&& m.name != "The Moon")
+			if (!pause)
 			{
 				m.rotateViaCelestialBodyAxis(deltaTime);
 				m.orbitCelestialBody(deltaTime);
@@ -1145,24 +1135,6 @@ int main() {
 		glDisable(GL_FRAMEBUFFER_SRGB); // disable sRGB for things like imgui
 		panel.render();
 		window.swapBuffers();
-
-		double endTime = glfwGetTime();
-
-		//if (endTime - startTime < windowData.frameRate)
-		//{
-		//	double sleepTime = windowData.frameRate - (endTime - startTime);
-		//	//glfwWaitEventsTimeout(sleepTime);
-
-		//	double sleepStart = glfwGetTime();
-		//	double sleepEnd = -1;
-
-		//	while (sleepEnd - sleepStart < sleepTime)
-		//	{
-		//		glfwPollEvents();
-		//		sleepEnd = glfwGetTime();
-		//	}
-		//}
-
 	}
 	glfwTerminate();
 	return 0;
