@@ -12,7 +12,7 @@
 class Camera {
 public:
 
-	Camera(float t, float p, float r, glm::vec3& lookAt, float& sensitivity);
+	Camera(float t, float p, float r, glm::vec3& lookAt, float& sensitivity, float maxRadius);
 
 	glm::mat4 getView();
 	glm::vec3 getPos();
@@ -32,9 +32,11 @@ public:
 	float getPhi();
 	float getRadius();
 
+
 private:
 
 	float theta;
 	float phi;
 	float radius;
+	float MAX_RADIUS;
 };

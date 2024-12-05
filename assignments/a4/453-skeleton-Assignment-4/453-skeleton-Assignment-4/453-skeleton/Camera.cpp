@@ -7,12 +7,13 @@
 
 #include "glm/gtc/matrix_transform.hpp"
 
-Camera::Camera(float t, float p, float r, glm::vec3& lookAt, float& sensitivity) :
+Camera::Camera(float t, float p, float r, glm::vec3& lookAt, float& sensitivity, float maxRadius) :
 	theta(t),
 	phi(p),
 	radius(r),
 	lookAt(lookAt),
-	sensitivity(sensitivity)
+	sensitivity(sensitivity),
+	MAX_RADIUS(maxRadius)
 {
 }
 
@@ -47,10 +48,10 @@ void Camera::incrementPhi(float dp) {
 void Camera::incrementR(float dr)
 {
 	radius -= dr * sensitivity;
-	if (radius <= 0.1)			// Don't allow the camera to invert
+	if (radius <= 0.1)				// Don't allow the camera to invert
 		radius = 0.1;
-	else if (radius >= 990.f)	// Don't allow the camera to go to far
-		radius = 990.f;
+	else if (radius >= MAX_RADIUS)	// Don't allow the camera to go to far
+		radius = MAX_RADIUS;
 }
 
 void Camera::resetPhi()

@@ -30,7 +30,7 @@
 using namespace std;
 using namespace glm;
 
-const static float initialTime = glfwGetTime();
+const static double PI_APPROX = atan(1) * 4;	// pi approximation
 
 const static int NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 20;
 const static int NUMBER_OF_ITERATIONS_FOR_CHAIKIN = 4;
@@ -40,15 +40,35 @@ const static float MIN_SIMULATION_RATE = 2.f;
 const static float MAX_SIMULATION_RATE = 100.f;
 const static float MIN_SCROLL_SENSITIVITY = 2.f;
 const static float MAX_SCROLL_SENSITIVITY = 20.f;
-const static double PI_APPROX = atan(1) * 4;										// pi approximation
 
-const static vector<string> typesOfCelestialBodies = { "Planet", "Moon", "Star" };
+// For sphere generation (higher = smoother)
+const static int sectors = 20;	// num slices of the sphere
+const static int stacks = 20;	// num levels of the sphere
+
+// Camera
+const static float MAX_CAMERA_RADIUS = 1000.f;
+const static float CAMERA_FAR_PLANE = 10000.f;
+const static float CAMERA_NEAR_PLANE = 0.01;
+
+// Shading
+const static vec3 LIGHT_COLOUR = vec3(1.f);		// White colour
+// For planets & Moons
+const static GLfloat diffuseCoeff = 1.f;
+const static GLfloat specularCoeff = 0.5f;
+const static GLfloat ambientCoeff = 0.1f;
+const static GLfloat shininessCoeff = 5.f;
+// For the Sun
+const static GLfloat SUN_AMBIENT_COEFF = 1.2f;
+
+// Planet and Moon details for generation
+const static vector<string> TYPES_OF_CELESTIAL_BODIES = { "Planet", "Moon", "Star" };
 const static vector<string> PLANET_NAMES =
 {"Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"};
 const static vector<string> PLANET_TEXUTRE_PATHS =
 {"textures/mercury.jpg", "textures/venus_atmosphere.jpg", "textures/earth_day.jpg", "textures/mars.jpg",
 "textures/jupiter.jpg", "textures/saturn.jpg", "textures/uranus.jpg", "textures/neptune.jpg" };
-const static string skyBoxTexturePath = "textures/stars_milky_way.jpg";
+const static string SKYBOX_TEXTURE_PATH = "textures/stars_milky_way.jpg";
+const static string MOON_TEXTURE_PATH = "textures/the_moon.jpg";	// all the moons will be using this texture.
 
 //struct allMoons
 //{
@@ -313,11 +333,6 @@ protected:
 		vector<vec2> textureCoords;
 		vector<vec2> sphereTextCoordMesh;	// a triangle is a group of 3 vec3's.
 
-		vector<vec3> normals;
-
-		int sectors = 20;	// num slices of the sphere
-		int stacks = 20;	// num levels of the sphere
-
 		for (int i = 0; i <= stacks; i++)
 		{
 			float stackAngle = PI_APPROX / 2 - i * (PI_APPROX / stacks); // from pi/2 to -pi/2
@@ -390,8 +405,9 @@ protected:
 		}
 
 		// generate normals
-		for (vec3 vertex : sphereVec3s)
-			normals.push_back(normalize(vertex));
+		vector<vec3> normals = sphereMesh;
+		for (vec3& n : normals)
+			normalize(n);
 
 		cpu_geom.verts = sphereMesh;
 		//cpu_geom.verts = sphereVec3s;	// test (works with textureCoords) -> as in: number of textCoord verties == number of cpu_geom.verts
@@ -407,8 +423,11 @@ protected:
 		gpu_geom.setNormals(cpu_geom.normals);
 		gpu_geom.setTexCoords(cpu_geom.textCoords);
 
+		// debug
 		std::cout << "Verts size: " << cpu_geom.verts.size() << std::endl;
 		std::cout << "TexCoords size: " << cpu_geom.textCoords.size() << std::endl;
+		std::cout << "normals size: " << cpu_geom.normals.size() << std::endl;
+
 	}
 };
 
@@ -418,7 +437,7 @@ public:
 	Star(string name, float radius, float axisTilt, float axisRotation, string texturePath) :
 		CelestialBody(name, radius, 0.f, axisTilt, axisRotation, texturePath)
 	{
-		type = typesOfCelestialBodies[2];
+		type = TYPES_OF_CELESTIAL_BODIES[2];
 	}
 
 	virtual mat4 getModelMat4() override
@@ -450,7 +469,7 @@ public:
 		orbitRate(orbitRate),
 		orbitingStar(sun)
 	{
-		type = typesOfCelestialBodies[0];
+		type = TYPES_OF_CELESTIAL_BODIES[0];
 	}
 
 	void addMoon(Moon* m)
@@ -542,7 +561,7 @@ public:
 		orbitingPlanet(orbitingPlanet),
 		orbitRate(orbitRate)
 	{
-		type = typesOfCelestialBodies[1];
+		type = TYPES_OF_CELESTIAL_BODIES[1];
 	}
 
 	mat4 rotateAboutPlanet = mat4(1.f);
@@ -760,7 +779,7 @@ class Assignment4 : public CallbackInterface
 
 public:
 	Assignment4(windowData& windowData) :
-		camera(glm::radians(45.f), glm::radians(45.f), 3.0, windowData.lookAt, windowData.scrollSensitivity)
+		camera(glm::radians(45.f), glm::radians(45.f), 3.0, windowData.lookAt, windowData.scrollSensitivity, MAX_CAMERA_RADIUS)
 		, aspect(1.0f)
 		, rightMouseDown(false)
 		, mouseOldX(0.0)
@@ -804,12 +823,43 @@ public:
 
 	void viewPipeline(ShaderProgram &sp)
 	{
+		sp.use();
 		glm::mat4 M = glm::mat4(1.0);
 		glm::mat4 V = camera.getView();
-		glm::mat4 P = glm::perspective(glm::radians(45.0f), aspect, 0.01f, 10000.f);
-		//GLint location = glGetUniformLocation(sp, "lightPosition");
-		//glm::vec3 light = camera.getPos();
-		//glUniform3fv(location, 1, glm::value_ptr(light));
+		glm::mat4 P = glm::perspective(glm::radians(45.0f), aspect, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
+
+		GLint uniMat = glGetUniformLocation(sp, "M");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(M));
+		uniMat = glGetUniformLocation(sp, "V");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(V));
+		uniMat = glGetUniformLocation(sp, "P");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(P));
+
+		// Set shading uniforms for this shader 
+		vec3 lightPos = vec3(0.f);
+		GLint uniVec3 = glGetUniformLocation(sp, "lightPosition");
+		glUniform3fv(uniVec3, 1, glm::value_ptr(vec3(0.f)));
+		uniVec3 = glGetUniformLocation(sp, "viewPos");
+		glUniform3fv(uniVec3, 1, glm::value_ptr(camera.getPos()));
+		uniVec3 = glGetUniformLocation(sp, "lightColour");
+		glUniform3fv(uniVec3, 1, glm::value_ptr(LIGHT_COLOUR));	
+
+		GLint uniFloat = glGetUniformLocation(sp, "diffuseCoefficient");
+		glUniform1fv(uniFloat, 1, &diffuseCoeff);
+		uniFloat = glGetUniformLocation(sp, "specularCoefficient");
+		glUniform1fv(uniFloat, 1, &specularCoeff);
+		uniFloat = glGetUniformLocation(sp, "ambientCoefficient");
+		glUniform1fv(uniFloat, 1, &ambientCoeff);
+		uniFloat = glGetUniformLocation(sp, "shininessCoefficient");
+		glUniform1fv(uniFloat, 1, &shininessCoeff);
+	}
+
+	void setPlanetModelMat(ShaderProgram& sp, CelestialBody& p)
+	{
+		mat4 M = p.getModelMat4();
+		mat4 V = camera.getView();
+		mat4 P = glm::perspective(glm::radians(45.0f), aspect, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
+
 		GLint uniMat = glGetUniformLocation(sp, "M");
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(M));
 		uniMat = glGetUniformLocation(sp, "V");
@@ -818,21 +868,31 @@ public:
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(P));
 	}
 
-	void setPlanetModelMat(ShaderProgram& sp, CelestialBody& p)
+	void setSunLighting(ShaderProgram& sp, CelestialBody& sun)
 	{
-		//mat4 M = p.model;
-		mat4 M = p.getModelMat4();
-		//glm::mat4 M = glm::mat4(1.0);
+		if (typeid(sun) != typeid(Star))	// Error check if i'm lighting the sun and not someting else.
+		{
+			cerr << "\nERROR: Can not 'setSunLighting()' on non Star instance." << endl;
+			abort();
+		}
 
-		glm::mat4 V = camera.getView();
-		glm::mat4 P = glm::perspective(glm::radians(45.0f), aspect, 0.01f, 1000.f);
-
+		mat4 M = sun.getModelMat4();
+		mat4 V = camera.getView();
+		mat4 P = glm::perspective(glm::radians(45.0f), aspect, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
+		
 		GLint uniMat = glGetUniformLocation(sp, "M");
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(M));
 		uniMat = glGetUniformLocation(sp, "V");
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(V));
 		uniMat = glGetUniformLocation(sp, "P");
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(P));
+
+		// Set shading uniforms for this shader 
+		GLint uniVec3 = glGetUniformLocation(sp, "lightColour");
+		glUniform3fv(uniVec3, 1, glm::value_ptr(LIGHT_COLOUR));
+
+		GLfloat uniFloat = glGetUniformLocation(sp, "ambientCoefficient");
+		glUniform1fv(uniFloat, 1, &SUN_AMBIENT_COEFF);
 	}
 
 	Camera camera;
@@ -846,7 +906,13 @@ private:
 
 void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, CelestialBody& cb)
 {
-	callBack->setPlanetModelMat(sp, cb);
+	sp.use();
+
+	if (typeid(cb) == typeid(Star))
+		callBack->setSunLighting(sp, cb);
+	else
+		callBack->setPlanetModelMat(sp, cb);
+
 	cb.gpu_geom.bind();
 	cb.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, GLsizei(cb.cpu_geom.verts.size()));
@@ -885,7 +951,7 @@ int main() {
 	float orbitRate = 5.0f;	// degrees
 	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.25, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
 	const vector<float> distanceFromSun = { 3.f, 4.f, 10.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
-	const float distanceConst = 5.5f;	// distance from sun center to surface.
+	const float distanceConst = 5.5f;	// distance from sun center to its surface.
 	
 	// Create Planets
 	planets.push_back(Planet(PLANET_NAMES[0], radiusOfPlanets[0], distanceFromSun[0] + distanceConst, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[0]));
@@ -898,10 +964,9 @@ int main() {
 	float axisTiltMoon = 40.f;
 	float axisRotationMoon = 10.f; // degrees
 	float orbitRateMoon = 5.0f;	// degrees
-	//const vector<float> distanceFromOrbitingPlanet = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
 	const float distanceFromOrbitingPlanet = 2.f;
 
-	moons.push_back(Moon("The Moon", moonRadius, distanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], "textures/the_moon.jpg"));
+	moons.push_back(Moon("The Moon", moonRadius, distanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], MOON_TEXTURE_PATH));
 	Moon* moon = &moons[0];
 	planets[2].addMoon(&moons[0]);
 	
@@ -909,7 +974,7 @@ int main() {
 	int indexCounter = 1;
 	for (int j = 0; j < MARS_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(MARS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[3], "textures/the_moon.jpg"));
+		moons.push_back(Moon(MARS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[3], MOON_TEXTURE_PATH));
 		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[3].radius + (2.f / (j+1))));
 	}
 	// Set the Moons for mars
@@ -919,7 +984,7 @@ int main() {
 	// Jupiter moons
 	for (int j = 0; j < JUPITER_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(JUPITER_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[4], "textures/the_moon.jpg"));
+		moons.push_back(Moon(JUPITER_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[4], MOON_TEXTURE_PATH));
 		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[4].radius + (2.f / (j + 1))));
 	}
 	// Set the Moons for Jupiter
@@ -930,7 +995,7 @@ int main() {
 	// Saturn moons
 	for (int j = 0; j < SATURN_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(SATURN_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[5], "textures/the_moon.jpg"));
+		moons.push_back(Moon(SATURN_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[5], MOON_TEXTURE_PATH));
 		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[5].radius + (2.f / (j + 1))));
 	}
 	// Set the Moons for Saturn
@@ -941,7 +1006,7 @@ int main() {
 	// Uranus moons
 	for (int j = 0; j < URANUS_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[6], "textures/the_moon.jpg"));
+		moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[6], MOON_TEXTURE_PATH));
 		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[6].radius + (2.f / (j + 1))));
 	}
 	// Set the Moons for Uranus
@@ -952,7 +1017,7 @@ int main() {
 	// Neptune moons
 	for (int j = 0; j < NEPTUNE_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(NEPTUNE_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[7], "textures/the_moon.jpg"));
+		moons.push_back(Moon(NEPTUNE_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[7], MOON_TEXTURE_PATH));
 		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[7].radius + (2.f / (j + 1))));
 	}
 	// Set the Moons for Neptune
@@ -972,11 +1037,11 @@ int main() {
 	}
 
 	// Create skybox
-	float skyBoxRadius = 990.f;
+	float skyBoxRadius = MAX_CAMERA_RADIUS + 100.f;			// Make sky box larger than the max radius of camera so it does not go out of the sky box.
 	float distanceFromOrbitingCelestialBodySkyBox = 0.f;
 	float axialTilt = 0.f;
 	float axialRotationRate = 0.f;
-	CelestialBody skyBox = CelestialBody("Sky Box", skyBoxRadius, distanceFromOrbitingCelestialBodySkyBox, axialTilt, axialRotationRate, skyBoxTexturePath);
+	CelestialBody skyBox = CelestialBody("Sky Box", skyBoxRadius, distanceFromOrbitingCelestialBodySkyBox, axialTilt, axialRotationRate, SKYBOX_TEXTURE_PATH);
 
 	
 	cout << "skyBox vert size: " << skyBox.cpu_geom.verts.size() << endl;;
@@ -991,6 +1056,7 @@ int main() {
 	panel.setPanelRenderer(gui_panel_renderer);
 
 	ShaderProgram shader("shaders/test.vert", "shaders/test.frag");
+	ShaderProgram shaderForSun("shaders/sun.vert", "shaders/sun.frag");
 
 	// NOTE: ORBIT JUMPS WHEN SIUMULATIONSPEEDMULTIPLIER IS ALTERED -> due to Time0 jumping from less or more than the previous value.
 	float timeOrbit = glfwGetTime() * windowData.simulationSpeedMultiplier;
@@ -1024,7 +1090,6 @@ int main() {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);		// texture
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE /*GL_LINE*/);	// wireframe
 
-		shader.use();
 		callBack->viewPipeline(shader);
 
 		// cube
@@ -1036,7 +1101,7 @@ int main() {
 		// Render celestial bodies
 		renderCelestialBody(callBack, shader, skyBox);
 
-		renderCelestialBody(callBack, shader, windowData.sun);
+		renderCelestialBody(callBack, shaderForSun, windowData.sun);
 		if (!pause)
 			windowData.sun.rotateViaCelestialBodyAxis(deltaTime);
 
