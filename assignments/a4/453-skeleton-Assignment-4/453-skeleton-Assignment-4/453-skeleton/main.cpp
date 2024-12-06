@@ -34,10 +34,8 @@ const static double PI_APPROX = atan(1) * 4;	// pi approximation
 
 const static int NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION = 20;
 const static int NUMBER_OF_ITERATIONS_FOR_CHAIKIN = 4;
-const static float MIN_FRAME_RATE = 10.f;	// 10 frames per second
-const static float MAX_FRAME_RATE = 200.f;	// 200 frams per second
-const static float MIN_SIMULATION_RATE = 2.f;
-const static float MAX_SIMULATION_RATE = 100.f;
+const static float MIN_SIMULATION_RATE = 0.25f;
+const static float MAX_SIMULATION_RATE = 1000.f;
 const static float MIN_SCROLL_SENSITIVITY = 2.f;
 const static float MAX_SCROLL_SENSITIVITY = 20.f;
 
@@ -104,7 +102,8 @@ public:
 		distanceFromOrbitingCelestialBody(distanceFromOrbitingCelestialBody),
 		axisTilt(axisTilt),
 		axialRotationRate(axialRotationRate),
-		texture(texturePath, GL_NEAREST)
+		texture(texturePath, GL_NEAREST),
+		texturePath(texturePath)
 	{
 		//generateGeometryUsingSurfaceOfRevolution();
 		generateGeometryUsingSphericalCoords();
@@ -121,6 +120,7 @@ public:
 	float axialRotationRate;				// How much to rotate about it's axis, in degrees.
 	string type;
 	Texture texture;
+	string texturePath;
 
 	CPU_Geometry cpu_geom;
 	GPU_Geometry gpu_geom;
@@ -140,7 +140,6 @@ public:
 	void rotateViaCelestialBodyAxis(float time)
 	{
 		axialRotationMat4 = glm::rotate(axialRotationMat4, glm::radians(axialRotationRate * time), vec3(0.f, 1.f, 0.f));	// time dependent
-		//axialRotation = glm::rotate(axialRotation, glm::radians(axialRotationRate), vec3(0.f, 0.f, 1.f));
 	}
 
 	// to be overridden in subclasses
@@ -150,19 +149,18 @@ public:
 	virtual mat4 getModelMat4()
 	{
 		//return axialRotationMat4 * model;
-		return model;
+		return axialRotationMat4 * getCelestialBodyAxisTilt() * model;
 	}
 
 	mat4 getOrbitalInclination()
 	{
-		//return mat4(1.f);
 		return orbitalInclination;
 	}
 
 	mat4 getCelestialBodyAxisTilt()
 	{
-		//return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis
-		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// (WORKS) tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
+		//return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(0.f, 0.f, 1.f));		// tilts in the z-axis. (Use x-axis tilt, for some reason z-axis tilt doesn't give the desired result).
+		return glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// tilts in the x-axis (need to use this or else it wont look quite right)
 
 		// test (just do the x-axis rotate...)
 		//mat4 xAxisTilt =  glm::rotate(mat4(1.f), glm::radians(axisTilt), vec3(1.f, 0.f, 0.f));		// tilts in the x-axis (need to use this since it wont look quite right -> just test earth and you'll see)
@@ -172,12 +170,6 @@ public:
 		//return xAxisTilt * zAxisTilt;
 
 	}
-	//mat4 getTranslation()
-	//{
-	//	return translation;
-	//}
-
-
 
 protected:
 	mat4 orbitalInclination = mat4(1.0f);
@@ -360,7 +352,7 @@ protected:
 					u = 1.f;
 
 				//textureCoords.push_back(vec2(u, v));
-				tempTextCoords.push_back(vec2(u, v));
+				tempTextCoords.push_back(vec2(1.f - u, v));	// 1.f - u to map texture correctly
 			}
 			sphereStacks.push_back(tempStack);
 			textureCoordsStack.push_back(tempTextCoords);
@@ -444,14 +436,177 @@ public:
 
 	virtual mat4 getModelMat4() override
 	{
-		return axialRotationMat4 * model;
+		return axialRotationMat4 * getCelestialBodyAxisTilt() * model;
 	}
 };
 
 class Moon;	// prototype
+//class PlanetaryRing;
 
 class Planet : public CelestialBody
 {
+private:
+	int numOrbitCelestialBodyCalls = 0;
+	bool haveRings = false;
+
+	class PlanetaryRing
+	{
+	public:
+		PlanetaryRing(Planet* orbitingPlanet, string texturePath) :
+			orbitingPlanet(orbitingPlanet),
+			orbitRate(0.f),
+			axialTilt(0.f),
+			axialRotationRate(axialRotationRate),
+			distanceFromPlanet(-1.f),
+			thicknessOfRing(-1.f),
+			ringTexture(texturePath, GL_NEAREST)
+		{}
+		PlanetaryRing(Planet* orbitingPlanet, float orbitRate, float axialTilt, float axialRotationRate, float distanceFromPlanet, float thicknessOfRing, string texturePath) :
+			orbitingPlanet(orbitingPlanet),
+			orbitRate(orbitRate),
+			axialTilt(axialTilt),
+			axialRotationRate(axialRotationRate),
+			distanceFromPlanet(distanceFromPlanet),
+			thicknessOfRing(thicknessOfRing),
+			ringTexture(texturePath, GL_NEAREST)
+		{
+			float planetRadius = orbitingPlanet->radius;
+			float radiusOfInnerCircle = distanceFromPlanet + planetRadius;
+			float radiusOfOutterCircle = distanceFromPlanet + planetRadius + thicknessOfRing;
+			int segments = 20;
+			vector<vec3> innerRing;
+			vector<vec3> outerRing;
+			vector<vec2> texCoordInner;
+			vector<vec2> texCoordOuter;
+
+			// Generate points on the circle
+			for (int i = 0; i < segments; ++i)
+			{
+				// Angle for the current segment
+				float angle = (2.0f * PI_APPROX * i) / segments;
+
+				// Calculate the position of ring points
+				float xInner = radiusOfInnerCircle * std::cos(angle);
+				float yInner = radiusOfInnerCircle * std::sin(angle);
+
+				float xOuter = radiusOfOutterCircle * std::cos(angle);
+				float yOuter = radiusOfOutterCircle * std::sin(angle);
+
+				float z = 0.0f; // Z is zero for flat ring
+
+				innerRing.push_back(vec3(xInner, yInner, z));
+				outerRing.push_back(vec3(xOuter, yOuter, z));
+
+				// texture coords
+				float u = (float)i / segments;	// (horizontal axis)
+				float v = 0.f;					// bottom of texture (vertical axis)
+
+				texCoordInner.push_back(vec2(u, v));
+				v = 1.f;						// top of texture (vertical axis)
+				texCoordOuter.push_back(vec2(u, v));
+			}
+
+			vector<vec3> triangleMesh;
+			// Connect the ring's vec3's to generate mesh
+			for (int i = 0; i < innerRing.size() - 1; i++)
+			{
+				// First triangle
+				triangleMesh.push_back(outerRing[i]);
+				triangleMesh.push_back(innerRing[i]);
+				triangleMesh.push_back(outerRing[i + 1]);
+				// second triangle
+				triangleMesh.push_back(innerRing[i]);
+				triangleMesh.push_back(outerRing[i + 1]);
+				triangleMesh.push_back(innerRing[i + 1]);
+			}
+
+			// Add the last triangle connecting back to the first triangle
+			triangleMesh.push_back(outerRing[innerRing.size() - 1]);
+			triangleMesh.push_back(innerRing[innerRing.size() - 1]);
+			triangleMesh.push_back(outerRing[0]);
+
+			triangleMesh.push_back(innerRing[innerRing.size() - 1]);
+			triangleMesh.push_back(outerRing[0]);
+			triangleMesh.push_back(innerRing[0]);
+
+			vector<vec2> textureMesh;
+			// Connect the texture vec2's to generate mesh
+			for (int i = 0; i < innerRing.size() - 1; i++)
+			{
+				// First triangle
+				textureMesh.push_back(texCoordOuter[i]);
+				textureMesh.push_back(texCoordInner[i]);
+				textureMesh.push_back(texCoordOuter[i + 1]);
+				// second triangle
+				textureMesh.push_back(texCoordInner[i]);
+				textureMesh.push_back(texCoordOuter[i + 1]);
+				textureMesh.push_back(texCoordInner[i + 1]);
+			}
+
+			// Add the last triangle connecting back to the first triangle
+			textureMesh.push_back(texCoordOuter[innerRing.size() - 1]);
+			textureMesh.push_back(texCoordInner[innerRing.size() - 1]);
+			textureMesh.push_back(texCoordOuter[0]);
+
+			textureMesh.push_back(texCoordInner[innerRing.size() - 1]);
+			textureMesh.push_back(texCoordOuter[0]);
+			textureMesh.push_back(texCoordInner[0]);
+
+			vector<vec3> normals;
+			for (vec3 v : triangleMesh)
+				normals.push_back(normalize(v));
+
+			cpu_geom_ring.verts = triangleMesh;
+			cpu_geom_ring.textCoords = textureMesh;
+			cpu_geom_ring.normals = normals;
+
+			gpu_geom_ring.setVerts(cpu_geom_ring.verts);
+			gpu_geom_ring.setTexCoords(cpu_geom_ring.textCoords);
+			gpu_geom_ring.setNormals(cpu_geom_ring.normals);
+		};
+
+		mat4 rotateAboutPlanet = mat4(1.f);
+		void orbitCelestialBody(float time)
+		{
+			// Create orbital inclination
+			mat4 rotateAboutZWithAlpha = rotate(mat4(1.f), glm::radians(0.f), vec3(0.f, 0.f, 1.f));	// alpha is a constant: 0.f
+
+			mat4 p0 = mat4(1.f);
+			rotateAboutPlanet = rotate(rotateAboutPlanet, glm::radians(orbitRate * time), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
+			mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(0.f, 0.f, 0.f));	// distance from ring to planet is 0 (due to how i generated the rings)
+			p0 = rotateAboutPlanet * translateDistanceFromOrbitingCelestialBody;
+
+			orbitalInclination = rotateAboutZWithAlpha * translate(p0, vec3(0.f));
+		}
+
+		mat4 axialRotationMat4 = mat4(1.f);
+		void rotateViaCelestialBodyAxis(float time)
+		{
+			axialRotationMat4 = glm::rotate(axialRotationMat4, glm::radians(axialRotationRate * time), vec3(0.f, 1.f, 0.f));	// time dependent
+		}
+
+		virtual mat4 getModelMat4()
+		{
+			mat4 tilt = rotate(mat4(1.f), axialTilt, vec3(1.f, 0.f, 0.f));	// tilt ring along x-axis 
+			return orbitingPlanet->getOrbitalInclination() * orbitalInclination * axialRotationMat4 * tilt * model;
+		}
+
+		Planet* orbitingPlanet;
+		mat4 orbitalInclination = mat4(1.0f);
+
+		CPU_Geometry cpu_geom_ring;
+		GPU_Geometry gpu_geom_ring;
+		Texture ringTexture;
+
+	private:
+		mat4 model = mat4(1.f);
+		float orbitRate;
+		float axialTilt;
+		float axialRotationRate;
+		float distanceFromPlanet;
+		float thicknessOfRing;
+	};
+
 public:
 
 	/// <summary>
@@ -514,17 +669,10 @@ public:
 		return orbitalInclination * axialRotationMat4 * getCelestialBodyAxisTilt() * model;
 	}
 
-	void generateRing(float distanceFromPlanet, float thicknessOfRing)
+	void generateRing(float orbitRate, float ringTilt, float axialRotationRate, float distanceFromPlanet, float thicknessOfRing, string texturePath)
 	{
 		haveRings = true;
-
-		vector<vec3> chaikinCurvePts = { vec3(distanceFromPlanet + radius, vec2(0.f)), vec3(distanceFromPlanet + radius + thicknessOfRing, vec2(0.f))};
-		for (int i = 0; i < NUMBER_OF_ITERATIONS_FOR_CHAIKIN; i++)
-			chaikinCurvePts = chaikinOpen(chaikinCurvePts);
-
-		auto [meshPoints, meshTriangles] = surfaceOfRevolution(chaikinCurvePts, NUMBER_OF_SLICES_FOR_SURFACE_OF_ROTATION);
-		cpu_geom.verts = meshTriangles;
-		
+		ring = PlanetaryRing(this, orbitRate, ringTilt, axialRotationRate, distanceFromPlanet, thicknessOfRing, texturePath);
 	}
 
 	bool hasRings()
@@ -535,12 +683,10 @@ public:
 	vector<Moon*> moons;
 	Star& orbitingStar;
 	float orbitRate;
-	CPU_Geometry cpu_geom_ring;
-	GPU_Geometry gpu_geom_ring;
-
-private:
-	int numOrbitCelestialBodyCalls = 0;
-	bool haveRings = false;
+	PlanetaryRing ring = PlanetaryRing(this, texturePath);
+	//CPU_Geometry cpu_geom_ring;
+	//GPU_Geometry gpu_geom_ring;
+	//Texture ringTexture;
 };
 
 class Moon : public CelestialBody
@@ -875,7 +1021,7 @@ public:
 		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(P));
 	}
 
-	void setSunLighting(ShaderProgram& sp, CelestialBody& sun)
+	void setSunLightingAndModelForShader(ShaderProgram& sp, CelestialBody& sun)
 	{
 		if (typeid(sun) != typeid(Star))	// Error check if i'm lighting the sun and not someting else.
 		{
@@ -902,6 +1048,20 @@ public:
 		glUniform1fv(uniFloat, 1, &SUN_AMBIENT_COEFF);
 	}
 
+	void setRingMat4ForShader(ShaderProgram& sp, Planet* p)
+	{
+		mat4 M = p->ring.getModelMat4();
+		mat4 V = camera.getView();
+		mat4 P = glm::perspective(glm::radians(45.0f), aspect, CAMERA_NEAR_PLANE, CAMERA_FAR_PLANE);
+
+		GLint uniMat = glGetUniformLocation(sp, "M");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(M));
+		uniMat = glGetUniformLocation(sp, "V");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(V));
+		uniMat = glGetUniformLocation(sp, "P");
+		glUniformMatrix4fv(uniMat, 1, GL_FALSE, glm::value_ptr(P));
+	}
+
 	Camera camera;
 private:
 	windowData& windowData;
@@ -916,7 +1076,7 @@ void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, C
 	sp.use();
 
 	if (typeid(cb) == typeid(Star))
-		callBack->setSunLighting(sp, cb);
+		callBack->setSunLightingAndModelForShader(sp, cb);
 	else
 		callBack->setPlanetModelMat(sp, cb);
 
@@ -924,6 +1084,18 @@ void renderCelestialBody(shared_ptr<Assignment4>& callBack, ShaderProgram& sp, C
 	cb.texture.bind();
 	glDrawArrays(GL_TRIANGLES, 0, GLsizei(cb.cpu_geom.verts.size()));
 	cb.texture.unbind();
+
+	// render ring if the planet has them
+	Planet* planet = dynamic_cast<Planet*>(&cb);
+	if (planet != nullptr && planet->hasRings())
+	{
+		callBack->setRingMat4ForShader(sp, planet);
+
+		planet->ring.gpu_geom_ring.bind();
+		planet->ring.ringTexture.bind();
+		glDrawArrays(GL_TRIANGLES, 0, GLsizei(planet->ring.cpu_geom_ring.verts.size()));
+		planet->ring.ringTexture.unbind();
+	}
 }
 
 int main() {
@@ -945,7 +1117,8 @@ int main() {
 	float sunAxialTilt = 0.f;
 	float sunAxialRotation = 2.f;
 	windowData windowData = {pause, simulationSpeedMultiplier, sensitivity, planets, moons, Star("Sun", sunRadius, sunAxialTilt, sunAxialRotation, "textures/sun.jpg"), lookAt };
-	
+	//"textures/sun.jpg"
+	//"textures/transparent.jpg" // testing
 	GLDebug::enable();
 
 	// Create skybox
@@ -958,26 +1131,61 @@ int main() {
 	// Create Planets and Moons
 	float axisTilt = 45.f;
 	//float axisTilt = 90.f;
-	float axisRotation = 10.f; // degrees
-	float orbitRate = 5.0f;	// degrees
+	float axisRotationRate = 24.f; // degrees
+	vector<float> axisRotationRates =
+	{
+		6.14f,   // Mercury: rotates ~6.14 degrees per Earth day
+		-1.48f,  // Venus: rotates ~-1.48 degrees per Earth day (Venus rotates backwards)
+		360.0f,  // Earth (reference for axial rotation rates)
+		350.9f,  // Mars: rotates slightly slower than Earth
+		870.5f,  // Jupiter
+		810.0f,  // Saturn
+		525.6f,  // Uranus
+		536.3f,  // Neptune
+	};
+	float orbitRate = 1.f;	// degrees
+
+	// orbit rates about the sun in degrees
+	vector<float> orbitRatesAboutSun =
+	{	4.15f,  // Mercury
+		1.63f,  // Venus
+		1.0f,   // Earth (reference for other orbit rates)
+		0.53f,  // Mars
+		0.084f, // Jupiter
+		0.034f, // Saturn
+		0.012f, // Uranus
+		0.006f, // Neptune
+	};
+
 	const vector<float> radiusOfPlanets = { 0.75, 2.f, 2.25, 1.5, 5.f, 4.f, 3.f, 3.f };	// left to right: mercury, venus, earth, ..., neptune radius's
 	const vector<float> distanceFromSun = { 3.f, 4.f, 10.f, 17.f, 25.f, 35.f, 55.f, 80.f };	// 1st: sun-mercury, 2nd: sun-venus, ..., 8th: sun-neptune
 	const float distanceConst = 5.5f;	// distance from sun center to its surface.
 	
 	// Create Planets
-	planets.push_back(Planet(PLANET_NAMES[0], radiusOfPlanets[0], distanceFromSun[0] + distanceConst, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[0]));
+	planets.push_back(Planet(PLANET_NAMES[0], radiusOfPlanets[0], distanceFromSun[0] + distanceConst, axisTilt, axisRotationRates[0], orbitRatesAboutSun[0], windowData.sun, PLANET_TEXUTRE_PATHS[0]));
 	for (int i = 1; i < PLANET_NAMES.size(); i++)
 	{
-		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], distanceFromSun[i] + planets[i-1].distanceFromOrbitingCelestialBody, axisTilt, axisRotation, orbitRate, windowData.sun, PLANET_TEXUTRE_PATHS[i]));
+		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], distanceFromSun[i] + planets[i-1].distanceFromOrbitingCelestialBody, axisTilt, axisRotationRates[i], orbitRatesAboutSun[i], windowData.sun, PLANET_TEXUTRE_PATHS[i]));
 	}
+	// Generate Saturn's ring
+	string ringTexturePath = "saturn_ring.png";	// idk why this does not work
+	float ringOrbitRate = planets[5].orbitRate;
+	float ringTilt = 20.f;
+	float ringAxialRotationRate = planets[5].orbitRate; //planets[5].axialRotationRate;
+	float distanceFromPlanet = 5.f;
+	float ringThickness = 7.f;
+	planets[5].generateRing(ringOrbitRate, ringTilt, ringAxialRotationRate, distanceFromPlanet, ringThickness, PLANET_TEXUTRE_PATHS[0]);
 
 	float moonRadius = 0.5;
 	float axisTiltMoon = 40.f;
 	float axisRotationMoon = 10.f; // degrees
-	float orbitRateMoon = 5.0f;	// degrees
-	const float distanceFromOrbitingPlanet = 2.f;
+	//float orbitRateMoon = 5.0f;	// degrees
+	vector<float> moonOrbitRates = { 2.0f, 5.f, 8.f};	// degrees, 1st element is for the futhest moon, and 3rd element is for the closest moon
 
-	moons.push_back(Moon("The Moon", moonRadius, distanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, orbitRateMoon, planets[2], MOON_TEXTURE_PATH));
+	const float moonDistanceFromOrbitingPlanet = 6.f;
+	vector<float> difference = { 1.5f, 3.f, 4.5f };
+
+	moons.push_back(Moon("The Moon", moonRadius, moonDistanceFromOrbitingPlanet, axisTiltMoon, axisRotationMoon, moonOrbitRates[0], planets[2], MOON_TEXTURE_PATH));
 	Moon* moon = &moons[0];
 	planets[2].addMoon(&moons[0]);
 	
@@ -985,8 +1193,7 @@ int main() {
 	int indexCounter = 1;
 	for (int j = 0; j < MARS_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(MARS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[3], MOON_TEXTURE_PATH));
-		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[3].radius + (2.f / (j+1))));
+		moons.push_back(Moon(MARS_MOON_NAMES[j], moonRadius - (0.1 * j), moonDistanceFromOrbitingPlanet - difference[j], axisTiltMoon, axisRotationMoon, moonOrbitRates[j], planets[3], MOON_TEXTURE_PATH));
 	}
 	// Set the Moons for mars
 	planets[3].addMoon(&moons[moons.size() - 2]);
@@ -995,8 +1202,7 @@ int main() {
 	// Jupiter moons
 	for (int j = 0; j < JUPITER_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(JUPITER_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[4], MOON_TEXTURE_PATH));
-		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[4].radius + (2.f / (j + 1))));
+		moons.push_back(Moon(JUPITER_MOON_NAMES[j], moonRadius - (0.1 * j), moonDistanceFromOrbitingPlanet - difference[j], axisTiltMoon, axisRotationMoon, moonOrbitRates[j], planets[4], MOON_TEXTURE_PATH));
 	}
 	// Set the Moons for Jupiter
 	planets[4].addMoon(&moons[moons.size() - 3]);
@@ -1006,8 +1212,7 @@ int main() {
 	// Saturn moons
 	for (int j = 0; j < SATURN_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(SATURN_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[5], MOON_TEXTURE_PATH));
-		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[5].radius + (2.f / (j + 1))));
+		moons.push_back(Moon(SATURN_MOON_NAMES[j], moonRadius - (0.1 * j), moonDistanceFromOrbitingPlanet - difference[j], axisTiltMoon, axisRotationMoon, moonOrbitRates[j], planets[5], MOON_TEXTURE_PATH));
 	}
 	// Set the Moons for Saturn
 	planets[5].addMoon(&moons[moons.size() - 3]);
@@ -1017,8 +1222,9 @@ int main() {
 	// Uranus moons
 	for (int j = 0; j < URANUS_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[6], MOON_TEXTURE_PATH));
-		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[6].radius + (2.f / (j + 1))));
+		moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius - (0.1 * j), moonDistanceFromOrbitingPlanet - difference[j], axisTiltMoon, axisRotationMoon, moonOrbitRates[j], planets[6], MOON_TEXTURE_PATH));
+		//moons.push_back(Moon(URANUS_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[6], MOON_TEXTURE_PATH)); // OLD
+
 	}
 	// Set the Moons for Uranus
 	planets[6].addMoon(&moons[moons.size() - 3]);
@@ -1028,8 +1234,7 @@ int main() {
 	// Neptune moons
 	for (int j = 0; j < NEPTUNE_MOON_NAMES.size(); j++, indexCounter++)
 	{
-		moons.push_back(Moon(NEPTUNE_MOON_NAMES[j], moonRadius / (j + 1), distanceFromOrbitingPlanet / (j + 1), axisTiltMoon, axisRotationMoon, orbitRateMoon + (2 * (j + 1)), planets[7], MOON_TEXTURE_PATH));
-		//moons[indexCounter].translateBody(vec3(vec2(0.f), planets[7].radius + (2.f / (j + 1))));
+		moons.push_back(Moon(NEPTUNE_MOON_NAMES[j], moonRadius - (0.1 * j), moonDistanceFromOrbitingPlanet - difference[j], axisTiltMoon, axisRotationMoon, moonOrbitRates[j], planets[7], MOON_TEXTURE_PATH));
 	}
 	// Set the Moons for Neptune
 	planets[7].addMoon(&moons[moons.size() - 3]);
@@ -1037,15 +1242,15 @@ int main() {
 	planets[7].addMoon(&moons[moons.size() - 1]);
 
 	// Add more orbital variation for the moons
-	float variance = 0.2;
-	random_device rd;
-	mt19937 gen(rd());
-	uniform_real_distribution<> dis(0.1, 1.0);
-	for (int j = 0; j < moons.size(); j++)
-	{
-		float varianceMultiplier = dis(gen);
-		moons[j].orbitRate += (variance * varianceMultiplier);
-	}
+	//float variance = 0.2;
+	//random_device rd;
+	//mt19937 gen(rd());
+	//uniform_real_distribution<> dis(0.1, 1.0);
+	//for (int j = 0; j < moons.size(); j++)
+	//{
+	//	float varianceMultiplier = dis(gen);
+	//	moons[j].orbitRate += (variance * varianceMultiplier);
+	//}
 
 	// CALLBACKS
 	shared_ptr<Assignment4> callBack = std::make_shared<Assignment4>(windowData);
@@ -1113,6 +1318,13 @@ int main() {
 		for (Planet& p : windowData.planets)
 		{
 			renderCelestialBody(callBack, shaderForPlanetsMoonsSkyBox, p);
+
+			if (p.hasRings())
+			{
+				p.ring.rotateViaCelestialBodyAxis(deltaTime);
+				p.ring.orbitCelestialBody(deltaTime);
+
+			}
 
 			if (!pause)
 			{
