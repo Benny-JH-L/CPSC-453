@@ -470,6 +470,7 @@ private:
 			thicknessOfRing(thicknessOfRing),
 			ringTexture(texturePath, GL_NEAREST)
 		{
+			// Generate the ring
 			float planetRadius = orbitingPlanet->radius;
 			float radiusOfInnerCircle = distanceFromPlanet + planetRadius;
 			float radiusOfOutterCircle = distanceFromPlanet + planetRadius + thicknessOfRing;
@@ -552,10 +553,12 @@ private:
 			textureMesh.push_back(texCoordOuter[0]);
 			textureMesh.push_back(texCoordInner[0]);
 
+			// generate normals
 			vector<vec3> normals;
 			for (vec3 v : triangleMesh)
 				normals.push_back(normalize(v));
 
+			// Set geom values
 			cpu_geom_ring.verts = triangleMesh;
 			cpu_geom_ring.textCoords = textureMesh;
 			cpu_geom_ring.normals = normals;
