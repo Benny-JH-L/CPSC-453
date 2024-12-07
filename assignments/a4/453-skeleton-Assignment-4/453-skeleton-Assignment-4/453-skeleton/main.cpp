@@ -71,8 +71,9 @@ const static string SKYBOX_TEXTURE_PATH = "textures/8k_stars_milky_way.jpg";
 const static string MOON_TEXTURE_PATH = "textures/the_moon.jpg";	// all the moons will be using this texture.
 const static string SATURN_RING_TEXTURE_PATH = "textures/saturn_ring.png";
 //const static string EARTH_CLOUD_TEXTURE_PATH = "textures/8k_earth_clouds.jpg";
-//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/earth_clouds.png";
-const static string EARTH_CLOUD_TEXTURE_PATH = "textures/ecl.png";
+//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/earth_clouds.png";	// noo like
+//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/ecl.png";	// no like
+const static string EARTH_CLOUD_TEXTURE_PATH = "textures/idk.png";	// no like
 
 
 const static int segmentsForRing = 60;
