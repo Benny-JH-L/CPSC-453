@@ -69,8 +69,6 @@ const static vector<string> PLANET_TEXUTRE_PATHS =
 //const static string SKYBOX_TEXTURE_PATH = "textures/4k_stars_milky_way.jpg";	// Lower resolution of the sky box texture
 const static string SKYBOX_TEXTURE_PATH = "textures/8k_stars_milky_way.jpg";
 const static string MOON_TEXTURE_PATH = "textures/the_moon.jpg";	// all the moons will be using this texture.
-const static string SATURN_RING_TEXTURE_PATH = "textures/saturn_ring.png";
-const static int segmentsForRing = 60;
 
 //struct allMoons
 //{
@@ -547,16 +545,17 @@ private:
 			float planetRadius = orbitingPlanet->radius;
 			float radiusOfInnerCircle = distanceFromPlanet + planetRadius;
 			float radiusOfOutterCircle = distanceFromPlanet + planetRadius + thicknessOfRing;
+			int segments = 20;
 			vector<vec3> innerRing;
 			vector<vec3> outerRing;
 			vector<vec2> texCoordInner;
 			vector<vec2> texCoordOuter;
 
 			// Generate points on the circle
-			for (int i = 0; i < segmentsForRing; ++i)
+			for (int i = 0; i < segments; ++i)
 			{
 				// Angle for the current segment
-				float angle = (2.0f * PI_APPROX * i) / segmentsForRing;
+				float angle = (2.0f * PI_APPROX * i) / segments;
 
 				// Calculate the position of ring points
 				float xInner = radiusOfInnerCircle * std::cos(angle);
@@ -571,7 +570,7 @@ private:
 				outerRing.push_back(vec3(xOuter, yOuter, z));
 
 				// texture coords
-				float u = (float)i / segmentsForRing;	// (horizontal axis)
+				float u = (float)i / segments;	// (horizontal axis)
 				float v = 0.f;					// bottom of texture (vertical axis)
 
 				texCoordInner.push_back(vec2(u, v));
@@ -1315,9 +1314,7 @@ int main() {
 	float ringAxialRotationRate = planets[5].orbitRate; //planets[5].axialRotationRate;
 	float distanceFromPlanet = 5.f;
 	float ringThickness = 7.f;
-	planets[5].generateRing(ringOrbitRate, ringTilt, ringAxialRotationRate, distanceFromPlanet, ringThickness, SATURN_RING_TEXTURE_PATH);
-	//planets[5].generateRing(ringOrbitRate, ringTilt, ringAxialRotationRate, distanceFromPlanet, ringThickness, ringTexturePath);
-	//planets[5].generateRing(ringOrbitRate, ringTilt, ringAxialRotationRate, distanceFromPlanet, ringThickness, PLANET_TEXUTRE_PATHS[0]);
+	planets[5].generateRing(ringOrbitRate, ringTilt, ringAxialRotationRate, distanceFromPlanet, ringThickness, PLANET_TEXUTRE_PATHS[0]);
 
 	float moonRadius = 0.5;
 	float axisTiltMoon = 40.f;
@@ -1423,8 +1420,6 @@ int main() {
 
 		glfwPollEvents();
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
