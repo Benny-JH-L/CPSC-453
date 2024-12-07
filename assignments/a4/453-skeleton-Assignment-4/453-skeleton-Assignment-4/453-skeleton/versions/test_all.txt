@@ -9,6 +9,7 @@ uniform mat4 V;
 uniform mat4 P;
 
 out vec3 fragPos;
+//out vec3 fragColor;
 out vec3 n;
 out vec2 texCoord;
 
