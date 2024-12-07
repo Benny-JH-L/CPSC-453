@@ -11,6 +11,7 @@ Orbits and axial rotation are 'realistic' to a certain degree, with respect to E
 
 --Bonus Implemented--
 Implmented Bonus Category 3 1. (Include all planets of the solar system + Saturns rings). I assumed no dwarf planets like Pluto.
+Implmented Bonus Category 2 3. (animate cloud texture for earth).
 
 --Controls--
 Use the ImGUI to pause/play, and control the simulation speed.
