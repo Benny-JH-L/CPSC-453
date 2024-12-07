@@ -70,11 +70,7 @@ const static vector<string> PLANET_TEXUTRE_PATHS =
 const static string SKYBOX_TEXTURE_PATH = "textures/8k_stars_milky_way.jpg";
 const static string MOON_TEXTURE_PATH = "textures/the_moon.jpg";	// all the moons will be using this texture.
 const static string SATURN_RING_TEXTURE_PATH = "textures/saturn_ring.png";
-//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/8k_earth_clouds.jpg";
-//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/earth_clouds.png";	// noo like
-//const static string EARTH_CLOUD_TEXTURE_PATH = "textures/ecl.png";	// no like
-const static string EARTH_CLOUD_TEXTURE_PATH = "textures/idk.png";	// no like
-
+const static string EARTH_CLOUD_TEXTURE_PATH = "textures/8k_earth_clouds.jpg";
 
 const static int segmentsForRing = 60;
 
@@ -480,8 +476,8 @@ private:
 			cloudTexture(texturePath, GL_NEAREST)
 		{
 		}
-		Clouds(Planet* orbitingPlanet, string name, float radius, float distanceFromOrbitingCelestialBody, float axisRotation, string texturePath) :
-			CelestialBody(name, radius, distanceFromOrbitingCelestialBody, 0.f, axisRotation, 0.f, texturePath),
+		Clouds(Planet* orbitingPlanet, string name, float radius, float distanceFromOrbitingCelestialBody, float axialTilt, float axisRotation, string texturePath) :
+			CelestialBody(name, radius, distanceFromOrbitingCelestialBody, axialTilt, axisRotation, orbitingPlanet->getAxialRotationRate() + 10.f, texturePath),
 			orbitingPlanet(orbitingPlanet),
 			cloudTexture(texturePath, GL_NEAREST)
 		{
@@ -494,7 +490,7 @@ private:
 
 			mat4 p0 = mat4(1.f);
 			orbitAboutOrbitingCelestialBody = rotate(orbitAboutOrbitingCelestialBody, glm::radians(orbitRate * deltaTime), vec3(0.f, 1.f, 0.f));	// rotate about y-axis, the orbit about its planet. (Time dependent)
-			mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(0.f, 0.f, 0.f));	// distance from ring to planet is 0 (due to how i generated the rings)
+			mat4 translateDistanceFromOrbitingCelestialBody = translate(mat4(1.f), vec3(0.f, 0.f, 0.2f));	// translate the cloud 0.2 away from the planet, so it is shown
 			p0 = orbitAboutOrbitingCelestialBody * translateDistanceFromOrbitingCelestialBody;
 
 			orbitalInclination = rotateAboutZWithAlpha * translate(p0, vec3(0.f));
@@ -584,11 +580,11 @@ public:
 		ring = PlanetaryRing(this, orbitRate, ringTilt, axialRotationRate, distanceFromPlanet, thicknessOfRing, texturePath);
 	}
 
-	void generateClouds(float distanceFromPlanet, float axisRotation, string texturePath)
+	void generateClouds(float distanceFromPlanet, float axialTilit, float axisRotation, string texturePath)
 	{
 		haveClouds = true;
 		string cloudName = name + " clouds";
-		clouds = Clouds(this, cloudName, radius + distanceFromPlanet, 0.f, axisRotation, texturePath);
+		clouds = Clouds(this, cloudName, radius - 0.1, 0.f, axialTilit, axisRotation, texturePath);
 	}
 
 	bool hasRings()
@@ -727,6 +723,8 @@ private:
 			// reset ring transformations
 			if (p.hasRings())
 				p.ring.resetTransformations();
+			if (p.hasClouds())
+				p.clouds.resetTransformations();
 		}
 
 		//  reset transformations of the moons
@@ -998,7 +996,9 @@ int main() {
 		planets.push_back(Planet(PLANET_NAMES[i], radiusOfPlanets[i], distanceFromSun[i] + planets[i-1].distanceFromOrbitingCelestialBody, axisTilt, axisRotationRates[i], orbitRatesAboutSun[i], windowData.sun, PLANET_TEXUTRE_PATHS[i]));
 	}
 	// Generate Earth clouds
-	planets[2].generateClouds(2.f, 10.f, EARTH_CLOUD_TEXTURE_PATH);
+	float distanceFromEarth = 0.001;
+	float cloudAxialTilt = 20.f;
+	planets[2].generateClouds(distanceFromEarth, cloudAxialTilt, planets[2].getAxialRotationRate(), EARTH_CLOUD_TEXTURE_PATH);
 
 	// Generate Saturn's ring
 	float ringOrbitRate = planets[5].getOrbitRate();
@@ -1097,8 +1097,10 @@ int main() {
 
 		glfwPollEvents();
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		//glEnable(GL_BLEND);
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		//glDepthMask();
+
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_FRAMEBUFFER_SRGB);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1126,22 +1128,22 @@ int main() {
 		{
 			renderCelestialBody(callBack, shaderForPlanetsMoonsSkyBox, p);
 
-			if (p.hasRings())
-			{
-				p.ring.rotateViaCelestialBodyAxis(deltaTime);
-				p.ring.orbitCelestialBody(deltaTime);
-			}
-
-			if (p.hasClouds())
-			{
-				p.clouds.rotateViaCelestialBodyAxis(deltaTime);
-				p.clouds.orbitCelestialBody(deltaTime);
-			}
-
 			if (!pause)
 			{
 				p.rotateViaCelestialBodyAxis(deltaTime);
 				p.orbitCelestialBody(deltaTime);
+
+				if (p.hasRings())
+				{
+					p.ring.rotateViaCelestialBodyAxis(deltaTime);
+					p.ring.orbitCelestialBody(deltaTime);
+				}
+
+				if (p.hasClouds())
+				{
+					p.clouds.rotateViaCelestialBodyAxis(deltaTime);
+					p.clouds.orbitCelestialBody(deltaTime);
+				}
 			}
 		}
 
